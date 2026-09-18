@@ -175,7 +175,7 @@ header{z-index:5}
 #viewBtn .vcaret{font-size:11px;color:var(--glow);transition:transform .2s}
 .vmenu.open #viewBtn .vcaret{transform:rotate(180deg)}
 .vpop{position:absolute;top:calc(100% + 8px);left:0;min-width:230px;background:rgba(6,16,36,.96);border:1px solid var(--glow);border-radius:12px;box-shadow:0 0 28px rgba(76,201,255,.4),0 12px 30px rgba(0,0,0,.5);padding:6px;display:none;z-index:40;backdrop-filter:blur(12px)}
-.vpop::before{content:"";position:absolute;left:18px;top:-6px;width:10px;height:10px;background:rgba(6,16,36,.96);border-left:1px solid var(--glow);border-top:1px solid var(--glow);transform:rotate(45deg)}
+.vpop::before{display:none;content:"";position:absolute;left:18px;top:-6px;width:10px;height:10px;background:rgba(6,16,36,.96);border-left:1px solid var(--glow);border-top:1px solid var(--glow);transform:rotate(45deg)}
 .vmenu.open .vpop{display:grid;gap:4px;animation:vin .16s ease-out}
 @keyframes vin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 .vpop button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:1px solid transparent;padding:7px 10px;color:var(--ink);letter-spacing:.06em}
@@ -667,7 +667,9 @@ function effectiveBranchForSend(){
 function showFocus(){$('#overview').classList.remove('on');$('#focus').classList.remove('off');setViewUI('focus');renderAll();}
 function showOverview(){$('#overview').classList.add('on');$('#focus').classList.add('off');setViewUI('over');fillShortGists();renderAll();ensureGists();}
 function setViewUI(v){$('#viewCur').textContent=v==='over'?'俯瞰図':'チャット';$('#viewPop').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.view===v));}
-$('#viewBtn').onclick=e=>{e.stopPropagation();$('#viewMenu').classList.toggle('open');};
+$('#viewBtn').onclick=e=>{e.stopPropagation();const m=$('#viewMenu'),pop=$('#viewPop');m.classList.toggle('open');
+  // 画面右端からはみ出す場合は右寄せにする
+  pop.style.left='0';pop.style.right='auto';const r=pop.getBoundingClientRect();if(r.right>innerWidth-8){pop.style.left='auto';pop.style.right='0';}};
 $('#viewPop').querySelectorAll('button').forEach(b=>b.onclick=e=>{e.stopPropagation();$('#viewMenu').classList.remove('open');if(b.dataset.view==='over')showOverview();else showFocus();});
 document.addEventListener('click',e=>{if(!e.target.closest('#viewMenu'))$('#viewMenu').classList.remove('open');});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#viewMenu').classList.remove('open');});
