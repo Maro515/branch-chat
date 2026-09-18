@@ -151,6 +151,15 @@ textarea:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(30,58,110,.1
 .card.plans .item{border-top:1.5px dashed #e6c76a}
 svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13px}
 #toast{background:#fff;color:var(--indigo);border:2px solid var(--indigo);box-shadow:0 4px 20px rgba(30,58,110,.25)}
+
+/* 選択テキストから質問するポップアップ */
+#selPop{position:absolute;z-index:20;display:none;background:#fff;border:1.5px solid var(--indigo);border-radius:10px;box-shadow:0 6px 24px rgba(30,58,110,.25);padding:6px;gap:6px;align-items:center;max-width:calc(100vw - 32px)}
+#selPop.on{display:flex;flex-wrap:wrap}
+#selPop button{background:#f5f8fe;color:var(--indigo);border:1.5px solid #9fb3d9;font-family:"DotGothic16","Noto Sans JP",sans-serif;white-space:nowrap}
+#selPop button:hover{border-color:var(--indigo);box-shadow:0 0 0 2px rgba(30,58,110,.15)}
+#selPop button.fork{border-color:var(--c1);color:var(--c1)}
+#selPop .q{font-size:11px;color:var(--indigo2);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:"Noto Sans JP",sans-serif}
+.msg .body::selection,.msg .body *::selection{background:#ffe680;color:var(--indigo)}
 </style>
 <header>
   <h1>⑂ Branch Chat</h1>
@@ -180,6 +189,7 @@ svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-seri
     <div id="cards"></div>
   </section>
 </main>
+<div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button></div>
 <div id="toast"></div>
 
 <dialog id="settings">
@@ -504,14 +514,15 @@ function plannedNodes(){return conv.order.map(N).filter(n=>n.planned);}
 /* ========== 分岐 ========== */
 let forkTarget=null;
 function openFork(nid){forkTarget=nid;$('#forkFrom').textContent=`分岐元: ${label(N(nid))}「${excerpt(N(nid).content,60)}」`;$('#forkName').value='';$('#forkDlg').showModal();$('#forkName').focus();}
-$('#forkCancel').onclick=()=>$('#forkDlg').close();
+$('#forkCancel').onclick=()=>{delete conv._pendingQuote;$('#forkDlg').close();};
 $('#forkOk').onclick=()=>{
   const b=createBranch(forkTarget,$('#forkName').value.trim());
   delete N(forkTarget).planned;
   conv.activeNodeId=forkTarget; // 分岐元ノードの直後から
   conv._pendingBranch=b.id;
   $('#forkDlg').close();persist();showFocus();
-  toast(`ブランチ「${b.name}」を開始。次の発言がこのブランチの最初になります`);$('#input').focus();
+  if(conv._pendingQuote){$('#input').value=conv._pendingQuote+$('#input').value;delete conv._pendingQuote;}
+  toast(`ブランチ「${b.name}」を開始。次の発言がこのブランチの最初になります`);$('#input').focus();$('#input').setSelectionRange($('#input').value.length,$('#input').value.length);
 };
 // 分岐直後は activeNode が分岐元(別ブランチ)なので、送信先ブランチを pending で決める
 function effectiveBranchForSend(){
@@ -613,6 +624,53 @@ $('#sSave').onclick=()=>{settings.provider=$('#sProvider').value;settings.tier=$
   if(settings.provider==='claude'&&sampleChecked&&!sampleFn)toast('この画面では Claude を呼べません。ダミー応答に切り替えます');
   saveSettings();$('#settings').close();renderAll();};
 $('#ctxClose').onclick=()=>$('#ctxDlg').close();
+
+
+/* ========== 選択テキストから質問 ========== */
+let sel={nodeId:null,text:''};
+const selPop=$('#selPop');
+function hideSelPop(){selPop.classList.remove('on');$('#selHere').hidden=true;$('#selFork').hidden=true;$('#selAsk').hidden=false;}
+function quoteFor(text){return '> '+text.replace(/\s+/g,' ').trim().slice(0,500)+'\n\n';}
+function onSelect(){
+  const s=window.getSelection();const text=s&&s.toString().trim();
+  if(!text||s.rangeCount===0){hideSelPop();return;}
+  const range=s.getRangeAt(0);
+  const node=(range.commonAncestorContainer.nodeType===1?range.commonAncestorContainer:range.commonAncestorContainer.parentElement);
+  const body=node&&node.closest?node.closest('.msg:not(.user) .body'):null;
+  if(!body){hideSelPop();return;}
+  const msgEl=body.closest('.msg');const nid=msgEl.id.replace(/^n-/,'');
+  if(!N(nid)||N(nid).streaming){hideSelPop();return;}
+  sel={nodeId:nid,text};
+  $('#selQ').textContent='「'+excerpt(text,40)+'」';
+  $('#selAsk').hidden=false;$('#selHere').hidden=true;$('#selFork').hidden=true;
+  $('#selHere').textContent=currentBranchId()==='main'?'本線で質問':'この線で質問';
+  const r=range.getBoundingClientRect();
+  selPop.classList.add('on');
+  const w=selPop.offsetWidth,h=selPop.offsetHeight;
+  let left=r.left+window.scrollX+r.width/2-w/2;left=Math.max(8,Math.min(left,window.innerWidth-w-8));
+  let top=r.top+window.scrollY-h-8;if(top<window.scrollY+8)top=r.bottom+window.scrollY+8;
+  selPop.style.left=left+'px';selPop.style.top=top+'px';
+}
+document.addEventListener('mouseup',e=>{if(selPop.contains(e.target))return;setTimeout(onSelect,10);});
+document.addEventListener('keyup',e=>{if(e.key==='Shift'||e.key.startsWith('Arrow'))setTimeout(onSelect,10);});
+document.addEventListener('selectionchange',()=>{const s=window.getSelection();if(!s||!s.toString().trim())hideSelPop();});
+document.addEventListener('mousedown',e=>{if(!selPop.contains(e.target)&&!e.target.closest('.msg .body'))hideSelPop();});
+$('#msgs').addEventListener('scroll',hideSelPop);
+$('#selAsk').onclick=()=>{$('#selAsk').hidden=true;$('#selHere').hidden=false;$('#selFork').hidden=false;};
+$('#selHere').onclick=()=>{
+  // 現在の線のまま、引用を入力欄に入れて続ける
+  $('#input').value=quoteFor(sel.text)+$('#input').value;
+  hideSelPop();window.getSelection().removeAllRanges();
+  $('#input').focus();$('#input').setSelectionRange($('#input').value.length,$('#input').value.length);
+  toast('引用を入れました。質問を続けて送信してください');
+};
+$('#selFork').onclick=()=>{
+  // その回答から分岐し、引用を入力欄に入れる
+  const nid=sel.nodeId,q=quoteFor(sel.text);
+  hideSelPop();window.getSelection().removeAllRanges();
+  conv._pendingQuote=q;
+  openFork(nid);
+};
 
 /* ========== 起動 ========== */
 if(!['claude','dummy'].includes(settings.provider))settings.provider='claude';
