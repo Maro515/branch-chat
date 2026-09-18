@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Branch Chat ローカルブリッジ。
+"""BranCHAT ローカルブリッジ。
 
 静的ファイル(index.html)を配信しつつ、POST /api/chat を受けて
 ログイン済みの `claude` CLI(ヘッドレス -p モード)を起動し、SSEで返す。
@@ -108,5 +108,5 @@ class H(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"Branch Chat bridge: http://localhost:{PORT}/  (claude: {CLAUDE}, ok={claude_ok()})")
+    print(f"BranCHAT bridge: http://localhost:{PORT}/  (claude: {CLAUDE}, ok={claude_ok()})")
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()
