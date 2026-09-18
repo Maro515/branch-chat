@@ -461,7 +461,7 @@ function renderAll(){renderConvSel();renderBranchBar();renderFocus();if($('#over
 function renderConvSel(){const s=$('#convSel');s.innerHTML=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt).map(c=>`<option value="${c.id}"${c.id===conv.id?' selected':''}>${esc(c.title)}${c.order.length?` (${c.order.length})`:'（空）'}</option>`).join('');}
 function renderBranchBar(){
   const cur=currentBranchId();
-  $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}${b.status==='closed'?' closed':''}" style="--bc:${b.color}" data-b="${b.id}" title="${b.id===cur?'クリックで名前を変更':'このブランチへ移動'}"><span class="dot"></span>${esc(b.name)}${b.pinned?' 📌':''}</span>`).join('');
+  $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}${b.status==='closed'?' closed':''}" style="--bc:${b.color}" data-b="${b.id}" title="${b.id===cur?'クリックで名前を変更':'このブランチへ移動'}"><span class="dot"></span>${esc(b.name)}${isEmptyBranch(b)?'（未開始）':''}${b.pinned?' 📌':''}</span>`).join('');
   $('#branchBar').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{if(el.dataset.b===currentBranchId()){renameBranch(el.dataset.b);}else gotoBranch(el.dataset.b);});
 }
 function renameBranch(bid){const b=B(bid);const v=prompt('ブランチ名を変更',b.name);if(v&&v.trim()){b.name=v.trim().slice(0,30);b.autoNamed=false;persist();renderAll();}}
@@ -480,7 +480,7 @@ function renderFocus(){
     html+=`<div class="msg ${n.role}${outside?' outside':''}${n.planned?' planned':''}" id="n-${n.id}" style="--bc:${b.color}">
       <div class="meta"><span class="tag">${esc(label(n))}</span><span class="ui">${n.role==='user'?'あなた':'AI'}</span><span title="このメッセージのトークン（AIは入力+出力の実測、未計測なら概算）">${tokensOf(n)} tok</span>${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="ui">…生成中</span>':''}</div>
       <div class="body">${md(n.content)}</div>
-      <div class="tools">${n.role==='assistant'&&!n.streaming?`<button class="small" data-fork="${n.id}">⑂ ここから分岐</button><button class="small plan${n.planned?' on':''}" data-plan="${n.id}" title="分岐するか迷っているときの印。俯瞰で黄色く表示">${n.planned?'★ 予定解除':'☆ 分岐予定'}</button>`:''}${!n.streaming?`<button class="small" data-go="${n.id}" title="ここまでの状態にして続ける">ここから続ける</button>`:''}</div>
+      <div class="tools">${n.role==='assistant'&&!n.streaming?`<button class="small" data-fork="${n.id}" title="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">${emptyBranchFrom(n.id)?'⑂ 未開始の分岐へ':'⑂ ここから分岐'}</button><button class="small plan${n.planned?' on':''}" data-plan="${n.id}" title="分岐するか迷っているときの印。俯瞰で黄色く表示">${n.planned?'★ 予定解除':'☆ 分岐予定'}</button>`:''}${!n.streaming?`<button class="small" data-go="${n.id}" title="ここまでの状態にして続ける">ここから続ける</button>`:''}</div>
     </div>`;
     const kids=childBranchesOf(n.id);
     if(kids.length)html+=`<div class="badges"><span class="ui">→ ここから分岐:</span> ${kids.map(k=>`<span class="chip${k.status==='closed'?' closed':''}" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}</span>`).join('')}</div>`;
@@ -530,7 +530,14 @@ function togglePlan(nid){const n=N(nid);n.planned=!n.planned;persist();renderAll
 function plannedNodes(){return conv.order.map(N).filter(n=>n.planned);}
 
 /* ========== 分岐 ========== */
+function emptyBranchFrom(nid){return Object.values(conv.branches).find(b=>b.forkFromNodeId===nid&&b.headNodeId===b.forkFromNodeId)||null;}
+function isEmptyBranch(b){return b.id!=='main'&&b.headNodeId===b.forkFromNodeId;}
 function openFork(nid,name){
+  // 同じ回答から未開始（発言ゼロ）の分岐が既にあれば、新しく作らずそこへ移動
+  const ex=emptyBranchFrom(nid);
+  if(ex){conv.activeNodeId=nid;conv._pendingBranch=ex.id;persist();showFocus();
+    if(conv._pendingQuote){$('#input').value=conv._pendingQuote+$('#input').value;delete conv._pendingQuote;}
+    toast(`この回答からは未開始の分岐「${ex.name}」があります。先にそこで発言してから次の分岐を作れます`);$('#input').focus();return;}
   // ダイアログ無しで即分岐。名前は「分岐N」（選択テキストからの分岐は選択部分）。後から「名前」で変更可
   const b=createBranch(nid,(name||'').trim().slice(0,30));
   delete N(nid).planned;
@@ -610,6 +617,7 @@ function renderOverview(){
         <button class="small" data-close="${b.id}">${b.status==='closed'?'再開':'終了'}</button>
         ${b.id!==cur&&B(cur).status!=='closed'?`<button class="small" data-merge="${b.id}">現在ブランチに合流</button>`:''}
         <button class="small" data-rename="${b.id}">名前</button>
+        ${isEmptyBranch(b)?`<button class="small" data-delbr="${b.id}">未開始の分岐を削除</button>`:''}
         <button class="small" data-resum="${b.id}">要約更新</button>
       </div></div>`;}).join('');
   const c=$('#cards');
@@ -619,6 +627,7 @@ function renderOverview(){
   c.querySelectorAll('[data-rename]').forEach(el=>el.onclick=()=>renameBranch(el.dataset.rename));
   c.querySelectorAll('[data-resum]').forEach(el=>el.onclick=()=>{toast('要約を更新中…');updateSummary(el.dataset.resum);branchNodes(el.dataset.resum).forEach(n=>{if(n.content.length>20)delete n.gist;});ensureGists();});
   c.querySelectorAll('[data-merge]').forEach(el=>el.onclick=()=>mergeBranch(el.dataset.merge));
+  c.querySelectorAll('[data-delbr]').forEach(el=>el.onclick=()=>{const b=B(el.dataset.delbr);if(!isEmptyBranch(b))return;if(!confirm(`未開始の分岐「${b.name}」を削除しますか？`))return;if(conv._pendingBranch===b.id)delete conv._pendingBranch;if(currentBranchId()===b.id)conv.activeNodeId=b.forkFromNodeId;delete conv.branches[b.id];persist();renderAll();toast('削除しました');});
   c.querySelectorAll('[data-forkp]').forEach(el=>el.onclick=()=>openFork(el.dataset.forkp));
   c.querySelectorAll('[data-unplan]').forEach(el=>el.onclick=()=>togglePlan(el.dataset.unplan));
 }
