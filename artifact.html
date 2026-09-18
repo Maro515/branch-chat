@@ -166,15 +166,43 @@ svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-seri
 .editBtns .hint{margin-right:auto}
 .msg.user .tools{display:flex}
 
-#viewLbl{display:inline-flex;align-items:center;gap:6px;color:var(--ink);letter-spacing:.08em;font-weight:700}
-#viewLbl select{font-family:"DotGothic16","Noto Sans JP",sans-serif;padding:5px 8px;background:linear-gradient(135deg,#2f8fff,#22d3ee);color:#03101f;font-weight:700;border-color:transparent}
+/* View メニュー（自前） */
+.vmenu{position:relative}
+#viewBtn{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;background:linear-gradient(135deg,rgba(47,143,255,.25),rgba(34,211,238,.18));border:1px solid var(--glow);color:#fff;letter-spacing:.08em;box-shadow:0 0 14px rgba(76,201,255,.35),inset 0 0 12px rgba(76,201,255,.12)}
+#viewBtn .vk{color:var(--glow);font-weight:700}
+#viewBtn .vsep{color:var(--muted)}
+#viewBtn .vcaret{font-size:11px;color:var(--glow);transition:transform .2s}
+.vmenu.open #viewBtn .vcaret{transform:rotate(180deg)}
+.vpop{position:absolute;top:calc(100% + 8px);left:0;min-width:230px;background:rgba(6,16,36,.96);border:1px solid var(--glow);border-radius:12px;box-shadow:0 0 28px rgba(76,201,255,.4),0 12px 30px rgba(0,0,0,.5);padding:6px;display:none;z-index:40;backdrop-filter:blur(12px)}
+.vpop::before{content:"";position:absolute;left:18px;top:-6px;width:10px;height:10px;background:rgba(6,16,36,.96);border-left:1px solid var(--glow);border-top:1px solid var(--glow);transform:rotate(45deg)}
+.vmenu.open .vpop{display:grid;gap:4px;animation:vin .16s ease-out}
+@keyframes vin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.vpop button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:1px solid transparent;padding:7px 10px;color:var(--ink);letter-spacing:.06em}
+.vpop button:hover{border-color:var(--line);background:rgba(76,201,255,.1);box-shadow:none;color:#fff}
+.vpop button.on{border-color:var(--glow);background:rgba(47,143,255,.22);color:#fff}
+.vpop button i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--glow);flex:none}
+.vpop button.on i{background:var(--glow);box-shadow:0 0 10px var(--glow)}
+.vpop button small{margin-left:auto;color:var(--muted);font-size:11px;font-family:"Noto Sans JP",sans-serif;letter-spacing:0}
+/* 分岐ワープ演出 */
+#warp{position:fixed;inset:0;width:100%;height:100%;z-index:60;pointer-events:none;opacity:0;transition:opacity .4s}
+#warp.on{opacity:1;transition:opacity .1s}
+#focus.warping{transform:scale(1.06);filter:blur(2px) brightness(1.15);transition:transform .8s cubic-bezier(.4,0,1,1),filter .8s}
+#focus.warpin{animation:warpin .55s ease-out}
+@keyframes warpin{from{transform:scale(.94);filter:blur(4px) brightness(1.6)}to{transform:none;filter:none}}
+@media (prefers-reduced-motion:reduce){#focus.warping,#focus.warpin{transform:none;filter:none;animation:none}}
 </style>
 <header>
   <h1>⑂ Branch Chat</h1>
   <select id="convSel" title="会話"></select>
   <button class="small" id="newConv" title="新しい会話を作成">＋会話</button><button class="small" id="renameConv" title="この会話の名前を変更">✎ 名前</button><button class="small" id="delConv" title="この会話を削除">🗑 削除</button><button class="small" id="demoBtn" title="分岐・分岐予定・要約が入った見本の会話を作る">デモ会話</button>
   <span class="spacer"></span>
-  <label class="ui" id="viewLbl">View <select id="viewSel"><option value="focus">チャット</option><option value="over">俯瞰図</option></select></label>
+  <div class="vmenu" id="viewMenu">
+    <button class="ui" id="viewBtn" title="表示を切り替え"><span class="vk">View</span><span class="vsep">/</span><span id="viewCur">チャット</span><span class="vcaret">▾</span></button>
+    <div class="vpop" id="viewPop">
+      <button class="ui on" data-view="focus"><i></i>チャット<small>会話を読む・書く</small></button>
+      <button class="ui" data-view="over"><i></i>俯瞰図<small>分岐の全体像</small></button>
+    </div>
+  </div>
   <button class="small" id="exportBtn">書き出し</button>
   <button class="small" id="importBtn">読み込み</button>
   <button class="small" id="settingsBtn">⚙ 設定</button>
@@ -198,6 +226,7 @@ svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-seri
   </section>
 </main>
 <div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button></div>
+<canvas id="warp"></canvas>
 <div id="toast"></div>
 
 <dialog id="settings">
@@ -571,6 +600,40 @@ function editQuestion(nid,text){
 }
 
 /* ========== 分岐 ========== */
+/* 分岐ワープ: 加速する光の筋で別空間へ移る演出。中間点で切替コールバックを実行 */
+function warpTo(color,onSwitch){
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce){onSwitch();return;}
+  const cv=$('#warp');const dpr=Math.min(2,window.devicePixelRatio||1);
+  const W=cv.width=Math.floor(innerWidth*dpr),H=cv.height=Math.floor(innerHeight*dpr);
+  const ctx=cv.getContext('2d');const cx=W/2,cy=H/2;const maxR=Math.hypot(cx,cy);
+  const col=(getComputedStyle(document.documentElement).getPropertyValue((color||'').replace(/^var\(|\)$/g,''))||color||'#4cc9ff').trim()||'#4cc9ff';
+  const stars=Array.from({length:260},()=>({a:Math.random()*Math.PI*2,r:Math.random()*maxR*.6,v:.6+Math.random()*1.6,w:.6+Math.random()*1.4}));
+  const focus=$('#focus');focus.classList.add('warping');cv.classList.add('on');
+  const t0=performance.now(),DUR=1100;let switched=false;
+  ctx.clearRect(0,0,W,H);
+  function frame(now){
+    const p=Math.min(1,(now-t0)/DUR);const acc=1+Math.pow(p,2.2)*70;
+    // 背景を徐々に暗く（別空間へ）
+    ctx.fillStyle=`rgba(3,9,22,${(p<.5?p*2:1)*.35})`;ctx.fillRect(0,0,W,H);
+    ctx.lineCap='round';
+    for(const st of stars){
+      const r0=st.r;st.r+=st.v*acc*dpr;
+      if(st.r>maxR*1.2){st.r=Math.random()*maxR*.15;st.a=Math.random()*Math.PI*2;continue;}
+      const x0=cx+Math.cos(st.a)*r0,y0=cy+Math.sin(st.a)*r0,x1=cx+Math.cos(st.a)*st.r,y1=cy+Math.sin(st.a)*st.r;
+      const al=Math.min(1,.25+st.r/maxR);
+      ctx.strokeStyle=(p>.75?'#ffffff':col);ctx.globalAlpha=al*(p>.85?(1-p)/.15:1);ctx.lineWidth=st.w*dpr*(1+p*2);
+      ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+    // 中心の光（終盤に白く弾ける）
+    if(p>.55){const g=ctx.createRadialGradient(cx,cy,0,cx,cy,maxR*(p-.55)*2.2);g.addColorStop(0,`rgba(255,255,255,${Math.min(1,(p-.55)*2)})`);g.addColorStop(.4,/^#[0-9a-f]{6}$/i.test(col)?col+'80':'rgba(76,201,255,.5)');g.addColorStop(1,'rgba(3,9,22,0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
+    if(p>=.6&&!switched){switched=true;try{onSwitch();}catch(e){console.error(e);}focus.classList.remove('warping');focus.classList.add('warpin');}
+    if(p<1)requestAnimationFrame(frame);
+    else{cv.classList.remove('on');setTimeout(()=>{ctx.clearRect(0,0,W,H);focus.classList.remove('warpin');},450);}
+  }
+  requestAnimationFrame(frame);
+}
 function emptyBranchFrom(nid){return Object.values(conv.branches).find(b=>b.forkFromNodeId===nid&&b.headNodeId===b.forkFromNodeId)||null;}
 function isEmptyBranch(b){return b.id!=='main'&&b.headNodeId===b.forkFromNodeId;}
 function openFork(nid,name){
@@ -582,12 +645,16 @@ function openFork(nid,name){
   // ダイアログ無しで即分岐。名前は「分岐N」（選択テキストからの分岐は選択部分）。後から「名前」で変更可
   const b=createBranch(nid,(name||'').trim().slice(0,30));
   delete N(nid).planned;
-  conv.activeNodeId=nid; // 分岐元ノードの直後から
-  conv._pendingBranch=b.id;
-  persist();showFocus();
-  if(conv._pendingQuote){$('#input').value=conv._pendingQuote+$('#input').value;delete conv._pendingQuote;}
-  toast(`ブランチ「${b.name}」を開始。次の発言がこのブランチの最初になります（名前は後で変更できます）`);
-  $('#input').focus();$('#input').setSelectionRange($('#input').value.length,$('#input').value.length);
+  const quote=conv._pendingQuote;delete conv._pendingQuote;
+  persist();
+  warpTo(b.color,()=>{
+    conv.activeNodeId=nid; // 分岐元ノードの直後から
+    conv._pendingBranch=b.id;
+    persist();showFocus();
+    if(quote){$('#input').value=quote+$('#input').value;}
+    toast(`ブランチ「${b.name}」を開始。次の発言がこのブランチの最初になります（名前は後で変更できます）`);
+    $('#input').focus();$('#input').setSelectionRange($('#input').value.length,$('#input').value.length);
+  });
 }
 // 分岐直後は activeNode が分岐元(別ブランチ)なので、送信先ブランチを pending で決める
 function effectiveBranchForSend(){
@@ -596,9 +663,13 @@ function effectiveBranchForSend(){
 }
 
 /* ========== 俯瞰図 ========== */
-function showFocus(){$('#overview').classList.remove('on');$('#focus').classList.remove('off');$('#viewSel').value='focus';renderAll();}
-function showOverview(){$('#overview').classList.add('on');$('#focus').classList.add('off');$('#viewSel').value='over';fillShortGists();renderAll();ensureGists();}
-$('#viewSel').onchange=e=>{if(e.target.value==='over')showOverview();else showFocus();};
+function showFocus(){$('#overview').classList.remove('on');$('#focus').classList.remove('off');setViewUI('focus');renderAll();}
+function showOverview(){$('#overview').classList.add('on');$('#focus').classList.add('off');setViewUI('over');fillShortGists();renderAll();ensureGists();}
+function setViewUI(v){$('#viewCur').textContent=v==='over'?'俯瞰図':'チャット';$('#viewPop').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.view===v));}
+$('#viewBtn').onclick=e=>{e.stopPropagation();$('#viewMenu').classList.toggle('open');};
+$('#viewPop').querySelectorAll('button').forEach(b=>b.onclick=e=>{e.stopPropagation();$('#viewMenu').classList.remove('open');if(b.dataset.view==='over')showOverview();else showFocus();});
+document.addEventListener('click',e=>{if(!e.target.closest('#viewMenu'))$('#viewMenu').classList.remove('open');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#viewMenu').classList.remove('open');});
 function renderOverview(){
   const bs=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt);
   const lane={};bs.forEach((b,i)=>lane[b.id]=i);
