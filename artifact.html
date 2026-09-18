@@ -1,0 +1,620 @@
+<meta charset="utf-8">
+<title>Branch Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#040a17;--bg2:#071229;--panel:rgba(8,20,45,.78);--panel2:rgba(10,26,58,.92);
+  --ink:#dbe9ff;--muted:#7f9cc9;--line:rgba(80,160,255,.28);--glow:#4cc9ff;--accent:#2f8fff;
+  --user:rgba(28,66,140,.32);--asst:rgba(8,20,45,.72);--dim:.5;--yellow:#ffd93d;
+  --c0:#8fb3ff;--c1:#38bdf8;--c2:#f472b6;--c3:#34d399;--c4:#fb923c;--c5:#a78bfa;--c6:#22d3ee;--c7:#e879f9;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:
+  radial-gradient(1200px 600px at 75% -10%,rgba(56,189,248,.20),transparent 60%),
+  radial-gradient(900px 500px at 5% 110%,rgba(47,143,255,.16),transparent 60%),var(--bg);
+  color:var(--ink);font:15px/1.7 "Noto Sans JP","Hiragino Sans","Noto Sans CJK JP",sans-serif;display:flex;flex-direction:column;position:relative}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(76,201,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(76,201,255,.07) 1px,transparent 1px);
+  background-size:42px 42px;mask-image:radial-gradient(ellipse at center,#000 30%,transparent 90%)}
+body::after{content:"";position:fixed;left:0;right:0;height:120px;top:-120px;pointer-events:none;z-index:0;
+  background:linear-gradient(180deg,transparent,rgba(76,201,255,.08),transparent);animation:scan 9s linear infinite}
+@keyframes scan{to{transform:translateY(calc(100vh + 240px))}}
+header,#branchBar,main,#toast{position:relative;z-index:1}
+header{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel);backdrop-filter:blur(8px);flex-wrap:wrap;box-shadow:0 1px 20px rgba(76,201,255,.12)}
+header h1{font-size:16px;margin:0 8px 0 0;white-space:nowrap;letter-spacing:.12em;font-weight:700;color:#fff;text-shadow:0 0 10px var(--glow),0 0 24px rgba(76,201,255,.5)}
+header select{max-width:220px}
+select{font:inherit;color:var(--ink);background:rgba(10,30,70,.6);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+.spacer{flex:1}
+button{font:inherit;color:var(--ink);background:rgba(20,50,110,.35);border:1px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;transition:.15s;letter-spacing:.04em}
+button:hover{border-color:var(--glow);box-shadow:0 0 12px rgba(76,201,255,.45);color:#fff}
+button.primary{background:linear-gradient(135deg,#2f8fff,#22d3ee);color:#03101f;border-color:transparent;font-weight:700;box-shadow:0 0 16px rgba(56,189,248,.45)}
+button.small{padding:2px 9px;font-size:12px;border-radius:6px}
+button.plan{border-color:rgba(255,217,61,.55);color:var(--yellow)}
+button.plan:hover,button.plan.on{background:rgba(255,217,61,.18);box-shadow:0 0 12px rgba(255,217,61,.5)}
+button:disabled{opacity:.5;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent}
+.seg button.on{background:linear-gradient(135deg,#2f8fff,#22d3ee);color:#03101f;font-weight:700}
+#branchBar{display:flex;gap:6px;padding:6px 14px;border-bottom:1px solid var(--line);background:rgba(6,16,36,.7);overflow-x:auto;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bc);color:var(--bc);border-radius:999px;padding:2px 10px;font-size:12px;white-space:nowrap;cursor:pointer;background:rgba(6,16,36,.7);box-shadow:0 0 8px -2px var(--bc)}
+.chip.on{background:var(--bc);color:#03101f;font-weight:700;box-shadow:0 0 14px var(--bc)}
+.chip.closed{opacity:.45;text-decoration:line-through}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--bc);box-shadow:0 0 6px var(--bc)}
+.chip.on .dot{background:#03101f}
+main{flex:1;min-height:0;display:flex}
+#focus{flex:1;display:flex;flex-direction:column;min-width:0}
+#crumb{padding:6px 14px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);background:rgba(6,16,36,.5)}
+#crumb b{text-shadow:0 0 8px currentColor}
+#msgs{flex:1;overflow-y:auto;padding:14px 0 30px}
+.msg{position:relative;max-width:860px;margin:0 auto 10px;padding:10px 14px 10px 18px;border:1px solid var(--line);border-left:3px solid var(--bc);border-radius:10px;background:var(--asst);backdrop-filter:blur(6px);box-shadow:0 0 22px -8px var(--bc),inset 0 0 40px rgba(76,201,255,.03)}
+.msg.user{background:var(--user)}
+.msg.planned{border-color:rgba(255,217,61,.6);box-shadow:0 0 22px -6px var(--yellow)}
+.msg.outside{opacity:var(--dim)}
+.msg.outside:hover{opacity:1}
+.msg .meta{font-size:11px;color:var(--muted);display:flex;gap:8px;align-items:center;margin-bottom:2px;letter-spacing:.06em}
+.msg .meta .tag{color:var(--bc);font-weight:700;text-shadow:0 0 8px var(--bc)}
+.msg .meta .ptag{color:var(--yellow);text-shadow:0 0 8px var(--yellow)}
+.msg .body{white-space:pre-wrap;word-break:break-word}
+.msg .body code{background:rgba(76,201,255,.14);padding:0 4px;border-radius:4px;font-size:.92em}
+.msg .body pre{background:rgba(3,10,26,.8);border:1px solid var(--line);padding:8px 10px;border-radius:8px;overflow-x:auto;white-space:pre}
+.msg .tools{position:absolute;right:8px;top:6px;display:none;gap:4px}
+.msg:hover .tools{display:flex}
+.badges{max-width:860px;margin:-4px auto 12px;padding-left:22px;font-size:12px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.badges .chip{padding:1px 8px}
+.divider{max-width:860px;margin:6px auto 12px;font-size:12px;color:var(--bc);border-top:1px dashed var(--bc);padding-top:4px;text-shadow:0 0 8px var(--bc)}
+#composer{border-top:1px solid var(--line);background:var(--panel);backdrop-filter:blur(8px);padding:10px 14px;box-shadow:0 -1px 20px rgba(76,201,255,.1)}
+#composer .row{display:flex;gap:8px;max-width:860px;margin:0 auto;align-items:flex-end}
+textarea{flex:1;font:inherit;resize:vertical;min-height:44px;max-height:240px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:rgba(3,10,26,.7);color:var(--ink)}
+textarea:focus{outline:none;border-color:var(--glow);box-shadow:0 0 12px rgba(76,201,255,.4)}
+#status{max-width:860px;margin:6px auto 0;font-size:11px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
+#status a{color:var(--glow)}
+#overview{flex:1;display:none;min-width:0}
+#overview.on{display:flex}
+#focus.off{display:none}
+#graphWrap{flex:1;overflow:auto;position:relative;background:
+  radial-gradient(2px 2px at 20% 30%,rgba(255,255,255,.35),transparent 60%),radial-gradient(2px 2px at 70% 60%,rgba(255,255,255,.3),transparent 60%),
+  radial-gradient(1.5px 1.5px at 40% 80%,rgba(255,255,255,.3),transparent 60%),radial-gradient(1.5px 1.5px at 85% 20%,rgba(255,255,255,.25),transparent 60%),
+  radial-gradient(900px 400px at 50% 0%,rgba(56,189,248,.14),transparent 70%),rgba(3,9,22,.85)}
+#legend{position:sticky;top:0;left:0;font-size:11px;color:var(--muted);padding:6px 12px;background:rgba(3,9,22,.7);border-bottom:1px solid var(--line);display:flex;gap:14px;flex-wrap:wrap;z-index:2}
+#legend i{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:4px}
+#cards{width:340px;border-left:1px solid var(--line);overflow-y:auto;padding:10px;background:rgba(6,16,36,.6);backdrop-filter:blur(8px)}
+.card{border:1px solid var(--line);border-left:3px solid var(--bc);border-radius:10px;padding:8px 10px;margin-bottom:10px;background:var(--panel);font-size:13px;box-shadow:0 0 18px -8px var(--bc)}
+.card h3{margin:0 0 4px;font-size:14px;color:var(--bc);display:flex;align-items:center;gap:6px;text-shadow:0 0 8px var(--bc)}
+.card .from{font-size:11px;color:var(--muted)}
+.card .sum{margin:6px 0;white-space:pre-wrap}
+.card .sum b{display:block;color:var(--muted);font-size:11px;font-weight:700;margin-top:4px;letter-spacing:.08em}
+.card .act{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.card.pinned{box-shadow:0 0 0 1px var(--bc) inset,0 0 18px -4px var(--bc)}
+.card.plans{--bc:var(--yellow)}
+.card.plans .item{display:flex;gap:6px;align-items:center;justify-content:space-between;padding:4px 0;border-top:1px dashed rgba(255,217,61,.3);font-size:12px}
+svg text{font-size:11px;fill:var(--ink);font-family:"Noto Sans JP",sans-serif}
+.node{cursor:pointer}
+.node:hover .core{stroke-width:3}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--ink);padding:18px 20px;max-width:560px;width:92vw;box-shadow:0 0 40px rgba(76,201,255,.25);backdrop-filter:blur(10px)}
+dialog::backdrop{background:rgba(2,6,16,.6)}
+dialog h2{margin:0 0 10px;font-size:16px;letter-spacing:.1em;text-shadow:0 0 10px var(--glow)}
+dialog label{display:block;margin:8px 0 2px;font-size:12px;color:var(--muted)}
+dialog input[type=text],dialog input[type=password],dialog input[type=number],dialog select{width:100%;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:rgba(3,10,26,.7);color:var(--ink)}
+dialog .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.hint{font-size:11px;color:var(--muted)}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(8,20,45,.95);border:1px solid var(--glow);color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;display:none;z-index:9;box-shadow:0 0 20px rgba(76,201,255,.5)}
+@media (max-width:760px){#cards{width:100%;position:absolute;bottom:0;max-height:45%;border-left:0;border-top:1px solid var(--line)} #overview{position:relative}}
+
+/* ===== 可読性モード: チャット・俯瞰は白背景／藍色文字、線を太く ===== */
+:root{--indigo:#1e3a6e;--indigo2:#4a5f8f;--yellow:#f5c400;--ystroke:#b45309;
+  --c0:#3b5aa8;--c1:#0369a1;--c2:#be185d;--c3:#047857;--c4:#c2410c;--c5:#6d28d9;--c6:#0e7490;--c7:#a21caf;}
+body{font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:15px}
+/* 固定のUI文言（全員に共通して表示される部分）だけドットフォント */
+.ui,button,.seg button,header h1,dialog h2,dialog label,dialog select,dialog option,#legend,.card .sum b,.card h3 .hint,#claudeHint,#ctxDlg .hint,textarea::placeholder,dialog input::placeholder{font-family:"DotGothic16","Noto Sans JP",sans-serif}
+.var{font-family:"Noto Sans JP","Hiragino Sans",sans-serif}
+.msg .body,textarea,input,#convSel,dialog input{font-family:"Noto Sans JP","Hiragino Sans",sans-serif}
+#focus,#overview{--panel:#fff;--panel2:#fff;--ink:var(--indigo);--muted:var(--indigo2);--line:#b7c6e6;--user:#eef3fb;--asst:#fff;--glow:#3b5aa8;--dim:.6;
+  background:#fff;color:var(--indigo)}
+#crumb{background:#f5f8fe;border-bottom:1.5px solid var(--line);color:var(--indigo2)}
+#crumb b{text-shadow:none}
+#msgs{background:#fff}
+.msg{background:#fff;border:1.5px solid var(--line);border-left:6px solid var(--bc);backdrop-filter:none;box-shadow:0 2px 10px rgba(30,58,110,.08);color:var(--indigo);line-height:1.75}
+.msg.user{background:var(--user)}
+.msg.planned{border-color:var(--ystroke);box-shadow:0 0 0 2px rgba(245,196,0,.45)}
+.msg .meta{color:var(--indigo2)}
+.msg .meta .tag{text-shadow:none}
+.msg .meta .ptag{color:var(--ystroke);text-shadow:none}
+.msg .body code{background:#eef3fb;color:var(--indigo)}
+.msg .body pre{background:#f5f8fe;border:1.5px solid var(--line);color:var(--indigo)}
+.divider{text-shadow:none;border-top:2px dashed var(--bc);font-weight:700}
+.badges{color:var(--indigo2)}
+#focus button,#overview button{background:#f5f8fe;color:var(--indigo);border:1.5px solid #9fb3d9}
+#focus button:hover,#overview button:hover{border-color:var(--indigo);box-shadow:0 0 0 2px rgba(30,58,110,.15);color:var(--indigo)}
+#focus button.primary{background:var(--indigo);color:#fff;border-color:var(--indigo);box-shadow:none}
+#focus button.plan,#overview button.plan{border-color:var(--ystroke);color:var(--ystroke);background:#fff8dc}
+#focus button.plan.on{background:#ffe680}
+#focus .chip,#overview .chip{background:#fff;border-width:2px;box-shadow:none}
+#focus .chip.on,#overview .chip.on{color:#fff}
+#composer{background:#f5f8fe;border-top:2px solid var(--line);backdrop-filter:none;box-shadow:none}
+textarea{background:#fff;color:var(--indigo);border:2px solid #9fb3d9}
+textarea:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(30,58,110,.15)}
+#status{color:var(--indigo2)}
+#status a{color:var(--c1);font-weight:700}
+#graphWrap{background:#fff;background-image:linear-gradient(rgba(30,58,110,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(30,58,110,.07) 1px,transparent 1px);background-size:42px 42px}
+#legend{background:rgba(255,255,255,.92);border-bottom:1.5px solid var(--line);color:var(--indigo2)}
+#cards{background:#f5f8fe;border-left:2px solid var(--line);backdrop-filter:none}
+.card{background:#fff;border:1.5px solid var(--line);border-left:6px solid var(--bc);box-shadow:0 2px 10px rgba(30,58,110,.08);color:var(--indigo)}
+.card h3{text-shadow:none}
+.card .from,.card .sum b{color:var(--indigo2)}
+.card.pinned{box-shadow:0 0 0 2px var(--bc) inset}
+.card.plans{--bc:var(--ystroke)}
+.card.plans h3{color:var(--ystroke)}
+.card.plans .item{border-top:1.5px dashed #e6c76a}
+svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13px}
+#toast{background:#fff;color:var(--indigo);border:2px solid var(--indigo);box-shadow:0 4px 20px rgba(30,58,110,.25)}
+</style>
+<header>
+  <h1>⑂ Branch Chat</h1>
+  <select id="convSel" title="会話"></select>
+  <button class="small" id="newConv">＋会話</button>
+  <span class="spacer"></span>
+  <div class="seg"><button id="modeFocus" class="on">フォーカス</button><button id="modeOver">俯瞰</button></div>
+  <button class="small" id="exportBtn">書き出し</button>
+  <button class="small" id="importBtn">読み込み</button>
+  <button class="small" id="settingsBtn">⚙ 設定</button>
+</header>
+<div id="branchBar"></div>
+<main>
+  <section id="focus">
+    <div id="crumb"></div>
+    <div id="msgs"></div>
+    <div id="composer">
+      <div class="row">
+        <textarea id="input" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行）"></textarea>
+        <button class="primary" id="sendBtn">送信</button>
+      </div>
+      <div id="status"></div>
+    </div>
+  </section>
+  <section id="overview">
+    <div id="graphWrap"><div id="legend"></div><div id="graphSvg"></div></div>
+    <div id="cards"></div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<dialog id="settings">
+  <h2>設定</h2>
+  <label>接続方式</label>
+  <select id="sProvider">
+    <option value="claude">Claude（この画面を開いている人のアカウントで動作）</option>
+    <option value="dummy">ダミー応答（Claudeを使わずUIを確認）</option>
+  </select>
+  <div class="hint" id="claudeHint">初回の送信時に、この Artifact が Claude を使うことの許可を求められます。利用量は閲覧者自身のプランから消費されます。</div>
+  <label>本文の応答（モデルの階層）</label>
+  <select id="sTier">
+    <option value="default">標準（バランス）</option>
+    <option value="complex">高度（じっくり考える・遅い）</option>
+    <option value="quick">速い（短い返答向き）</option>
+  </select>
+  <div class="hint">ブランチ要約と俯瞰ラベルは常に「速い」で生成します。</div>
+  <label>トークン予算（概算・超過時は古い往復を省略）</label>
+  <input type="number" id="sBudget" value="40000" min="4000" step="1000">
+  <label>アシスタントの追加指示（任意）</label>
+  <input type="text" id="sExtra" placeholder="例: 医療者向けに専門用語で簡潔に">
+  <div class="btns"><button id="sCancel">閉じる</button><button class="primary" id="sSave">保存</button></div>
+</dialog>
+
+<dialog id="forkDlg">
+  <h2>⑂ ここから分岐</h2>
+  <div class="hint" id="forkFrom"></div>
+  <label>ブランチ名（空なら最初の質問から自動命名）</label>
+  <input type="text" id="forkName" placeholder="例: 副作用の話">
+  <div class="btns"><button id="forkCancel">キャンセル</button><button class="primary" id="forkOk">分岐する</button></div>
+</dialog>
+
+<dialog id="ctxDlg">
+  <h2>AIに送るコンテキスト（プレビュー）</h2>
+  <div class="hint">system に注入される会話マップ。これが「全ブランチをAIが認知する」仕組みです。</div>
+  <pre id="ctxPre" style="max-height:60vh;overflow:auto;white-space:pre-wrap;font-size:12px;background:var(--bg);padding:10px;border-radius:8px"></pre>
+  <div class="btns"><button id="ctxClose">閉じる</button></div>
+</dialog>
+
+<script>
+/* ========== 基本ユーティリティ ========== */
+const $=s=>document.querySelector(s);
+const lsGet=k=>{try{return lsGet(k);}catch(e){return null;}};
+const lsSet=(k,v)=>{try{lsSet(k,v);}catch(e){}};
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const COLORS=['var(--c0)','var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)','var(--c7)'];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const estTok=s=>Math.ceil((s||'').length/1.6); // 日英混在の概算
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2500);}
+function md(s){ // 最小限のMarkdown
+  s=esc(s);
+  s=s.replace(/```(\w*)\n([\s\S]*?)```/g,(m,l,c)=>'<pre>'+c.replace(/\n$/,'')+'</pre>');
+  s=s.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+  s=s.replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>');
+  s=s.replace(/^### (.*)$/gm,'<b>$1</b>').replace(/^## (.*)$/gm,'<b>$1</b>').replace(/^# (.*)$/gm,'<b>$1</b>');
+  s=s.replace(/^[-*] (.*)$/gm,'・$1');
+  return s;
+}
+
+/* ========== 設定 ========== */
+const SET_KEY='bc.settings.v1';
+let settings=Object.assign({provider:'claude',tier:'default',model:'claude',sumModel:'quick',budget:40000,extra:''},JSON.parse(lsGet(SET_KEY)||'{}'));
+function saveSettings(){lsSet(SET_KEY,JSON.stringify(settings));}
+let sampleFn=null,sampleChecked=false;
+async function probeClaude(){
+  if(sampleChecked)return sampleFn;
+  try{sampleFn=(window.claude&&window.claude.use)?await window.claude.use('sample'):null;}catch(e){sampleFn=null;}
+  sampleChecked=true;
+  if(!sampleFn)$('#claudeHint').textContent='この画面では Claude を呼べません（claude.ai の中で開いてください）。ダミー応答のみ利用できます。';
+  return sampleFn;
+}
+const ERR_JA={not_granted:'この Artifact による Claude の利用が許可されませんでした',sampling_disabled:'このアカウントでは Claude を利用できません',rate_limited:'利用が集中しています。少し待ってから再送してください',session_expired:'claude.ai に再ログインしてください',refused:'この内容には回答できませんでした。言い方を変えてください',prompt_too_large:'送信内容が大きすぎます。古いブランチを「終了」するかトークン予算を下げてください',empty_completion:'応答が空でした。もう一度送ってください',cancelled:'中止しました',upstream_error:'一時的なエラーです。もう一度送ってください'};
+const errCopy=e=>(e&&e.code&&ERR_JA[e.code])||(e&&e.message)||String(e);
+
+/* ========== データモデル ========== */
+const CONVS_KEY='bc.convs.v1', ACTIVE_KEY='bc.active.v1';
+let convs=JSON.parse(lsGet(CONVS_KEY)||'{}');
+let conv=null;
+function newConversation(title){
+  const id=uid();
+  const c={id,title:title||'新しい会話',createdAt:Date.now(),nodes:{},branches:{},activeNodeId:null,order:[]};
+  c.branches.main={id:'main',name:'本線',color:COLORS[1],forkFromNodeId:null,headNodeId:null,summary:null,pinned:false,status:'open',createdAt:Date.now(),autoNamed:false,seq:0};
+  convs[id]=c;return c;
+}
+function persist(){
+  lsSet(CONVS_KEY,JSON.stringify(convs));
+  lsSet(ACTIVE_KEY,conv.id);
+}
+function loadActive(){
+  const id=lsGet(ACTIVE_KEY);
+  conv=convs[id]||Object.values(convs)[0]||newConversation();
+  persist();
+}
+const B=id=>conv.branches[id], N=id=>conv.nodes[id];
+function ancestors(nodeId){const out=[];let n=N(nodeId);while(n){out.unshift(n);n=n.parentId?N(n.parentId):null;}return out;}
+function branchNodes(bid){return conv.order.map(N).filter(n=>n.branchId===bid);}
+function currentBranchId(){return conv.activeNodeId?N(conv.activeNodeId).branchId:'main';}
+function branchChain(bid){ // main→…→bid
+  const out=[];let b=B(bid);while(b){out.unshift(b);b=b.forkFromNodeId?B(N(b.forkFromNodeId).branchId):null;}return out;
+}
+function childBranchesOf(nodeId){return Object.values(conv.branches).filter(b=>b.forkFromNodeId===nodeId);}
+function label(n){return `${B(n.branchId).name} #${n.seq}`;}
+function excerpt(s,n=40){s=(s||'').replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n)+'…':s;}
+function addNode(role,content,parentId,branchId){
+  const b=B(branchId);b.seq=(b.seq||0)+1;
+  const n={id:uid(),parentId,role,content,branchId,ts:Date.now(),seq:b.seq};
+  conv.nodes[n.id]=n;conv.order.push(n.id);b.headNodeId=n.id;return n;
+}
+function createBranch(forkFromNodeId,name){
+  const idx=Object.keys(conv.branches).length;
+  const b={id:uid(),name:name||'',color:COLORS[idx%COLORS.length],forkFromNodeId,headNodeId:forkFromNodeId,summary:null,pinned:false,status:'open',createdAt:Date.now(),autoNamed:!name,seq:0};
+  if(!name)b.name='分岐'+idx;
+  conv.branches[b.id]=b;return b;
+}
+
+/* ========== コンテキスト組み立て（本アプリの核） ========== */
+function branchCard(b,cur){
+  const from=b.forkFromNodeId?`${label(N(b.forkFromNodeId))}「${excerpt(N(b.forkFromNodeId).content,30)}」から分岐`:'ルート';
+  const head=[`- ${b.name}${b.id===cur?'（現在）':''}${b.status==='closed'?'（終了）':''}: ${from}`];
+  if(b.status==='closed'&&b.summary){head.push(`  結論: ${b.summary.conclusions||'—'}`);return head.join('\n');}
+  if(b.summary){
+    head.push(`  話題: ${b.summary.topic||'—'}`);
+    head.push(`  結論: ${b.summary.conclusions||'—'}`);
+    head.push(`  未解決: ${b.summary.open||'—'}`);
+  }else{
+    const ns=branchNodes(b.id);
+    if(ns.length)head.push(`  （要約未作成）冒頭: ${excerpt(ns[0].content,80)}`);else head.push('  （まだ発言なし）');
+  }
+  return head.join('\n');
+}
+function branchTranscript(bid){
+  return branchNodes(bid).map(n=>`${n.role==='user'?'ユーザー':'AI'}: ${n.content}`).join('\n\n');
+}
+function buildContext(targetNodeId,opts={}){
+  const cur=opts.branchId||(targetNodeId?N(targetNodeId).branchId:'main');
+  const chain=branchChain(cur).map(b=>b.name).join(' → ');
+  const cards=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>branchCard(b,cur)).join('\n');
+  let system=`あなたは「分岐型チャット」のアシスタントです。この会話は1本の線ではなく、複数のブランチ（話題）に分かれています。
+ユーザーは本線から話題を分岐させ、後で本線に戻ってきます。以下の「会話マップ」に全ブランチの要約があります。
+ルール:
+- 回答は現在ブランチの話題に集中してください。
+- ユーザーが別ブランチの内容に言及したら、そのブランチの結論を踏まえて答えてください。
+- 他ブランチの内容を持ち出すときは「（ブランチ「B」で決めた通り）」のように出典を示してください。
+- 現在ブランチに関係ない他ブランチの話題を、聞かれてもいないのに混ぜないでください。
+${settings.extra?'\n追加指示: '+settings.extra+'\n':''}
+## 会話マップ
+現在位置: ${chain}
+${cards}`;
+  const pinned=Object.values(conv.branches).filter(b=>b.pinned&&b.id!==cur);
+  const extraPins=(opts.pinIds||[]).map(B).filter(b=>b&&!pinned.includes(b));
+  for(const b of pinned.concat(extraPins)){
+    system+=`\n\n## 参照ブランチ「${b.name}」の全文\n${branchTranscript(b.id)}`;
+  }
+  // Layer1: 祖先パス
+  let path=targetNodeId?ancestors(targetNodeId):[];
+  let msgs=path.map(n=>({role:n.role,content:n.content}));
+  // 予算超過時は古い往復を省略
+  let omitted=0;
+  const tot=()=>estTok(system)+msgs.reduce((a,m)=>a+estTok(m.content),0);
+  while(msgs.length>4&&tot()>settings.budget){msgs.splice(0,2);omitted++;}
+  if(omitted){msgs.unshift({role:'user',content:`（トークン予算のため古い${omitted}往復を省略。会話マップの要約を参照）`},{role:'assistant',content:'了解しました。'});}
+  // role交互を保証
+  const merged=[];for(const m of msgs){if(merged.length&&merged[merged.length-1].role===m.role)merged[merged.length-1].content+='\n\n'+m.content;else merged.push({...m});}
+  if(merged.length&&merged[0].role!=='user')merged.unshift({role:'user',content:'（会話を続けます）'});
+  return {system,messages:merged,tokens:tot(),omitted};
+}
+
+/* ========== プロバイダ ========== */
+async function* streamClaude(system,messages,model,opts={}){
+  const sample=await probeClaude();
+  if(!sample)throw {code:'not_granted',message:'sample unavailable'};
+  // 指示(system相当)は先頭の user ターンとして渡す（Artifact の sample にはsystemが無い）
+  const turns=[{role:'user',content:system},...messages.map(m=>({role:m.role,content:m.content}))];
+  const q=[];let done=false,err=null,wake=null,result=null;
+  const p=sample(turns,{cache:false,modelTier:opts.raw?'quick':(settings.tier||'default'),onText:({delta})=>{q.push(delta);if(wake)wake();}});
+  p.then(r=>{result=r;done=true;if(wake)wake();},e=>{err=e;done=true;if(wake)wake();});
+  while(true){
+    while(q.length)yield {text:q.shift()};
+    if(done)break;
+    await new Promise(r=>{wake=r;});wake=null;
+  }
+  if(err){if(err.text&&!q.length){/* 部分テキストは既に流した */}throw err;}
+  if(result&&result.truncated)yield {text:'\n\n（長さの上限で途中までになりました）'};
+}
+async function* streamDummy(system,messages,model){
+  const names=Object.values(conv.branches).map(b=>b.name+(b.summary?'(要約あり)':''));
+  const cur=B(currentBranchId()).name;
+  const last=messages[messages.length-1].content;
+  const txt=`（ダミー応答・${model}）\n現在ブランチ「${cur}」で「${excerpt(last,30)}」を受け取りました。\n認知しているブランチ: ${names.join(' / ')}\n祖先パス ${messages.length} 件、system ${estTok(system)} tok 相当を受信。設定で「Claude」を選ぶと本物の応答になります。`;
+  for(const ch of txt){await new Promise(r=>setTimeout(r,8));yield {text:ch};}
+}
+function provider(){return settings.provider==='dummy'?streamDummy:streamClaude;}
+
+/* ========== 要約（Layer2の更新） ========== */
+const SUM_SYS=`あなたは会話ブランチの要約係です。与えられた会話ログを読み、次のJSONだけを出力してください（前後に説明を付けない）:
+{"title":"10字以内の話題名","topic":"何を話したか（80字以内）","conclusions":"得られた結論・決定事項（120字以内、無ければ「なし」）","open":"未解決の問い（80字以内、無ければ「なし」）"}`;
+const summarizing=new Set();
+async function updateSummary(bid){
+  if(summarizing.has(bid))return;const b=B(bid);const ns=branchNodes(bid);if(!ns.length)return;
+  summarizing.add(bid);
+  try{
+    let out='';
+    if(settings.provider==='dummy'){
+      out=JSON.stringify({title:excerpt(ns[0].content,10),topic:excerpt(ns[0].content,60),conclusions:'（ダミー）'+excerpt(ns[ns.length-1].content,50),open:'なし'});
+    }else{
+      const log=(b.summary?`前回の要約: ${JSON.stringify(b.summary)}\n\n`:'')+`会話ログ:\n${branchTranscript(bid)}\n\n上記の会話ログを、指定のJSON形式（title/topic/conclusions/open）だけで要約してください。JSON以外は書かないでください。`;
+      for await(const ev of provider()(SUM_SYS,[{role:'user',content:log}],settings.sumModel,{raw:true}))if(ev.text)out+=ev.text;
+    }
+    const m=out.match(/\{[\s\S]*\}/);if(!m)throw new Error('要約JSONなし');
+    const j=JSON.parse(m[0]);
+    b.summary={topic:j.topic,conclusions:j.conclusions,open:j.open,updatedAt:Date.now()};
+    if(b.autoNamed&&j.title){b.name=j.title;}
+    if(bid==='main'&&conv.title==='新しい会話'&&j.title)conv.title=j.title;
+    persist();renderAll();
+  }catch(e){console.warn('summary failed',bid,e);}
+  finally{summarizing.delete(bid);}
+}
+
+/* ========== 送信 ========== */
+let busy=false;
+async function send(text,opts={}){
+  if(busy||!text.trim())return;busy=true;$('#sendBtn').disabled=true;
+  const bid=opts.branchId||currentBranchId();
+  const parentId=opts.parentId!==undefined?opts.parentId:(conv.activeNodeId);
+  const u=addNode('user',text,parentId,bid);
+  const a=addNode('assistant','',u.id,bid);a.streaming=true;if(opts.mergedFrom)a.mergedFrom=opts.mergedFrom;
+  conv.activeNodeId=a.id;persist();renderAll();
+  const ctx=buildContext(u.id,{pinIds:opts.pinIds});
+  setStatus(`Claude が考えています… 概算 ${ctx.tokens} tok`);
+  try{
+    for await(const ev of provider()(ctx.system,ctx.messages,settings.model)){
+      if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){el.querySelector('.body').innerHTML=md(a.content);autoScroll();}}
+      if(ev.usage)a.usage=ev.usage;
+      if(ev.rate)a.rate=ev.rate;
+    }
+    if(!a.content)a.content='（空の応答）';
+  }catch(e){a.content+=`\n\n⚠️ ${errCopy(e)}`;toast(errCopy(e));}
+  delete a.streaming;persist();renderAll();
+  const u2=a.usage?` / 実トークン in ${a.usage.input_tokens||0}+cache ${a.usage.cache_read_input_tokens||0} out ${a.usage.output_tokens||0}`:'';
+  setStatus(`完了 概算 ${ctx.tokens} tok${u2}`);
+  busy=false;$('#sendBtn').disabled=false;
+  updateSummary(bid);
+  fillShortGists();ensureGists();
+}
+function setStatus(s){$('#status').innerHTML=`<span>${esc(s)}</span><span><span class="ui">接続:</span> ${settings.provider==='dummy'?'ダミー':'Claude（閲覧者のアカウント）/ '+({default:'標準',complex:'高度',quick:'速い'}[settings.tier]||'標準')}</span><a href="#" id="ctxLink" class="ui">送信コンテキストを見る</a>`;
+  $('#ctxLink').onclick=e=>{e.preventDefault();const c=buildContext(conv.activeNodeId);$('#ctxPre').textContent=c.system+'\n\n===== messages ('+c.messages.length+') =====\n'+c.messages.map(m=>`[${m.role}] ${excerpt(m.content,200)}`).join('\n');$('#ctxDlg').showModal();};
+}
+function autoScroll(){const m=$('#msgs');if(m.scrollHeight-m.scrollTop-m.clientHeight<200)m.scrollTop=m.scrollHeight;}
+
+/* ========== 描画: フォーカス ========== */
+function renderAll(){renderConvSel();renderBranchBar();renderFocus();if($('#overview').classList.contains('on'))renderOverview();}
+function renderConvSel(){const s=$('#convSel');s.innerHTML=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt).map(c=>`<option value="${c.id}"${c.id===conv.id?' selected':''}>${esc(c.title)}</option>`).join('');}
+function renderBranchBar(){
+  const cur=currentBranchId();
+  $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}${b.status==='closed'?' closed':''}" style="--bc:${b.color}" data-b="${b.id}"><span class="dot"></span>${esc(b.name)}${b.pinned?' 📌':''}</span>`).join('');
+  $('#branchBar').querySelectorAll('.chip').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.b));
+}
+function gotoBranch(bid){const b=B(bid);conv.activeNodeId=b.headNodeId;persist();showFocus();}
+function gotoNode(nid){conv.activeNodeId=nid;persist();showFocus();}
+function renderFocus(){
+  const cur=currentBranchId();
+  $('#crumb').innerHTML='<span class="ui">位置:</span> '+branchChain(cur).map(b=>`<b style="color:${b.color}">${esc(b.name)}</b>`).join(' → ')+(conv.activeNodeId?` <span>（${esc(label(N(conv.activeNodeId)))} <span class="ui">まで</span>）</span>`:'');
+  const path=conv.activeNodeId?ancestors(conv.activeNodeId):[];
+  let html='',prevB=null;
+  for(const n of path){
+    const b=B(n.branchId);
+    if(prevB&&prevB!==n.branchId)html+=`<div class="divider ui" style="--bc:${b.color}">⑂ ここから「<span class="var">${esc(b.name)}</span>」に分岐</div>`;
+    prevB=n.branchId;
+    const outside=n.branchId!==cur;
+    html+=`<div class="msg ${n.role}${outside?' outside':''}${n.planned?' planned':''}" id="n-${n.id}" style="--bc:${b.color}">
+      <div class="meta"><span class="tag">${esc(label(n))}</span><span class="ui">${n.role==='user'?'あなた':'AI'}</span><span title="このメッセージのトークン（AIは入力+出力の実測、未計測なら概算）">${tokensOf(n)} tok</span>${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="ui">…生成中</span>':''}</div>
+      <div class="body">${md(n.content)}</div>
+      <div class="tools">${n.role==='assistant'&&!n.streaming?`<button class="small" data-fork="${n.id}">⑂ ここから分岐</button><button class="small plan${n.planned?' on':''}" data-plan="${n.id}" title="分岐するか迷っているときの印。俯瞰で黄色く表示">${n.planned?'★ 予定解除':'☆ 分岐予定'}</button>`:''}${!n.streaming?`<button class="small" data-go="${n.id}" title="ここまでの状態にして続ける">ここから続ける</button>`:''}</div>
+    </div>`;
+    const kids=childBranchesOf(n.id);
+    if(kids.length)html+=`<div class="badges"><span class="ui">→ ここから分岐:</span> ${kids.map(k=>`<span class="chip${k.status==='closed'?' closed':''}" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}</span>`).join('')}</div>`;
+  }
+  if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答にカーソルを乗せると「⑂ ここから分岐」が出ます。</div></div>`;
+  const m=$('#msgs');const stick=m.scrollHeight-m.scrollTop-m.clientHeight<200;
+  m.innerHTML=html;
+  m.querySelectorAll('[data-fork]').forEach(el=>el.onclick=()=>openFork(el.dataset.fork));
+  m.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoNode(el.dataset.go));
+  m.querySelectorAll('[data-plan]').forEach(el=>el.onclick=()=>togglePlan(el.dataset.plan));
+  m.querySelectorAll('.badges .chip').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.b));
+  if(stick)m.scrollTop=m.scrollHeight;
+  if(!busy)setStatus(`概算 ${buildContext(conv.activeNodeId).tokens} tok を次回送信`);
+}
+
+/* ========== トークン数・分岐予定 ========== */
+function tokensOf(n){
+  if(n.role==='assistant'&&n.usage){const u=n.usage;return (u.input_tokens||0)+(u.cache_read_input_tokens||0)+(u.cache_creation_input_tokens||0)+(u.output_tokens||0);}
+  return estTok(n.content);
+}
+function radiusOf(n){const t=tokensOf(n);return Math.max(5,Math.min(18,4+Math.sqrt(t)/4));}
+/* 俯瞰ラベル用の短い要約（20字以内）。生成前は先頭20字 */
+function gistOf(n){return n.gist||excerpt(n.content,20);}
+const GIST_SYS=`あなたはチャットメッセージの見出し係です。各メッセージの内容を日本語20字以内に要約してください。体言止め・記号なし。出力はJSONオブジェクトのみ（{"id":"要約",...}）。前後に説明を付けない。`;
+let gisting=false;
+async function ensureGists(){
+  if(gisting||settings.provider==='dummy')return;
+  const targets=conv.order.map(N).filter(n=>!n.gist&&!n.streaming&&n.content&&n.content.length>20).slice(0,12);
+  if(!targets.length)return;
+  gisting=true;
+  try{
+    const list=targets.map(n=>`[${n.id}] (${n.role==='user'?'ユーザー':'AI'}) ${n.content.replace(/\s+/g,' ').slice(0,500)}`).join('\n\n');
+    let out='';
+    for await(const ev of provider()(GIST_SYS,[{role:'user',content:`以下の各メッセージを20字以内で要約し、JSONオブジェクト {"id":"要約"} だけを出力してください。\n\n${list}`}],settings.sumModel,{raw:true}))if(ev.text)out+=ev.text;
+    const m=out.match(/\{[\s\S]*\}/);if(!m)throw new Error('gist JSONなし');
+    const j=JSON.parse(m[0]);let hit=0;
+    for(const n of targets){if(typeof j[n.id]==='string'&&j[n.id].trim()){n.gist=j[n.id].trim().slice(0,20);hit++;}}
+    if(hit){persist();if($('#overview').classList.contains('on'))renderOverview();}
+  }catch(e){console.warn('gist failed',e);}
+  finally{gisting=false;}
+  // 残りがあれば続けて生成
+  if(conv.order.map(N).some(n=>!n.gist&&!n.streaming&&n.content&&n.content.length>20))setTimeout(ensureGists,300);
+}
+// 短い文はそのまま gist にする（API節約）
+function fillShortGists(){for(const id of conv.order){const n=N(id);if(!n.gist&&n.content&&n.content.length<=20&&!n.streaming)n.gist=n.content.trim();}}
+function togglePlan(nid){const n=N(nid);n.planned=!n.planned;persist();renderAll();toast(n.planned?'★ 分岐予定に追加（俯瞰で黄色表示）':'分岐予定を解除');}
+function plannedNodes(){return conv.order.map(N).filter(n=>n.planned);}
+
+/* ========== 分岐 ========== */
+let forkTarget=null;
+function openFork(nid){forkTarget=nid;$('#forkFrom').textContent=`分岐元: ${label(N(nid))}「${excerpt(N(nid).content,60)}」`;$('#forkName').value='';$('#forkDlg').showModal();$('#forkName').focus();}
+$('#forkCancel').onclick=()=>$('#forkDlg').close();
+$('#forkOk').onclick=()=>{
+  const b=createBranch(forkTarget,$('#forkName').value.trim());
+  delete N(forkTarget).planned;
+  conv.activeNodeId=forkTarget; // 分岐元ノードの直後から
+  conv._pendingBranch=b.id;
+  $('#forkDlg').close();persist();showFocus();
+  toast(`ブランチ「${b.name}」を開始。次の発言がこのブランチの最初になります`);$('#input').focus();
+};
+// 分岐直後は activeNode が分岐元(別ブランチ)なので、送信先ブランチを pending で決める
+function effectiveBranchForSend(){
+  if(conv._pendingBranch&&B(conv._pendingBranch)){const b=B(conv._pendingBranch);if(b.headNodeId===b.forkFromNodeId)return b.id;}
+  return currentBranchId();
+}
+
+/* ========== 俯瞰 ========== */
+function showFocus(){$('#overview').classList.remove('on');$('#focus').classList.remove('off');$('#modeFocus').classList.add('on');$('#modeOver').classList.remove('on');renderAll();}
+function showOverview(){$('#overview').classList.add('on');$('#focus').classList.add('off');$('#modeOver').classList.add('on');$('#modeFocus').classList.remove('on');fillShortGists();renderAll();ensureGists();}
+$('#modeFocus').onclick=showFocus;$('#modeOver').onclick=showOverview;
+function renderOverview(){
+  const bs=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt);
+  const lane={};bs.forEach((b,i)=>lane[b.id]=i);
+  const rowOf={};conv.order.forEach((id,i)=>rowOf[id]=i);
+  const X=i=>80+i*300, Y=i=>60+i*44;
+  const W=Math.max(420,80+bs.length*300+120), Hh=Math.max(240,60+conv.order.length*44+60);
+  const forkPoints=new Set(Object.values(conv.branches).map(b=>b.forkFromNodeId).filter(Boolean));
+  // 波紋: 控えめ（広がり小・細線・淡く・ゆっくり・2重）
+  const ripple=(x,y,r0,col,dur,n)=>{let o='';for(let i=0;i<n;i++){const b=(dur*i/n).toFixed(2)+'s';
+    o+=`<circle cx="${x}" cy="${y}" r="${r0}" fill="none" stroke="${col}" stroke-width="1.2" opacity="0"><animate attributeName="r" values="${r0};${r0+14}" dur="${dur}s" begin="${b}" repeatCount="indefinite" calcMode="spline" keySplines="0.2 0.6 0.4 1"/><animate attributeName="opacity" values=".45;0" dur="${dur}s" begin="${b}" repeatCount="indefinite"/></circle>`;}
+    return o;};
+  let s=`<svg width="${W}" height="${Hh}" xmlns="http://www.w3.org/2000/svg" style="display:block">
+  <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="glow2" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+  // レーン縦線（薄い）と見出し
+  for(const b of bs){const x=X(lane[b.id]);
+    s+=`<line x1="${x}" y1="34" x2="${x}" y2="${Hh-20}" stroke="${b.color}" stroke-opacity=".18" stroke-width="2"/>`;
+    s+=`<text x="${x}" y="24" text-anchor="middle" style="fill:${b.color};font-weight:700;letter-spacing:.08em" filter="url(#glow)">${esc(excerpt(b.name,9))}</text>`;}
+  // 接続線
+  for(const id of conv.order){const n=N(id);if(!n.parentId)continue;const p=N(n.parentId);
+    const x1=X(lane[p.branchId]),y1=Y(rowOf[p.id]),x2=X(lane[n.branchId]),y2=Y(rowOf[n.id]);const col=B(n.branchId).color;
+    if(x1===x2)s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="3.5" filter="url(#glow)"/>`;
+    else s+=`<path d="M${x1},${y1} C${x1},${(y1+y2)/2} ${x2},${(y1+y2)/2} ${x2},${y2}" fill="none" stroke="${col}" stroke-width="3.5" stroke-dasharray="7 5" filter="url(#glow)"><animate attributeName="stroke-dashoffset" values="24;0" dur="2.4s" repeatCount="indefinite"/></path>`;}
+  // 波紋（分岐点・現在位置）
+  for(const id of conv.order){const n=N(id);const x=X(lane[n.branchId]),y=Y(rowOf[id]);const r=radiusOf(n);
+    if(forkPoints.has(id))s+=ripple(x,y,r+3,B(n.branchId).color,4,2);
+    if(id===conv.activeNodeId)s+=ripple(x,y,r+3,'var(--indigo)',3.2,2);}
+  // ノード
+  for(const id of conv.order){const n=N(id);const b=B(n.branchId);const x=X(lane[n.branchId]),y=Y(rowOf[id]);const r=radiusOf(n);const act=id===conv.activeNodeId;
+    const col=n.planned?'var(--ystroke)':b.color;
+    s+=`<g class="node" data-n="${id}"><title>${esc(label(n))} [${n.role==='user'?'あなた':'AI'}] ${tokensOf(n)} tok${n.planned?' ★分岐予定':''}${forkPoints.has(id)?' ⑂分岐点':''}\n${esc(excerpt(n.content,160))}</title>`;
+    if(n.planned)s+=`<circle cx="${x}" cy="${y}" r="${r+5}" fill="none" stroke="var(--ystroke)" stroke-width="3" filter="url(#glow2)"><animate attributeName="r" values="${r+4};${r+6};${r+4}" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values=".9;.5;.9" dur="2.4s" repeatCount="indefinite"/></circle>`;
+    if(act)s+=`<circle cx="${x}" cy="${y}" r="${r+5}" fill="none" stroke="var(--indigo)" stroke-width="2.5"/>`;
+    s+=`<circle class="core" cx="${x}" cy="${y}" r="${r}" fill="${n.role==='assistant'?(n.planned?'var(--yellow)':col):'#fff'}" stroke="${col}" stroke-width="3" filter="url(#glow2)"/>`;
+    const g=gistOf(n);const tw=[...g].reduce((a,ch)=>a+(ch.charCodeAt(0)>0x2e7f?13:7.4),0)+10;
+    s+=`<rect x="${x+r+6}" y="${y-10}" width="${tw}" height="20" rx="5" fill="#fff" fill-opacity=".95" stroke="${n.planned?'var(--ystroke)':b.color}" stroke-opacity=".35" stroke-width="1"/>`;
+    s+=`<text x="${x+r+11}" y="${y+4.5}" style="fill:${n.planned?'var(--ystroke)':'var(--indigo)'}">${esc(g)}</text></g>`;}
+  s+='</svg>';
+  $('#graphSvg').innerHTML=s;
+  $('#legend').innerHTML=`<span><i style="background:var(--indigo)"></i>大きさ＝トークン数</span><span>◎ 波紋＝現在位置（藍）・分岐点（ブランチ色）</span><span><i style="background:var(--yellow);border:2px solid var(--ystroke)"></i>黄＝分岐予定</span><span>塗り＝AI / 中抜き＝あなた</span>`;
+  $('#graphSvg').querySelectorAll('.node').forEach(el=>el.onclick=()=>gotoNode(el.dataset.n));
+  // カード
+  const cur=currentBranchId();
+  const plans=plannedNodes();
+  const planCard=plans.length?`<div class="card plans"><h3 class="ui">★ 分岐予定 <span class="hint">${plans.length}件</span></h3>${plans.map(n=>`<div class="item"><span>${esc(label(n))}「${esc(excerpt(n.content,18))}」</span><span><button class="small plan" data-forkp="${n.id}">分岐する</button><button class="small" data-unplan="${n.id}">解除</button></span></div>`).join('')}</div>`:'';
+  $('#cards').innerHTML=planCard+bs.map(b=>{
+    const from=b.forkFromNodeId?`${esc(label(N(b.forkFromNodeId)))}「${esc(excerpt(N(b.forkFromNodeId).content,24))}」から`:'ルート';
+    const toks=branchNodes(b.id).reduce((a,n)=>a+tokensOf(n),0);
+    const sum=b.summary?`<div class="sum"><b>話題</b>${esc(b.summary.topic)}<b>結論</b>${esc(b.summary.conclusions)}<b>未解決</b>${esc(b.summary.open)}</div>`:`<div class="sum hint ui">要約未作成（AIの回答後に自動生成）</div>`;
+    return `<div class="card${b.pinned?' pinned':''}" style="--bc:${b.color}"><h3>${esc(b.name)}${b.id===cur?' <span class="hint">現在</span>':''}${b.status==='closed'?' <span class="hint">終了</span>':''}</h3>
+      <div class="from">${from} / ${branchNodes(b.id).length} <span class="ui">発言</span> / ${toks} tok</div>${sum}
+      <div class="act">
+        <button class="small" data-go="${b.id}">移動</button>
+        <button class="small" data-pin="${b.id}">${b.pinned?'📌 参照解除':'📌 全文を参照'}</button>
+        <button class="small" data-close="${b.id}">${b.status==='closed'?'再開':'終了'}</button>
+        ${b.id!==cur&&B(cur).status!=='closed'?`<button class="small" data-merge="${b.id}">現在ブランチに合流</button>`:''}
+        <button class="small" data-rename="${b.id}">名前</button>
+        <button class="small" data-resum="${b.id}">要約更新</button>
+      </div></div>`;}).join('');
+  const c=$('#cards');
+  c.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.go));
+  c.querySelectorAll('[data-pin]').forEach(el=>el.onclick=()=>{const b=B(el.dataset.pin);b.pinned=!b.pinned;persist();renderAll();});
+  c.querySelectorAll('[data-close]').forEach(el=>el.onclick=()=>{const b=B(el.dataset.close);b.status=b.status==='closed'?'open':'closed';persist();renderAll();});
+  c.querySelectorAll('[data-rename]').forEach(el=>el.onclick=()=>{const b=B(el.dataset.rename);const v=prompt('ブランチ名',b.name);if(v){b.name=v;b.autoNamed=false;persist();renderAll();}});
+  c.querySelectorAll('[data-resum]').forEach(el=>el.onclick=()=>{toast('要約を更新中…');updateSummary(el.dataset.resum);branchNodes(el.dataset.resum).forEach(n=>{if(n.content.length>20)delete n.gist;});ensureGists();});
+  c.querySelectorAll('[data-merge]').forEach(el=>el.onclick=()=>mergeBranch(el.dataset.merge));
+  c.querySelectorAll('[data-forkp]').forEach(el=>el.onclick=()=>openFork(el.dataset.forkp));
+  c.querySelectorAll('[data-unplan]').forEach(el=>el.onclick=()=>togglePlan(el.dataset.unplan));
+}
+function mergeBranch(srcId){
+  const src=B(srcId);const cur=currentBranchId();
+  showFocus();
+  send(`ブランチ「${src.name}」で話した内容と結論を、この「${B(cur).name}」の文脈に合流させてください。取り込むべき結論・決定事項を簡潔にまとめ、この後の議論にどう影響するかを述べてください。`,{branchId:cur,parentId:conv.activeNodeId,pinIds:[srcId],mergedFrom:srcId});
+}
+
+/* ========== イベント ========== */
+$('#sendBtn').onclick=()=>{const t=$('#input').value;if(!t.trim())return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';send(t,{branchId:bid,parentId:conv.activeNodeId});};
+$('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('#sendBtn').click();}});
+$('#convSel').onchange=e=>{conv=convs[e.target.value];delete conv._pendingBranch;persist();showFocus();};
+$('#newConv').onclick=()=>{conv=newConversation();persist();showFocus();};
+$('#exportBtn').onclick=async()=>{const data=JSON.stringify(conv,null,1);const fn=`branch-chat_${conv.title}.json`;let dl=null;try{dl=(window.claude&&window.claude.use)?await window.claude.use('downloads'):null;}catch(e){}
+  if(dl){try{await dl.save({filename:fn,data});toast('保存しました');}catch(e){if(e&&e.code!=='declined')toast('保存できませんでした: '+(e.code||''));}}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=fn;a.click();}};
+$('#importBtn').onclick=()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const f=i.files[0];const r=new FileReader();r.onload=()=>{try{const c=JSON.parse(r.result);if(!c.nodes||!c.branches)throw 0;c.id=c.id||uid();convs[c.id]=c;conv=c;persist();showFocus();toast('読み込みました');}catch(e){toast('読み込み失敗');}};r.readAsText(f);};i.click();};
+$('#settingsBtn').onclick=async()=>{await probeClaude();$('#sProvider').value=settings.provider;$('#sTier').value=settings.tier;$('#sBudget').value=settings.budget;$('#sExtra').value=settings.extra;$('#settings').showModal();};
+$('#sCancel').onclick=()=>$('#settings').close();
+$('#sSave').onclick=()=>{settings.provider=$('#sProvider').value;settings.tier=$('#sTier').value;settings.budget=+$('#sBudget').value||40000;settings.extra=$('#sExtra').value.trim();
+  if(settings.provider==='claude'&&sampleChecked&&!sampleFn)toast('この画面では Claude を呼べません。ダミー応答に切り替えます');
+  saveSettings();$('#settings').close();renderAll();};
+$('#ctxClose').onclick=()=>$('#ctxDlg').close();
+
+/* ========== 起動 ========== */
+if(!['claude','dummy'].includes(settings.provider))settings.provider='claude';
+loadActive();
+probeClaude().then(fn=>{if(!fn&&settings.provider==='claude'){toast('この画面では Claude を呼べないため、ダミー応答で動作します');}});
+showFocus();
+</script>
