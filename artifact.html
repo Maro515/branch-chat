@@ -172,7 +172,7 @@ svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-seri
 <header>
   <h1>⑂ Branch Chat</h1>
   <select id="convSel" title="会話"></select>
-  <button class="small" id="newConv" title="新しい会話を作成">＋会話</button><button class="small" id="renameConv" title="この会話の名前を変更">✎ 名前</button><button class="small" id="delConv" title="この会話を削除">🗑 削除</button>
+  <button class="small" id="newConv" title="新しい会話を作成">＋会話</button><button class="small" id="renameConv" title="この会話の名前を変更">✎ 名前</button><button class="small" id="delConv" title="この会話を削除">🗑 削除</button><button class="small" id="demoBtn" title="分岐・分岐予定・要約が入った見本の会話を作る">デモ会話</button>
   <span class="spacer"></span>
   <label class="ui" id="viewLbl">View <select id="viewSel"><option value="focus">チャット</option><option value="over">俯瞰図</option></select></label>
   <button class="small" id="exportBtn">書き出し</button>
@@ -483,13 +483,14 @@ function renderFocus(){
     const kids=childBranchesOf(n.id);
     if(kids.length)html+=`<div class="badges"><span class="ui">→ ここから分岐:</span> ${kids.map(k=>`<span class="chip${k.status==='closed'?' closed':''}" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}</span>`).join('')}</div>`;
   }
-  if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答にカーソルを乗せると「⑂ ここから分岐」が出ます。</div></div>`;
+  if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答の下にある「⑂ ここから分岐」で話題を分けられます。<div class="editBtns"><span class="hint ui">使い方を試すなら</span><button class="small" id="demoBtn2">デモ会話を読み込む</button></div></div></div>`;
   const m=$('#msgs');const stick=m.scrollHeight-m.scrollTop-m.clientHeight<200;
   m.innerHTML=html;
   m.querySelectorAll('[data-fork]').forEach(el=>el.onclick=()=>openFork(el.dataset.fork));
   m.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoNode(el.dataset.go));
   m.querySelectorAll('[data-plan]').forEach(el=>el.onclick=()=>togglePlan(el.dataset.plan));
   m.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>openEdit(el.dataset.edit));
+  const d2=document.getElementById('demoBtn2');if(d2)d2.onclick=loadDemo;
   m.querySelectorAll('.badges .chip').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.b));
   if(stick)m.scrollTop=m.scrollHeight;
   if(!busy)setStatus(`概算 ${buildContext(conv.activeNodeId).tokens} tok を次回送信`);
@@ -751,6 +752,44 @@ $('#selFork').onclick=()=>{
   conv._pendingQuote=q;
   openFork(nid,sel.text.replace(/\s+/g,' ').trim().slice(0,30));
 };
+
+/* ========== デモ会話 ========== */
+function loadDemo(){
+  const c=newConversation('【デモ】ゾルミン療法の相談');
+  const cur=conv;conv=c;
+  const D=(role,text,parentId,bid,extra={})=>{const n=addNode(role,text,parentId,bid);Object.assign(n,extra);n.ts=Date.now();return n;};
+  // 本線
+  const a1=D('user','架空の新薬「ゾルミン」を使った治療計画を考えたい。まず標準的な投与スケジュールを整理して。',null,'main',{gist:'ゾルミン療法の投与計画を相談'});
+  const a2=D('assistant','（デモ回答）ゾルミンは架空の薬剤ですが、一般的な経口分子標的薬に倣って整理します。\n\n- 標準用量: 1日1回 50 mg、連日内服\n- 1サイクル: 28日\n- 評価: 2サイクルごとに画像評価、毎サイクル採血\n- 中止基準: 進行、または忍容不能な有害事象\n\n次に検討すべきは「副作用への対応」と「腎機能低下時の用量調整」です。',a1.id,'main',{gist:'50mg連日・28日サイクルの骨子'});
+  const a3=D('user','了解。その方針で進めよう。次はサイクル2以降のフォロー項目を決めたい。',a2.id,'main',{gist:'サイクル2以降のフォロー項目'});
+  const a4=D('assistant','（デモ回答）フォロー項目の案です。\n\n1. 毎サイクル: 血算・肝腎機能・電解質\n2. 2サイクルごと: CT による効果判定\n3. 毎回診察: 皮膚症状・下痢・倦怠感の聴取\n\n（ブランチ「副作用」で決めた通り）発疹への対処はステロイド外用薬を第一選択にし、Grade 2 以上で休薬を検討します。',a3.id,'main',{gist:'採血・CT・症状聴取の計画'});
+  // 分岐: 副作用（a2 から）
+  const bB=createBranch(a2.id,'副作用');
+  const b1=D('user','ゾルミンの主な副作用と、その対処法を決めておきたい。',a2.id,bB.id,{gist:'副作用と対処法を決めたい'});
+  const b2=D('assistant','（デモ回答）想定される主な副作用と対処案です。\n\n- 発疹（最多）: ステロイド外用薬を第一選択。Grade 2 以上で休薬を検討\n- 下痢: ロペラミド頓用、脱水に注意\n- 倦怠感: 用量調整で対応\n\n発疹は早期対応が予後を左右するので、初回処方時に外用薬を同時処方する運用にします。',b1.id,bB.id,{gist:'発疹はステロイド外用薬を第一選択'});
+  const b3=D('user','発疹の対処はそれで決定。下痢のときの休薬基準も一言で。',b2.id,bB.id,{gist:'下痢の休薬基準は？'});
+  const b4=D('assistant','（デモ回答）下痢は Grade 3 以上、または Grade 2 が48時間以上続く場合に休薬し、Grade 1 以下に回復後に 1 段階減量して再開、を基準とします。',b3.id,bB.id,{gist:'下痢はGrade3以上で休薬・減量再開'});
+  // 分岐: 用量調整（a2 から、過去の回答からの分岐）
+  const bC=createBranch(a2.id,'腎機能低下時の用量');
+  const c1=D('user','腎機能が落ちている患者ではどう用量調整する？',a2.id,bC.id,{gist:'腎機能低下時の用量調整'});
+  const c2=D('assistant','（デモ回答）架空薬のため仮の基準です。\n\n- CCr 60 以上: 通常量 50 mg\n- CCr 30〜59: 25 mg に減量\n- CCr 30 未満: 原則使用しない\n\n本線の投与計画には「開始前に CCr を確認する」を追加するのが良いでしょう。',c1.id,bC.id,{gist:'CCr30-59で25mg・30未満は非推奨'});
+  // 孫分岐: 副作用の b2 から「患者説明」
+  const bD=createBranch(b2.id,'患者説明の文面');
+  const d1=D('user','発疹について患者さんに渡す説明文を短く作って。',b2.id,bD.id,{gist:'発疹の患者向け説明文'});
+  const d2=D('assistant','（デモ回答）「この薬では皮膚に発疹が出ることがあります。かゆみや赤みが出たら、お渡ししている塗り薬を使い、広がる場合や痛みを伴う場合は早めにご連絡ください。自己判断で薬を中止しないでください。」',d1.id,bD.id,{gist:'塗り薬使用と早期連絡を促す文面'});
+  // 分岐予定: a4 に印
+  a4.planned=true;
+  // 要約
+  B('main').summary={topic:'ゾルミンの投与計画（50mg連日・28日サイクル）とサイクル2以降のフォロー項目を決めた',conclusions:'標準用量50mg、2サイクルごとにCT評価、発疹はステロイド外用薬を第一選択',open:'腎機能低下時のCCr確認を計画に入れるか',updatedAt:Date.now()};
+  bB.summary={topic:'ゾルミンの副作用（発疹・下痢・倦怠感）と対処法',conclusions:'発疹はステロイド外用薬を初回同時処方。下痢はGrade3以上で休薬し1段階減量で再開',open:'なし',updatedAt:Date.now()};
+  bC.summary={topic:'腎機能低下時の用量調整',conclusions:'CCr30〜59で25mg、30未満は非推奨。開始前にCCr確認',open:'本線の計画に反映するか未決定',updatedAt:Date.now()};
+  bD.summary={topic:'発疹に関する患者向け説明文',conclusions:'塗り薬の使用と早期連絡を促す短文を作成',open:'なし',updatedAt:Date.now()};
+  bC.status='closed';
+  conv.activeNodeId=a4.id;
+  persist();showFocus();
+  toast('デモ会話を作成しました。本線・分岐3本・分岐予定・要約が入っています');
+}
+$('#demoBtn').onclick=async()=>{if(await askConfirm('見本の会話「【デモ】ゾルミン療法の相談」を新しく作成しますか？\n（架空の薬剤を使った例で、医学的助言ではありません）','作成する'))loadDemo();};
 
 /* ========== 起動 ========== */
 if(!['claude','dummy'].includes(settings.provider))settings.provider='claude';
