@@ -164,6 +164,11 @@ svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-seri
 #selPop button.fork{border-color:var(--c1);color:var(--c1)}
 #selPop .q{font-size:11px;color:var(--indigo2);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:"Noto Sans JP",sans-serif}
 .msg .body::selection,.msg .body *::selection{background:#ffe680;color:var(--indigo)}
+
+.editBox{width:100%;min-height:90px;font:inherit;font-family:"Noto Sans JP","Hiragino Sans",sans-serif;border:2px solid var(--indigo);border-radius:8px;padding:8px 10px;background:#fff;color:var(--indigo);resize:vertical}
+.editBtns{display:flex;gap:6px;justify-content:flex-end;align-items:center;margin-top:6px;flex-wrap:wrap}
+.editBtns .hint{margin-right:auto}
+.msg.user .tools{display:flex}
 </style>
 </head>
 <body>
@@ -229,6 +234,12 @@ svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-seri
 </dialog>
 
 
+<dialog id="qDlg">
+  <h2 id="qTitle">確認</h2>
+  <div id="qMsg" style="white-space:pre-wrap;margin-bottom:6px"></div>
+  <input type="text" id="qInput">
+  <div class="btns"><button id="qCancel">キャンセル</button><button class="primary" id="qOk">OK</button></div>
+</dialog>
 <dialog id="ctxDlg">
   <h2>AIに送るコンテキスト（プレビュー）</h2>
   <div class="hint">system に注入される会話マップ。これが「全ブランチをAIが認知する」仕組みです。</div>
@@ -243,6 +254,11 @@ const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).sli
 const COLORS=['var(--c0)','var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)','var(--c7)'];
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const estTok=s=>Math.ceil((s||'').length/1.6); // 日英混在の概算
+function askConfirm(msg,ok='OK'){return new Promise(res=>{const d=$('#qDlg');$('#qTitle').textContent='確認';$('#qMsg').textContent=msg;$('#qInput').hidden=true;$('#qOk').textContent=ok;
+  const done=v=>{d.close();res(v);};$('#qOk').onclick=()=>done(true);$('#qCancel').onclick=()=>done(false);d.oncancel=e=>{e.preventDefault();done(false);};d.showModal();$('#qOk').focus();});}
+function askPrompt(title,def='',ok='保存'){return new Promise(res=>{const d=$('#qDlg');$('#qTitle').textContent=title;$('#qMsg').textContent='';const i=$('#qInput');i.hidden=false;i.value=def;$('#qOk').textContent=ok;
+  const done=v=>{d.close();i.onkeydown=null;res(v);};$('#qOk').onclick=()=>done(i.value);$('#qCancel').onclick=()=>done(null);d.oncancel=e=>{e.preventDefault();done(null);};
+  i.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();done(i.value);}};d.showModal();i.focus();i.select();});}
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2500);}
 function md(s){ // 最小限のMarkdown
   s=esc(s);
@@ -464,7 +480,7 @@ function renderBranchBar(){
   $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}${b.status==='closed'?' closed':''}" style="--bc:${b.color}" data-b="${b.id}" title="${b.id===cur?'クリックで名前を変更':'このブランチへ移動'}"><span class="dot"></span>${esc(b.name)}${isEmptyBranch(b)?'（未開始）':''}${b.pinned?' 📌':''}</span>`).join('');
   $('#branchBar').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{if(el.dataset.b===currentBranchId()){renameBranch(el.dataset.b);}else gotoBranch(el.dataset.b);});
 }
-function renameBranch(bid){const b=B(bid);const v=prompt('ブランチ名を変更',b.name);if(v&&v.trim()){b.name=v.trim().slice(0,30);b.autoNamed=false;persist();renderAll();}}
+async function renameBranch(bid){const b=B(bid);const v=await askPrompt('ブランチ名を変更',b.name);if(v&&v.trim()){b.name=v.trim().slice(0,30);b.autoNamed=false;persist();renderAll();}}
 function gotoBranch(bid){const b=B(bid);conv.activeNodeId=b.headNodeId;persist();showFocus();}
 function gotoNode(nid){conv.activeNodeId=nid;persist();showFocus();}
 function renderFocus(){
@@ -480,7 +496,7 @@ function renderFocus(){
     html+=`<div class="msg ${n.role}${outside?' outside':''}${n.planned?' planned':''}" id="n-${n.id}" style="--bc:${b.color}">
       <div class="meta"><span class="tag">${esc(label(n))}</span><span class="ui">${n.role==='user'?'あなた':'AI'}</span><span title="このメッセージのトークン（AIは入力+出力の実測、未計測なら概算）">${tokensOf(n)} tok</span>${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="ui">…生成中</span>':''}</div>
       <div class="body">${md(n.content)}</div>
-      <div class="tools">${n.role==='assistant'&&!n.streaming?`<button class="small" data-fork="${n.id}" title="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">${emptyBranchFrom(n.id)?'⑂ 未開始の分岐へ':'⑂ ここから分岐'}</button><button class="small plan${n.planned?' on':''}" data-plan="${n.id}" title="分岐するか迷っているときの印。俯瞰で黄色く表示">${n.planned?'★ 予定解除':'☆ 分岐予定'}</button>`:''}${!n.streaming?`<button class="small" data-go="${n.id}" title="ここまでの状態にして続ける">ここから続ける</button>`:''}</div>
+      <div class="tools">${n.role==='assistant'&&!n.streaming?`<button class="small" data-fork="${n.id}" title="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">${emptyBranchFrom(n.id)?'⑂ 未開始の分岐へ':'⑂ ここから分岐'}</button><button class="small plan${n.planned?' on':''}" data-plan="${n.id}" title="分岐するか迷っているときの印。俯瞰で黄色く表示">${n.planned?'★ 予定解除':'☆ 分岐予定'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="small" data-edit="${n.id}" title="この質問を書き直して送り直す">✎ 質問を編集する</button>`:''}${n.role==='assistant'&&!n.streaming?`<button class="small" data-go="${n.id}" title="ここまでの状態にして続ける">ここから続ける</button>`:''}</div>
     </div>`;
     const kids=childBranchesOf(n.id);
     if(kids.length)html+=`<div class="badges"><span class="ui">→ ここから分岐:</span> ${kids.map(k=>`<span class="chip${k.status==='closed'?' closed':''}" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}</span>`).join('')}</div>`;
@@ -491,6 +507,7 @@ function renderFocus(){
   m.querySelectorAll('[data-fork]').forEach(el=>el.onclick=()=>openFork(el.dataset.fork));
   m.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoNode(el.dataset.go));
   m.querySelectorAll('[data-plan]').forEach(el=>el.onclick=()=>togglePlan(el.dataset.plan));
+  m.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>openEdit(el.dataset.edit));
   m.querySelectorAll('.badges .chip').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.b));
   if(stick)m.scrollTop=m.scrollHeight;
   if(!busy)setStatus(`概算 ${buildContext(conv.activeNodeId).tokens} tok を次回送信`);
@@ -528,6 +545,47 @@ async function ensureGists(){
 function fillShortGists(){for(const id of conv.order){const n=N(id);if(!n.gist&&n.content&&n.content.length<=20&&!n.streaming)n.gist=n.content.trim();}}
 function togglePlan(nid){const n=N(nid);n.planned=!n.planned;persist();renderAll();toast(n.planned?'★ 分岐予定に追加（俯瞰で黄色表示）':'分岐予定を解除');}
 function plannedNodes(){return conv.order.map(N).filter(n=>n.planned);}
+
+/* ========== 質問の編集 ========== */
+function editContext(nid){
+  const n=N(nid);const b=B(n.branchId);
+  const kids=conv.order.map(N).filter(x=>x.parentId===nid);
+  const reply=kids.find(x=>x.role==='assistant'&&x.branchId===n.branchId)||null;
+  const later=reply?conv.order.map(N).some(x=>x.parentId===reply.id):kids.length>0;
+  const isHead=b.headNodeId===(reply?reply.id:nid);
+  return {n,b,reply,inPlace:!later&&isHead};
+}
+function openEdit(nid){
+  if(busy){toast('生成中は編集できません');return;}
+  const el=document.getElementById('n-'+nid);if(!el)return;
+  const {n,inPlace}=editContext(nid);
+  const body=el.querySelector('.body');
+  body.innerHTML=`<textarea class="editBox" id="edit-${nid}"></textarea>
+    <div class="editBtns"><span class="hint ui">${inPlace?'保存すると、この質問への回答を作り直します':'元のやり取りは残し、書き直した質問で新しい分岐を始めます'}</span>
+    <button class="small" data-editcancel="${nid}">キャンセル</button><button class="small primary" data-editok="${nid}">送信し直す</button></div>`;
+  const ta=body.querySelector('textarea');ta.value=n.content;ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);
+  el.querySelector('.tools').hidden=true;
+  body.querySelector('[data-editcancel]').onclick=()=>renderFocus();
+  body.querySelector('[data-editok]').onclick=()=>{const t=ta.value.trim();if(!t){toast('質問が空です');return;}editQuestion(nid,t);};
+  ta.onkeydown=e=>{if(e.key==='Escape'){renderFocus();}if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){body.querySelector('[data-editok]').click();}};
+}
+function editQuestion(nid,text){
+  const {n,b,reply,inPlace}=editContext(nid);
+  if(text===n.content){renderFocus();return;}
+  if(inPlace){
+    // 最新の質問: 質問と回答を取り除いて送り直す
+    for(const x of [reply,n].filter(Boolean)){delete conv.nodes[x.id];conv.order=conv.order.filter(id=>id!==x.id);}
+    b.seq=Math.max(0,(b.seq||0)-(reply?2:1));
+    b.headNodeId=n.parentId;conv.activeNodeId=n.parentId;persist();
+    send(text,{branchId:b.id,parentId:n.parentId});
+  }else{
+    // 途中の質問: 元は残し、直前の回答から新しい分岐で質問し直す
+    const nb=createBranch(n.parentId,'');
+    conv.activeNodeId=n.parentId;delete conv._pendingBranch;persist();
+    toast(`書き直した質問で分岐「${nb.name}」を開始します`);
+    send(text,{branchId:nb.id,parentId:n.parentId});
+  }
+}
 
 /* ========== 分岐 ========== */
 function emptyBranchFrom(nid){return Object.values(conv.branches).find(b=>b.forkFromNodeId===nid&&b.headNodeId===b.forkFromNodeId)||null;}
@@ -627,7 +685,7 @@ function renderOverview(){
   c.querySelectorAll('[data-rename]').forEach(el=>el.onclick=()=>renameBranch(el.dataset.rename));
   c.querySelectorAll('[data-resum]').forEach(el=>el.onclick=()=>{toast('要約を更新中…');updateSummary(el.dataset.resum);branchNodes(el.dataset.resum).forEach(n=>{if(n.content.length>20)delete n.gist;});ensureGists();});
   c.querySelectorAll('[data-merge]').forEach(el=>el.onclick=()=>mergeBranch(el.dataset.merge));
-  c.querySelectorAll('[data-delbr]').forEach(el=>el.onclick=()=>{const b=B(el.dataset.delbr);if(!isEmptyBranch(b))return;if(!confirm(`未開始の分岐「${b.name}」を削除しますか？`))return;if(conv._pendingBranch===b.id)delete conv._pendingBranch;if(currentBranchId()===b.id)conv.activeNodeId=b.forkFromNodeId;delete conv.branches[b.id];persist();renderAll();toast('削除しました');});
+  c.querySelectorAll('[data-delbr]').forEach(el=>el.onclick=async()=>{const b=B(el.dataset.delbr);if(!isEmptyBranch(b))return;if(!(await askConfirm(`未開始の分岐「${b.name}」を削除しますか？`,'削除する')))return;if(conv._pendingBranch===b.id)delete conv._pendingBranch;if(currentBranchId()===b.id)conv.activeNodeId=b.forkFromNodeId;delete conv.branches[b.id];persist();renderAll();toast('削除しました');});
   c.querySelectorAll('[data-forkp]').forEach(el=>el.onclick=()=>openFork(el.dataset.forkp));
   c.querySelectorAll('[data-unplan]').forEach(el=>el.onclick=()=>togglePlan(el.dataset.unplan));
 }
@@ -641,15 +699,15 @@ function mergeBranch(srcId){
 $('#sendBtn').onclick=()=>{const t=$('#input').value;if(!t.trim())return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';send(t,{branchId:bid,parentId:conv.activeNodeId});};
 $('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('#sendBtn').click();}});
 $('#convSel').onchange=e=>{conv=convs[e.target.value];delete conv._pendingBranch;persist();showFocus();};
-$('#newConv').onclick=()=>{
+$('#newConv').onclick=async()=>{
   if(!conv.order.length){toast('今の会話はまだ空です。そのまま使えます');$('#input').focus();return;}
-  if(!confirm('新規のチャットを作成しますか？'))return;
+  if(!(await askConfirm('新規のチャットを作成しますか？','作成する')))return;
   conv=newConversation();persist();showFocus();
 };
-$('#renameConv').onclick=()=>{const v=prompt('会話の名前を変更',conv.title);if(v&&v.trim()){conv.title=v.trim().slice(0,40);persist();renderAll();}};
-$('#delConv').onclick=()=>{
+$('#renameConv').onclick=async()=>{const v=await askPrompt('会話の名前を変更',conv.title);if(v&&v.trim()){conv.title=v.trim().slice(0,40);persist();renderAll();}};
+$('#delConv').onclick=async()=>{
   const n=conv.order.length;
-  if(!confirm(`会話「${conv.title}」（${n}件の発言）を削除しますか？\nこの操作は元に戻せません。`))return;
+  if(!(await askConfirm(`会話「${conv.title}」（${n}件の発言）を削除しますか？\nこの操作は元に戻せません。`,'削除する')))return;
   delete convs[conv.id];
   const rest=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt);
   conv=rest[0]||newConversation();persist();showFocus();toast('会話を削除しました');
