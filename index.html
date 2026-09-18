@@ -188,13 +188,15 @@ header{z-index:5}
 .vpop button i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--glow);flex:none}
 .vpop button.on i{background:var(--glow);box-shadow:0 0 10px var(--glow)}
 .vpop button small{margin-left:auto;color:var(--muted);font-size:11px;font-family:"Noto Sans JP",sans-serif;letter-spacing:0}
-/* 分岐ワープ演出 */
-#warp{position:fixed;inset:0;width:100%;height:100%;z-index:60;pointer-events:none;opacity:0;transition:opacity .4s}
-#warp.on{opacity:1;transition:opacity .1s}
-#focus.warping{transform:scale(1.06);filter:blur(2px) brightness(1.15);transition:transform .8s cubic-bezier(.4,0,1,1),filter .8s}
-#focus.warpin{animation:warpin .55s ease-out}
-@keyframes warpin{from{transform:scale(.94);filter:blur(4px) brightness(1.6)}to{transform:none;filter:none}}
-@media (prefers-reduced-motion:reduce){#focus.warping,#focus.warpin{transform:none;filter:none;animation:none}}
+/* 分岐開始: 分岐元を画面上端へ寄せ、短く光らせる */
+#msgs{position:relative}
+#tailSpace{flex:none}
+.msg.anchorFlash{animation:anchorFlash 1.4s ease-out}
+@keyframes anchorFlash{0%{box-shadow:0 0 0 3px var(--bc),0 2px 10px rgba(30,58,110,.08)}100%{box-shadow:0 0 0 0 transparent,0 2px 10px rgba(30,58,110,.08)}}
+@media (prefers-reduced-motion:reduce){.msg.anchorFlash{animation:none}}
+#pendingBar{max-width:860px;margin:0 auto 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 10px;border:1.5px dashed var(--bc,#0369a1);border-radius:10px;background:#fff;color:var(--indigo);font-size:13px}
+#pendingBar .nm{font-weight:700;color:var(--bc)}
+#pendingBar button{margin-left:auto}
 </style>
 </head>
 <body>
@@ -220,6 +222,7 @@ header{z-index:5}
     <div id="crumb"></div>
     <div id="msgs"></div>
     <div id="composer">
+      <div id="pendingBar" hidden></div>
       <div class="row">
         <textarea id="input" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行）"></textarea>
         <button class="primary" id="sendBtn">送信</button>
@@ -233,7 +236,6 @@ header{z-index:5}
   </section>
 </main>
 <div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button></div>
-<canvas id="warp"></canvas>
 <div id="toast"></div>
 
 <dialog id="settings">
@@ -487,7 +489,7 @@ async function send(text,opts={}){
   setStatus(`送信中… 概算 ${ctx.tokens} tok`);
   try{
     for await(const ev of provider()(ctx.system,ctx.messages,settings.model)){
-      if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){el.querySelector('.body').innerHTML=md(a.content);autoScroll();}}
+      if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){el.querySelector('.body').innerHTML=md(a.content);updateTailSpace();autoScroll();}}
       if(ev.usage)a.usage=ev.usage;
       if(ev.rate)a.rate=ev.rate;
     }
@@ -514,8 +516,16 @@ function renderBranchBar(){
   $('#branchBar').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{if(el.dataset.b===currentBranchId()){renameBranch(el.dataset.b);}else gotoBranch(el.dataset.b);});
 }
 async function renameBranch(bid){const b=B(bid);const v=await askPrompt('ブランチ名を変更',b.name);if(v&&v.trim()){b.name=v.trim().slice(0,30);b.autoNamed=false;persist();renderAll();}}
-function gotoBranch(bid){const b=B(bid);conv.activeNodeId=b.headNodeId;persist();showFocus();}
-function gotoNode(nid){conv.activeNodeId=nid;persist();showFocus();}
+function gotoBranch(bid){delete conv._anchor;const b=B(bid);if(isEmptyBranch(b)&&b.forkFromNodeId){openFork(b.forkFromNodeId);return;}conv.activeNodeId=b.headNodeId;persist();showFocus();}
+function gotoNode(nid){delete conv._anchor;conv.activeNodeId=nid;persist();showFocus();}
+function renderPendingBar(){
+  const bar=$('#pendingBar');const bid=effectiveBranchForSend();const b=B(bid);
+  if(b&&isEmptyBranch(b)&&conv._pendingBranch===bid){
+    bar.hidden=false;bar.style.setProperty('--bc',b.color);
+    bar.innerHTML=`<span class="ui">⑂ 新しい分岐</span><span class="nm">${esc(b.name)}</span><span class="ui">を開始します。最初の発言を送ってください。</span><button class="small" id="cancelBr">✕ 分岐を取り消す</button>`;
+    $('#cancelBr').onclick=()=>cancelBranch(bid);
+  }else{bar.hidden=true;bar.innerHTML='';}
+}
 function renderFocus(){
   const cur=currentBranchId();
   $('#crumb').innerHTML='<span class="ui">位置:</span> '+branchChain(cur).map(b=>`<b style="color:${b.color}">${esc(b.name)}</b>`).join(' → ')+(conv.activeNodeId?` <span>（${esc(label(N(conv.activeNodeId)))} <span class="ui">まで</span>）</span>`:'');
@@ -532,14 +542,16 @@ function renderFocus(){
       <div class="tools">${n.role==='assistant'&&!n.streaming?`<button class="small" data-fork="${n.id}" title="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">${emptyBranchFrom(n.id)?'⑂ 未開始の分岐へ':'⑂ ここから分岐'}</button><button class="small plan${n.planned?' on':''}" data-plan="${n.id}" title="分岐するか迷っているときの印。俯瞰図で黄色く表示">${n.planned?'★ 予定解除':'☆ 分岐予定'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="small" data-edit="${n.id}" title="この質問を書き直して送り直す">✎ 質問を編集する</button>`:''}${n.role==='assistant'&&!n.streaming?`<button class="small" data-go="${n.id}" title="ここまでの状態にして続ける">ここから続ける</button>`:''}</div>
     </div>`;
     const kids=childBranchesOf(n.id);
-    if(kids.length)html+=`<div class="badges"><span class="ui">→ ここから分岐:</span> ${kids.map(k=>`<span class="chip${k.status==='closed'?' closed':''}" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}</span>`).join('')}</div>`;
+    if(kids.length)html+=`<div class="badges"><span class="ui">→ ここから分岐:</span> ${kids.map(k=>`<span class="chip${k.status==='closed'?' closed':''}" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}${isEmptyBranch(k)?'（未開始）':''}</span>${isEmptyBranch(k)?`<button class="small" data-cancelbr="${k.id}" title="この未開始の分岐を取り消す">✕ 取り消す</button>`:''}`).join('')}</div>`;
   }
   if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答の下にある「⑂ ここから分岐」で話題を分けられます。<div class="editBtns"><span class="hint ui">使い方を試すなら</span><button class="small" id="demoBtn2">デモ会話を読み込む</button></div></div></div>`;
   const m=$('#msgs');const stick=m.scrollHeight-m.scrollTop-m.clientHeight<200;
-  m.innerHTML=html;
+  m.innerHTML=html+'<div id="tailSpace"></div>';
+  updateTailSpace();renderPendingBar();
   m.querySelectorAll('[data-fork]').forEach(el=>el.onclick=()=>openFork(el.dataset.fork));
   m.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoNode(el.dataset.go));
   m.querySelectorAll('[data-plan]').forEach(el=>el.onclick=()=>togglePlan(el.dataset.plan));
+  m.querySelectorAll('[data-cancelbr]').forEach(el=>el.onclick=e=>{e.stopPropagation();const id=el.dataset.cancelbr;if(conv._pendingBranch===id)cancelBranch(id);else{const b=B(id);if(b&&isEmptyBranch(b)){const name=b.name;delete conv.branches[id];persist();renderAll();toast(`分岐「${name}」を取り消しました`);}}});
   m.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>openEdit(el.dataset.edit));
   const d2=document.getElementById('demoBtn2');if(d2)d2.onclick=loadDemo;
   m.querySelectorAll('.badges .chip').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.b));
@@ -622,61 +634,51 @@ function editQuestion(nid,text){
 }
 
 /* ========== 分岐 ========== */
-/* 分岐ワープ: 加速する光の筋で別空間へ移る演出。中間点で切替コールバックを実行 */
-function warpTo(color,onSwitch){
+/* 分岐元メッセージを画面の一番上へ。下に余白(tailSpace)を足して上端まで届くようにする */
+function updateTailSpace(){
+  const m=$('#msgs');const sp=document.getElementById('tailSpace');if(!sp)return;
+  const el=conv._anchor?document.getElementById('n-'+conv._anchor):null;
+  if(!el){sp.style.height='0px';return;}
+  sp.style.height='0px';
+  const below=m.scrollHeight-el.offsetTop; // アンカー上端から内容末尾まで
+  sp.style.height=Math.max(0,m.clientHeight-below+8)+'px';
+}
+function scrollAnchorToTop(flash){
+  const m=$('#msgs');const el=conv._anchor?document.getElementById('n-'+conv._anchor):null;if(!el)return;
+  updateTailSpace();
   const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(reduce){onSwitch();return;}
-  const cv=$('#warp');const dpr=Math.min(2,window.devicePixelRatio||1);
-  const W=cv.width=Math.floor(innerWidth*dpr),H=cv.height=Math.floor(innerHeight*dpr);
-  const ctx=cv.getContext('2d');const cx=W/2,cy=H/2;const maxR=Math.hypot(cx,cy);
-  const col=(getComputedStyle(document.documentElement).getPropertyValue((color||'').replace(/^var\(|\)$/g,''))||color||'#4cc9ff').trim()||'#4cc9ff';
-  const stars=Array.from({length:260},()=>({a:Math.random()*Math.PI*2,r:Math.random()*maxR*.6,v:.6+Math.random()*1.6,w:.6+Math.random()*1.4}));
-  const focus=$('#focus');focus.classList.add('warping');cv.classList.add('on');
-  const t0=performance.now(),DUR=1100;let switched=false;
-  ctx.clearRect(0,0,W,H);
-  function frame(now){
-    const p=Math.min(1,(now-t0)/DUR);const acc=1+Math.pow(p,2.2)*70;
-    // 背景を徐々に暗く（別空間へ）
-    ctx.fillStyle=`rgba(3,9,22,${(p<.5?p*2:1)*.35})`;ctx.fillRect(0,0,W,H);
-    ctx.lineCap='round';
-    for(const st of stars){
-      const r0=st.r;st.r+=st.v*acc*dpr;
-      if(st.r>maxR*1.2){st.r=Math.random()*maxR*.15;st.a=Math.random()*Math.PI*2;continue;}
-      const x0=cx+Math.cos(st.a)*r0,y0=cy+Math.sin(st.a)*r0,x1=cx+Math.cos(st.a)*st.r,y1=cy+Math.sin(st.a)*st.r;
-      const al=Math.min(1,.25+st.r/maxR);
-      ctx.strokeStyle=(p>.75?'#ffffff':col);ctx.globalAlpha=al*(p>.85?(1-p)/.15:1);ctx.lineWidth=st.w*dpr*(1+p*2);
-      ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
-    }
-    ctx.globalAlpha=1;
-    // 中心の光（終盤に白く弾ける）
-    if(p>.55){const g=ctx.createRadialGradient(cx,cy,0,cx,cy,maxR*(p-.55)*2.2);g.addColorStop(0,`rgba(255,255,255,${Math.min(1,(p-.55)*2)})`);g.addColorStop(.4,/^#[0-9a-f]{6}$/i.test(col)?col+'80':'rgba(76,201,255,.5)');g.addColorStop(1,'rgba(3,9,22,0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
-    if(p>=.6&&!switched){switched=true;try{onSwitch();}catch(e){console.error(e);}focus.classList.remove('warping');focus.classList.add('warpin');}
-    if(p<1)requestAnimationFrame(frame);
-    else{cv.classList.remove('on');setTimeout(()=>{ctx.clearRect(0,0,W,H);focus.classList.remove('warpin');},450);}
-  }
-  requestAnimationFrame(frame);
+  m.scrollTo({top:Math.max(0,el.offsetTop-8),behavior:reduce?'auto':'smooth'});
+  if(flash){el.classList.remove('anchorFlash');void el.offsetWidth;el.classList.add('anchorFlash');}
+}
+function cancelBranch(bid){
+  const b=B(bid);if(!b||!isEmptyBranch(b))return;
+  const name=b.name;
+  if(conv._pendingBranch===bid)delete conv._pendingBranch;
+  delete conv.branches[bid];delete conv._anchor;
+  if(conv._returnNode&&N(conv._returnNode))conv.activeNodeId=conv._returnNode;
+  delete conv._returnNode;
+  persist();showFocus();toast(`分岐「${name}」を取り消しました`);
 }
 function emptyBranchFrom(nid){return Object.values(conv.branches).find(b=>b.forkFromNodeId===nid&&b.headNodeId===b.forkFromNodeId)||null;}
 function isEmptyBranch(b){return b.id!=='main'&&b.headNodeId===b.forkFromNodeId;}
 function openFork(nid,name){
   // 同じ回答から未開始（発言ゼロ）の分岐が既にあれば、新しく作らずそこへ移動
   const ex=emptyBranchFrom(nid);
-  if(ex){conv.activeNodeId=nid;conv._pendingBranch=ex.id;persist();showFocus();
+  if(ex){if(conv._pendingBranch!==ex.id)conv._returnNode=conv.activeNodeId;conv.activeNodeId=nid;conv._pendingBranch=ex.id;conv._anchor=nid;persist();showFocus();scrollAnchorToTop(true);
     if(conv._pendingQuote){$('#input').value=conv._pendingQuote+$('#input').value;delete conv._pendingQuote;}
     toast(`この回答からは未開始の分岐「${ex.name}」があります。先にそこで発言してから次の分岐を作れます`);$('#input').focus();return;}
   // ダイアログ無しで即分岐。名前は「分岐N」（選択テキストからの分岐は選択部分）。後から「名前」で変更可
   const b=createBranch(nid,(name||'').trim().slice(0,30));
   delete N(nid).planned;
   const quote=conv._pendingQuote;delete conv._pendingQuote;
-  persist();
-  warpTo(b.color,()=>{
-    conv.activeNodeId=nid; // 分岐元ノードの直後から
-    conv._pendingBranch=b.id;
-    persist();showFocus();
-    if(quote){$('#input').value=quote+$('#input').value;}
-    toast(`ブランチ「${b.name}」を開始。次の発言がこのブランチの最初になります（名前は後で変更できます）`);
-    $('#input').focus();$('#input').setSelectionRange($('#input').value.length,$('#input').value.length);
-  });
+  conv._returnNode=conv.activeNodeId; // 取り消したときに戻る位置
+  conv.activeNodeId=nid; // 分岐元ノードの直後から
+  conv._pendingBranch=b.id;
+  conv._anchor=nid;
+  persist();showFocus();
+  if(quote){$('#input').value=quote+$('#input').value;}
+  scrollAnchorToTop(true);
+  $('#input').focus({preventScroll:true});$('#input').setSelectionRange($('#input').value.length,$('#input').value.length);
 }
 // 分岐直後は activeNode が分岐元(別ブランチ)なので、送信先ブランチを pending で決める
 function effectiveBranchForSend(){
@@ -753,7 +755,7 @@ function renderOverview(){
         <button class="small" data-close="${b.id}">${b.status==='closed'?'再開':'終了'}</button>
         ${b.id!==cur&&B(cur).status!=='closed'?`<button class="small" data-merge="${b.id}">現在ブランチに合流</button>`:''}
         <button class="small" data-rename="${b.id}">名前</button>
-        ${isEmptyBranch(b)?`<button class="small" data-delbr="${b.id}">未開始の分岐を削除</button>`:''}
+        ${isEmptyBranch(b)?`<button class="small" data-delbr="${b.id}">✕ 分岐を取り消す</button>`:''}
         <button class="small" data-resum="${b.id}">要約更新</button>
       </div></div>`;}).join('');
   const c=$('#cards');
@@ -763,7 +765,7 @@ function renderOverview(){
   c.querySelectorAll('[data-rename]').forEach(el=>el.onclick=()=>renameBranch(el.dataset.rename));
   c.querySelectorAll('[data-resum]').forEach(el=>el.onclick=()=>{toast('要約を更新中…');updateSummary(el.dataset.resum);branchNodes(el.dataset.resum).forEach(n=>{if(n.content.length>20)delete n.gist;});ensureGists();});
   c.querySelectorAll('[data-merge]').forEach(el=>el.onclick=()=>mergeBranch(el.dataset.merge));
-  c.querySelectorAll('[data-delbr]').forEach(el=>el.onclick=async()=>{const b=B(el.dataset.delbr);if(!isEmptyBranch(b))return;if(!(await askConfirm(`未開始の分岐「${b.name}」を削除しますか？`,'削除する')))return;if(conv._pendingBranch===b.id)delete conv._pendingBranch;if(currentBranchId()===b.id)conv.activeNodeId=b.forkFromNodeId;delete conv.branches[b.id];persist();renderAll();toast('削除しました');});
+  c.querySelectorAll('[data-delbr]').forEach(el=>el.onclick=()=>{const id=el.dataset.delbr;const wasPending=conv._pendingBranch===id;const b=B(id);if(!b||!isEmptyBranch(b))return;if(wasPending){cancelBranch(id);showOverview();}else{const name=b.name;delete conv.branches[id];persist();renderAll();toast(`分岐「${name}」を取り消しました`);}});
   c.querySelectorAll('[data-forkp]').forEach(el=>el.onclick=()=>openFork(el.dataset.forkp));
   c.querySelectorAll('[data-unplan]').forEach(el=>el.onclick=()=>togglePlan(el.dataset.unplan));
 }
