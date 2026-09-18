@@ -63,8 +63,10 @@ main{flex:1;min-height:0;display:flex}
 .msg .body{white-space:pre-wrap;word-break:break-word}
 .msg .body code{background:rgba(76,201,255,.14);padding:0 4px;border-radius:4px;font-size:.92em}
 .msg .body pre{background:rgba(3,10,26,.8);border:1px solid var(--line);padding:8px 10px;border-radius:8px;overflow-x:auto;white-space:pre}
-.msg .tools{position:absolute;right:8px;top:6px;display:none;gap:4px}
-.msg:hover .tools{display:flex}
+.msg .tools{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:6px;border-top:1px dashed var(--line)}
+.msg.user .tools{display:none}
+.msg.user:hover .tools{display:flex}
+.msg .tools:empty{display:none}
 .badges{max-width:860px;margin:-4px auto 12px;padding-left:22px;font-size:12px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .badges .chip{padding:1px 8px}
 .divider{max-width:860px;margin:6px auto 12px;font-size:12px;color:var(--bc);border-top:1px dashed var(--bc);padding-top:4px;text-shadow:0 0 8px var(--bc)}
