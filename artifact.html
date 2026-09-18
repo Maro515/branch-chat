@@ -214,13 +214,6 @@ svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-seri
   <div class="btns"><button id="sCancel">閉じる</button><button class="primary" id="sSave">保存</button></div>
 </dialog>
 
-<dialog id="forkDlg">
-  <h2>⑂ ここから分岐</h2>
-  <div class="hint" id="forkFrom"></div>
-  <label>ブランチ名（空なら最初の質問から自動命名）</label>
-  <input type="text" id="forkName" placeholder="例: 副作用の話">
-  <div class="btns"><button id="forkCancel">キャンセル</button><button class="primary" id="forkOk">分岐する</button></div>
-</dialog>
 
 <dialog id="ctxDlg">
   <h2>AIに送るコンテキスト（プレビュー）</h2>
@@ -301,7 +294,7 @@ function addNode(role,content,parentId,branchId){
 function createBranch(forkFromNodeId,name){
   const idx=Object.keys(conv.branches).length;
   const b={id:uid(),name:name||'',color:COLORS[idx%COLORS.length],forkFromNodeId,headNodeId:forkFromNodeId,summary:null,pinned:false,status:'open',createdAt:Date.now(),autoNamed:!name,seq:0};
-  if(!name)b.name='分岐'+idx;
+  if(!name){const n=Object.values(conv.branches).filter(x=>x.id!=='main').length+1;b.name='分岐'+n;}
   conv.branches[b.id]=b;return b;
 }
 
@@ -402,7 +395,6 @@ async function updateSummary(bid){
     const m=out.match(/\{[\s\S]*\}/);if(!m)throw new Error('要約JSONなし');
     const j=JSON.parse(m[0]);
     b.summary={topic:j.topic,conclusions:j.conclusions,open:j.open,updatedAt:Date.now()};
-    if(b.autoNamed&&j.title){b.name=j.title;}
     if(bid==='main'&&conv.title==='新しい会話'&&j.title)conv.title=j.title;
     persist();renderAll();
   }catch(e){console.warn('summary failed',bid,e);}
@@ -448,9 +440,10 @@ function renderAll(){renderConvSel();renderBranchBar();renderFocus();if($('#over
 function renderConvSel(){const s=$('#convSel');s.innerHTML=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt).map(c=>`<option value="${c.id}"${c.id===conv.id?' selected':''}>${esc(c.title)}</option>`).join('');}
 function renderBranchBar(){
   const cur=currentBranchId();
-  $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}${b.status==='closed'?' closed':''}" style="--bc:${b.color}" data-b="${b.id}"><span class="dot"></span>${esc(b.name)}${b.pinned?' 📌':''}</span>`).join('');
-  $('#branchBar').querySelectorAll('.chip').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.b));
+  $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}${b.status==='closed'?' closed':''}" style="--bc:${b.color}" data-b="${b.id}" title="${b.id===cur?'クリックで名前を変更':'このブランチへ移動'}"><span class="dot"></span>${esc(b.name)}${b.pinned?' 📌':''}</span>`).join('');
+  $('#branchBar').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{if(el.dataset.b===currentBranchId()){renameBranch(el.dataset.b);}else gotoBranch(el.dataset.b);});
 }
+function renameBranch(bid){const b=B(bid);const v=prompt('ブランチ名を変更',b.name);if(v&&v.trim()){b.name=v.trim().slice(0,30);b.autoNamed=false;persist();renderAll();}}
 function gotoBranch(bid){const b=B(bid);conv.activeNodeId=b.headNodeId;persist();showFocus();}
 function gotoNode(nid){conv.activeNodeId=nid;persist();showFocus();}
 function renderFocus(){
@@ -516,18 +509,17 @@ function togglePlan(nid){const n=N(nid);n.planned=!n.planned;persist();renderAll
 function plannedNodes(){return conv.order.map(N).filter(n=>n.planned);}
 
 /* ========== 分岐 ========== */
-let forkTarget=null;
-function openFork(nid){forkTarget=nid;$('#forkFrom').textContent=`分岐元: ${label(N(nid))}「${excerpt(N(nid).content,60)}」`;$('#forkName').value='';$('#forkDlg').showModal();$('#forkName').focus();}
-$('#forkCancel').onclick=()=>{delete conv._pendingQuote;$('#forkDlg').close();};
-$('#forkOk').onclick=()=>{
-  const b=createBranch(forkTarget,$('#forkName').value.trim());
-  delete N(forkTarget).planned;
-  conv.activeNodeId=forkTarget; // 分岐元ノードの直後から
+function openFork(nid,name){
+  // ダイアログ無しで即分岐。名前は「分岐N」（選択テキストからの分岐は選択部分）。後から「名前」で変更可
+  const b=createBranch(nid,(name||'').trim().slice(0,30));
+  delete N(nid).planned;
+  conv.activeNodeId=nid; // 分岐元ノードの直後から
   conv._pendingBranch=b.id;
-  $('#forkDlg').close();persist();showFocus();
+  persist();showFocus();
   if(conv._pendingQuote){$('#input').value=conv._pendingQuote+$('#input').value;delete conv._pendingQuote;}
-  toast(`ブランチ「${b.name}」を開始。次の発言がこのブランチの最初になります`);$('#input').focus();$('#input').setSelectionRange($('#input').value.length,$('#input').value.length);
-};
+  toast(`ブランチ「${b.name}」を開始。次の発言がこのブランチの最初になります（名前は後で変更できます）`);
+  $('#input').focus();$('#input').setSelectionRange($('#input').value.length,$('#input').value.length);
+}
 // 分岐直後は activeNode が分岐元(別ブランチ)なので、送信先ブランチを pending で決める
 function effectiveBranchForSend(){
   if(conv._pendingBranch&&B(conv._pendingBranch)){const b=B(conv._pendingBranch);if(b.headNodeId===b.forkFromNodeId)return b.id;}
@@ -542,8 +534,8 @@ function renderOverview(){
   const bs=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt);
   const lane={};bs.forEach((b,i)=>lane[b.id]=i);
   const rowOf={};conv.order.forEach((id,i)=>rowOf[id]=i);
-  const X=i=>80+i*300, Y=i=>60+i*44;
-  const W=Math.max(420,80+bs.length*300+120), Hh=Math.max(240,60+conv.order.length*44+60);
+  const X=i=>110+i*300, Y=i=>70+i*44;
+  const W=Math.max(420,110+bs.length*300+120), Hh=Math.max(240,70+conv.order.length*44+60);
   const forkPoints=new Set(Object.values(conv.branches).map(b=>b.forkFromNodeId).filter(Boolean));
   // 波紋: 控えめ（広がり小・細線・淡く・ゆっくり・2重）
   const ripple=(x,y,r0,col,dur,n)=>{let o='';for(let i=0;i<n;i++){const b=(dur*i/n).toFixed(2)+'s';
@@ -554,8 +546,10 @@ function renderOverview(){
   <filter id="glow2" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
   // レーン縦線（薄い）と見出し
   for(const b of bs){const x=X(lane[b.id]);
-    s+=`<line x1="${x}" y1="34" x2="${x}" y2="${Hh-20}" stroke="${b.color}" stroke-opacity=".18" stroke-width="2"/>`;
-    s+=`<text x="${x}" y="24" text-anchor="middle" style="fill:${b.color};font-weight:700;letter-spacing:.08em" filter="url(#glow)">${esc(excerpt(b.name,9))}</text>`;}
+    s+=`<line x1="${x}" y1="40" x2="${x}" y2="${Hh-20}" stroke="${b.color}" stroke-opacity=".18" stroke-width="2"/>`;
+    const hn=excerpt(b.name,12);const hw=[...hn].reduce((a,ch)=>a+(ch.charCodeAt(0)>0x2e7f?17:9.5),0)+20;
+    s+=`<rect x="${x-hw/2}" y="8" width="${hw}" height="30" rx="8" fill="#fff" stroke="${b.color}" stroke-width="2"/>`;
+    s+=`<text x="${x}" y="29" text-anchor="middle" style="fill:${b.color};font-weight:700;font-size:17px;letter-spacing:.04em">${esc(hn)}</text>`;}
   // 接続線
   for(const id of conv.order){const n=N(id);if(!n.parentId)continue;const p=N(n.parentId);
     const x1=X(lane[p.branchId]),y1=Y(rowOf[p.id]),x2=X(lane[n.branchId]),y2=Y(rowOf[n.id]);const col=B(n.branchId).color;
@@ -601,7 +595,7 @@ function renderOverview(){
   c.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.go));
   c.querySelectorAll('[data-pin]').forEach(el=>el.onclick=()=>{const b=B(el.dataset.pin);b.pinned=!b.pinned;persist();renderAll();});
   c.querySelectorAll('[data-close]').forEach(el=>el.onclick=()=>{const b=B(el.dataset.close);b.status=b.status==='closed'?'open':'closed';persist();renderAll();});
-  c.querySelectorAll('[data-rename]').forEach(el=>el.onclick=()=>{const b=B(el.dataset.rename);const v=prompt('ブランチ名',b.name);if(v){b.name=v;b.autoNamed=false;persist();renderAll();}});
+  c.querySelectorAll('[data-rename]').forEach(el=>el.onclick=()=>renameBranch(el.dataset.rename));
   c.querySelectorAll('[data-resum]').forEach(el=>el.onclick=()=>{toast('要約を更新中…');updateSummary(el.dataset.resum);branchNodes(el.dataset.resum).forEach(n=>{if(n.content.length>20)delete n.gist;});ensureGists();});
   c.querySelectorAll('[data-merge]').forEach(el=>el.onclick=()=>mergeBranch(el.dataset.merge));
   c.querySelectorAll('[data-forkp]').forEach(el=>el.onclick=()=>openFork(el.dataset.forkp));
@@ -673,7 +667,7 @@ $('#selFork').onclick=()=>{
   const nid=sel.nodeId,q=quoteFor(sel.text);
   hideSelPop();window.getSelection().removeAllRanges();
   conv._pendingQuote=q;
-  openFork(nid);
+  openFork(nid,sel.text.replace(/\s+/g,' ').trim().slice(0,30));
 };
 
 /* ========== 起動 ========== */
