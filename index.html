@@ -194,9 +194,6 @@ header{z-index:5}
 .msg.anchorFlash{animation:anchorFlash 1.4s ease-out}
 @keyframes anchorFlash{0%{box-shadow:0 0 0 3px var(--bc),0 2px 10px rgba(30,58,110,.08)}100%{box-shadow:0 0 0 0 transparent,0 2px 10px rgba(30,58,110,.08)}}
 @media (prefers-reduced-motion:reduce){.msg.anchorFlash{animation:none}}
-#pendingBar{max-width:860px;margin:0 auto 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 10px;border:1.5px dashed var(--bc,#0369a1);border-radius:10px;background:#fff;color:var(--indigo);font-size:13px}
-#pendingBar .nm{font-weight:700;color:var(--bc)}
-#pendingBar button{margin-left:auto}
 </style>
 </head>
 <body>
@@ -222,7 +219,6 @@ header{z-index:5}
     <div id="crumb"></div>
     <div id="msgs"></div>
     <div id="composer">
-      <div id="pendingBar" hidden></div>
       <div class="row">
         <textarea id="input" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行）"></textarea>
         <button class="primary" id="sendBtn">送信</button>
@@ -518,14 +514,6 @@ function renderBranchBar(){
 async function renameBranch(bid){const b=B(bid);const v=await askPrompt('ブランチ名を変更',b.name);if(v&&v.trim()){b.name=v.trim().slice(0,30);b.autoNamed=false;persist();renderAll();}}
 function gotoBranch(bid){delete conv._anchor;const b=B(bid);if(isEmptyBranch(b)&&b.forkFromNodeId){openFork(b.forkFromNodeId);return;}conv.activeNodeId=b.headNodeId;persist();showFocus();}
 function gotoNode(nid){delete conv._anchor;conv.activeNodeId=nid;persist();showFocus();}
-function renderPendingBar(){
-  const bar=$('#pendingBar');const bid=effectiveBranchForSend();const b=B(bid);
-  if(b&&isEmptyBranch(b)&&conv._pendingBranch===bid){
-    bar.hidden=false;bar.style.setProperty('--bc',b.color);
-    bar.innerHTML=`<span class="ui">⑂ 新しい分岐</span><span class="nm">${esc(b.name)}</span><span class="ui">を開始します。最初の発言を送ってください。</span><button class="small" id="cancelBr">✕ 分岐を取り消す</button>`;
-    $('#cancelBr').onclick=()=>cancelBranch(bid);
-  }else{bar.hidden=true;bar.innerHTML='';}
-}
 function renderFocus(){
   const cur=currentBranchId();
   $('#crumb').innerHTML='<span class="ui">位置:</span> '+branchChain(cur).map(b=>`<b style="color:${b.color}">${esc(b.name)}</b>`).join(' → ')+(conv.activeNodeId?` <span>（${esc(label(N(conv.activeNodeId)))} <span class="ui">まで</span>）</span>`:'');
@@ -547,7 +535,7 @@ function renderFocus(){
   if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答の下にある「⑂ ここから分岐」で話題を分けられます。<div class="editBtns"><span class="hint ui">使い方を試すなら</span><button class="small" id="demoBtn2">デモ会話を読み込む</button></div></div></div>`;
   const m=$('#msgs');const stick=m.scrollHeight-m.scrollTop-m.clientHeight<200;
   m.innerHTML=html+'<div id="tailSpace"></div>';
-  updateTailSpace();renderPendingBar();
+  updateTailSpace();
   m.querySelectorAll('[data-fork]').forEach(el=>el.onclick=()=>openFork(el.dataset.fork));
   m.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoNode(el.dataset.go));
   m.querySelectorAll('[data-plan]').forEach(el=>el.onclick=()=>togglePlan(el.dataset.plan));
