@@ -372,6 +372,7 @@ async function* streamClaude(system,messages,model,opts={}){
     await new Promise(r=>{wake=r;});wake=null;
   }
   if(err){if(err.text&&!q.length){/* 部分テキストは既に流した */}throw err;}
+  if(result&&result.modelTierApplied)yield {tier:result.modelTierApplied};
   if(result&&result.truncated)yield {text:'\n\n（長さの上限で途中までになりました）'};
 }
 async function* streamDummy(system,messages,model){
@@ -424,12 +425,15 @@ async function send(text,opts={}){
       if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){el.querySelector('.body').innerHTML=md(a.content);autoScroll();}}
       if(ev.usage)a.usage=ev.usage;
       if(ev.rate)a.rate=ev.rate;
+      if(ev.tier)a.tier=ev.tier;
     }
     if(!a.content)a.content='（空の応答）';
   }catch(e){a.content+=`\n\n⚠️ ${errCopy(e)}`;toast(errCopy(e));}
   delete a.streaming;persist();renderAll();
   const u2=a.usage?` / 実トークン in ${a.usage.input_tokens||0}+cache ${a.usage.cache_read_input_tokens||0} out ${a.usage.output_tokens||0}`:'';
-  setStatus(`完了 概算 ${ctx.tokens} tok${u2}`);
+  const TIER_JA={default:'標準',complex:'高度',quick:'速い'};
+  const t2=a.tier?` / 実際に応答した階層: ${TIER_JA[a.tier]||a.tier}${a.tier!==(settings.tier||'default')?'（プランの都合で指定と異なります）':''}`:'';
+  setStatus(`完了 概算 ${ctx.tokens} tok${u2}${t2}`);
   busy=false;$('#sendBtn').disabled=false;
   updateSummary(bid);
   fillShortGists();ensureGists();
@@ -460,7 +464,7 @@ function renderFocus(){
     prevB=n.branchId;
     const outside=n.branchId!==cur;
     html+=`<div class="msg ${n.role}${outside?' outside':''}${n.planned?' planned':''}" id="n-${n.id}" style="--bc:${b.color}">
-      <div class="meta"><span class="tag">${esc(label(n))}</span><span class="ui">${n.role==='user'?'あなた':'AI'}</span><span title="このメッセージのトークン（AIは入力+出力の実測、未計測なら概算）">${tokensOf(n)} tok</span>${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="ui">…生成中</span>':''}</div>
+      <div class="meta"><span class="tag">${esc(label(n))}</span><span class="ui">${n.role==='user'?'あなた':'AI'}</span><span title="このメッセージのトークン（概算）">${tokensOf(n)} tok</span>${n.tier?`<span class="ui">${({default:'標準',complex:'高度',quick:'速い'})[n.tier]||n.tier}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="ui">…生成中</span>':''}</div>
       <div class="body">${md(n.content)}</div>
       <div class="tools">${n.role==='assistant'&&!n.streaming?`<button class="small" data-fork="${n.id}">⑂ ここから分岐</button><button class="small plan${n.planned?' on':''}" data-plan="${n.id}" title="分岐するか迷っているときの印。俯瞰で黄色く表示">${n.planned?'★ 予定解除':'☆ 分岐予定'}</button>`:''}${!n.streaming?`<button class="small" data-go="${n.id}" title="ここまでの状態にして続ける">ここから続ける</button>`:''}</div>
     </div>`;

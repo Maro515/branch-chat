@@ -3,14 +3,16 @@
 AIチャットを「直線」ではなく「分岐する平面タイムライン」で行うアプリ。
 話題を分岐させ、俯瞰図で全体を見渡し、本線に戻っても **AIが全ブランチの内容を認知した状態** で会話を続けられます。
 
-公開版: https://maro515.github.io/branch-chat/
+公開版（claude.ai Artifact・閲覧者自身のアカウントで動作）: https://claude.ai/artifact/HKiAkcZ2stzQDns8J32QpE
 
 ## 使い方
 - 単一HTML（`index.html`）。ブラウザで開くだけで動きます（データはブラウザの localStorage に保存）。
 - 設定（⚙）から接続方式を選択:
   - **ダミー応答**: APIなしで分岐・俯瞰の操作を試す
   - **Claude API**: APIキーを入力（キーはこのブラウザにのみ保存）
-  - **ローカルブリッジ**: `python3 bridge.py` を起動し http://localhost:8991/ を開くと、ログイン済みの `claude` CLI（Claude Pro/Max の定額枠）で動作。GitHub Pages 上では使えません
+  - **ローカルブリッジ**: `python3 bridge.py` を起動し http://localhost:8991/ を開くと、ログイン済みの `claude` CLI（Claude Pro/Max の定額枠）で動作
+
+`artifact.html` は claude.ai Artifact 版（`sample` capability で閲覧者のアカウントを使用。モデル階層 標準/高度/速い を設定で選択）。
 - AIの回答にカーソルを乗せて「⑂ ここから分岐」／迷っているときは「☆ 分岐予定」
 - 「俯瞰」でツリーを一望。ドットの大きさ＝トークン数、波紋＝現在位置と分岐点、黄＝分岐予定
 
