@@ -164,7 +164,7 @@ svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-seri
 <header>
   <h1>⑂ Branch Chat</h1>
   <select id="convSel" title="会話"></select>
-  <button class="small" id="newConv">＋会話</button>
+  <button class="small" id="newConv" title="新しい会話を作成">＋会話</button><button class="small" id="renameConv" title="この会話の名前を変更">✎ 名前</button><button class="small" id="delConv" title="この会話を削除">🗑 削除</button>
   <span class="spacer"></span>
   <div class="seg"><button id="modeFocus" class="on">フォーカス</button><button id="modeOver">俯瞰</button></div>
   <button class="small" id="exportBtn">書き出し</button>
@@ -437,7 +437,7 @@ function autoScroll(){const m=$('#msgs');if(m.scrollHeight-m.scrollTop-m.clientH
 
 /* ========== 描画: フォーカス ========== */
 function renderAll(){renderConvSel();renderBranchBar();renderFocus();if($('#overview').classList.contains('on'))renderOverview();}
-function renderConvSel(){const s=$('#convSel');s.innerHTML=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt).map(c=>`<option value="${c.id}"${c.id===conv.id?' selected':''}>${esc(c.title)}</option>`).join('');}
+function renderConvSel(){const s=$('#convSel');s.innerHTML=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt).map(c=>`<option value="${c.id}"${c.id===conv.id?' selected':''}>${esc(c.title)}${c.order.length?` (${c.order.length})`:'（空）'}</option>`).join('');}
 function renderBranchBar(){
   const cur=currentBranchId();
   $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}${b.status==='closed'?' closed':''}" style="--bc:${b.color}" data-b="${b.id}" title="${b.id===cur?'クリックで名前を変更':'このブランチへ移動'}"><span class="dot"></span>${esc(b.name)}${b.pinned?' 📌':''}</span>`).join('');
@@ -611,7 +611,19 @@ function mergeBranch(srcId){
 $('#sendBtn').onclick=()=>{const t=$('#input').value;if(!t.trim())return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';send(t,{branchId:bid,parentId:conv.activeNodeId});};
 $('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('#sendBtn').click();}});
 $('#convSel').onchange=e=>{conv=convs[e.target.value];delete conv._pendingBranch;persist();showFocus();};
-$('#newConv').onclick=()=>{conv=newConversation();persist();showFocus();};
+$('#newConv').onclick=()=>{
+  if(!conv.order.length){toast('今の会話はまだ空です。そのまま使えます');$('#input').focus();return;}
+  if(!confirm('新規のチャットを作成しますか？'))return;
+  conv=newConversation();persist();showFocus();
+};
+$('#renameConv').onclick=()=>{const v=prompt('会話の名前を変更',conv.title);if(v&&v.trim()){conv.title=v.trim().slice(0,40);persist();renderAll();}};
+$('#delConv').onclick=()=>{
+  const n=conv.order.length;
+  if(!confirm(`会話「${conv.title}」（${n}件の発言）を削除しますか？\nこの操作は元に戻せません。`))return;
+  delete convs[conv.id];
+  const rest=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt);
+  conv=rest[0]||newConversation();persist();showFocus();toast('会話を削除しました');
+};
 $('#exportBtn').onclick=async()=>{const data=JSON.stringify(conv,null,1);const fn=`branch-chat_${conv.title}.json`;let dl=null;try{dl=(window.claude&&window.claude.use)?await window.claude.use('downloads'):null;}catch(e){}
   if(dl){try{await dl.save({filename:fn,data});toast('保存しました');}catch(e){if(e&&e.code!=='declined')toast('保存できませんでした: '+(e.code||''));}}
   else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=fn;a.click();}};
