@@ -112,20 +112,21 @@ function chat(req, onEvent) {
   const model = String(req.model || 'claude-opus-5');
   const engine = req.engine === 'codex' ? 'codex' : 'claude';
   const effort = EFFORTS.includes(req.effort) ? req.effort : null;
+  const web = !!req.web; // Web検索を許可するか（検索と取得だけ。ファイルやコマンドは使わせない）
   let cmd, args;
   if (engine === 'codex') {
     if (!codexOk()) { onEvent({ error: 'Codex CLI が見つからないか、ChatGPT にログインしていません' }); onEvent({ done: true }); return () => {}; }
     fs.mkdirSync(CODEX_CWD, { recursive: true });
     cmd = CODEX;
-    args = ['exec', '--json', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules', '-s', 'read-only', '-C', CODEX_CWD, '-m', model];
+    args = [...(web ? ['--search'] : []), 'exec', '--json', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules', '-s', 'read-only', '-C', CODEX_CWD, '-m', model];
     if (effort) args.push('-c', `model_reasoning_effort=${effort}`);
     args.push('-');
     prompt = system + '\n\nあなたは会話アシスタントとして振る舞い、コマンド実行やファイル操作は行わず、文章だけで答えてください。\n\n---\n\n' + prompt;
   } else {
     if (!claudeOk()) { onEvent({ error: 'Claude Code（claude コマンド）が見つかりません。インストールとログインを確認してください' }); onEvent({ done: true }); return () => {}; }
     cmd = CLAUDE;
-    args = ['-p', '--model', model, '--system-prompt', system, '--tools', '', '--no-session-persistence', '--strict-mcp-config',
-      '--output-format', 'stream-json', '--include-partial-messages', '--verbose'];
+    args = ['-p', '--model', model, '--system-prompt', system, '--tools', ...(web ? ['WebSearch', 'WebFetch', '--allowedTools', 'WebSearch', 'WebFetch'] : ['']),
+      '--no-session-persistence', '--strict-mcp-config', '--output-format', 'stream-json', '--include-partial-messages', '--verbose'];
     if (effort && effort !== 'ultra') args.push('--effort', effort);
   }
   const env = { ...process.env, PATH: PATH_EXT };
@@ -144,7 +145,8 @@ function chat(req, onEvent) {
     const t = ev.type;
     if (engine === 'codex') {
       // codex は1文字ずつではなく、発言のまとまり単位で届く
-      if (t === 'item.completed' && ev.item && ev.item.type === 'agent_message' && ev.item.text) { onEvent({ text: (first ? '' : '\n\n') + ev.item.text }); first = false; }
+      if (t === 'item.completed' && ev.item && ev.item.type === 'web_search') onEvent({ tool: { name: 'web_search', q: ev.item.query || '' } });
+      else if (t === 'item.completed' && ev.item && ev.item.type === 'agent_message' && ev.item.text) { onEvent({ text: (first ? '' : '\n\n') + ev.item.text }); first = false; }
       else if (t === 'turn.completed') { const u = ev.usage || {}; const cached = u.cached_input_tokens || 0; onEvent({ usage: { input_tokens: Math.max(0, (u.input_tokens || 0) - cached), cache_read_input_tokens: cached, output_tokens: u.output_tokens || 0 } }); }
       else if (t === 'error' || t === 'turn.failed') onEvent({ error: 'codex: ' + (ev.message || (ev.error && ev.error.message) || JSON.stringify(ev).slice(0, 500)) });
       return;
@@ -153,6 +155,8 @@ function chat(req, onEvent) {
       const e = ev.event || {};
       if (e.type === 'content_block_delta' && e.delta && e.delta.type === 'text_delta') onEvent({ text: e.delta.text || '' });
       else if (e.type === 'message_delta') onEvent({ usage: e.usage });
+    } else if (t === 'assistant') {
+      for (const c of ((ev.message || {}).content || [])) if (c.type === 'tool_use' && (c.name === 'WebSearch' || c.name === 'WebFetch')) onEvent({ tool: { name: c.name === 'WebSearch' ? 'web_search' : 'web_fetch', q: (c.input && (c.input.query || c.input.url)) || '' } });
     } else if (t === 'result') { if (ev.is_error) onEvent({ error: String(ev.result || 'claude がエラーを返しました').slice(0, 800) }); }
     else if (t === 'rate_limit_event') onEvent({ rate_limit: ev.rate_limit_info });
   };

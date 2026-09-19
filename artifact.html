@@ -248,6 +248,11 @@ header{z-index:5}
 .badge.ok{color:#34d399}.badge.warn{color:#ffd93d}.badge.ng{color:#f87171}
 .kbd{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:12px;background:rgba(20,50,110,.35)}
 .msg.cursor{outline:2px dashed var(--indigo);outline-offset:4px;border-radius:12px}
+#webBtn{font-size:12px;padding:4px 10px}
+#webBtn.on{background:#e6f7ff!important;border-color:var(--c1)!important;color:var(--c1)!important;font-weight:700}
+.toolsUsed{display:flex;flex-wrap:wrap;gap:6px}
+.toolsUsed:empty{display:none}
+.toolchip{font-size:12px;color:var(--indigo2);background:#eef3fb;border:1px solid var(--line);border-radius:999px;padding:1px 10px;margin-bottom:6px}
 </style>
 <header>
   <h1>⑂ BranCHAT</h1>
@@ -274,7 +279,7 @@ header{z-index:5}
     <div id="composer">
       <div class="row">
         <textarea id="input" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行）"></textarea>
-        <div class="sendCol"><div id="modelPop"></div><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
+        <div class="sendCol"><div id="modelPop"></div><button id="webBtn" class="small" title="Web検索"></button><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
       <div id="status"></div>
     </div>
@@ -530,11 +535,14 @@ async function send(text,opts={}){
   const u=addNode('user',text,parentId,bid);
   const a=addNode('assistant','',u.id,bid);a.streaming=true;if(opts.mergedFrom)a.mergedFrom=opts.mergedFrom;
   conv.activeNodeId=a.id;persist();renderAll();
+  const web=!!settings.web&&!IS_ARTIFACT;
   const ctx=buildContext(u.id,{pinIds:opts.pinIds});
+  if(web)ctx.system+='\n\n## Web検索\n最新情報・事実確認・出典が必要なときは Web検索（必要なら取得）を使ってください。使った場合は回答の末尾に出典のURLを示してください。検索が不要な質問では使わないでください。';
   setStatus(`Claude が考えています… 概算 ${ctx.tokens} tok`);
   try{
   const model=effModel(bid),effort=effEffort(bid);a.model=model;if(effort)a.effort=effort;
-    for await(const ev of provider()(ctx.system,ctx.messages,model,{effort,signal:abortCtl.signal})){
+    for await(const ev of provider()(ctx.system,ctx.messages,model,{effort,web,signal:abortCtl.signal})){
+      if(ev.tool){(a.tools=a.tools||[]).push(ev.tool);const el=document.getElementById('n-'+a.id);if(el){const tu=el.querySelector('.toolsUsed');if(tu)tu.innerHTML=toolsHTML(a);}}
       if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){el.querySelector('.body').innerHTML=md(a.content);updateTailSpace();autoScroll();}}
       if(ev.usage)a.usage=ev.usage;
       if(ev.rate)a.rate=ev.rate;
@@ -558,7 +566,7 @@ function setStatus(s){$('#status').innerHTML=`<span>${esc(s)}</span><span><span 
 function autoScroll(){const m=$('#msgs');if(m.scrollHeight-m.scrollTop-m.clientHeight<200)m.scrollTop=m.scrollHeight;}
 
 /* ========== 描画: フォーカス ========== */
-function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderModelBtn();if($('#overview').classList.contains('on'))renderOverview();}
+function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderModelBtn();renderWebBtn();if($('#overview').classList.contains('on'))renderOverview();}
 function renderConvSel(){const s=$('#convSel');s.innerHTML=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt).map(c=>`<option value="${c.id}"${c.id===conv.id?' selected':''}>${esc(c.title)}${c.order.length?` (${c.order.length})`:'（空）'}</option>`).join('');}
 function renderBranchBar(){
   const cur=currentBranchId();
@@ -584,7 +592,7 @@ function renderFocus(){
     if(after&&path.indexOf(n)===actIdx+1)html+=`<div class="divider ui" style="--bc:${b.color}">ここまでを文脈にして続けます。ここから送信すると新しい枝になります（末尾から続けるには <a href="#" data-gohead="${cur}">この枝の最後へ</a>）</div>`;
     html+=`<div class="msg ${n.role}${outside?' outside':''}${n.planned?' planned':''}${n.id===conv.activeNodeId&&after!==undefined&&actIdx>=0&&actIdx<path.length-1?' cursor':''}" id="n-${n.id}" style="--bc:${b.color}">
       <div class="meta"><span class="tag">${esc(label(n))}</span><span class="ui">${n.role==='user'?'あなた':'AI'}</span><span title="このメッセージのトークン（概算）">${tokensOf(n)} tok</span>${n.tier?`<span class="ui">${({default:'標準',complex:'高度',quick:'速い'})[n.tier]||n.tier}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="ui">…生成中</span>':''}</div>
-      <div class="body">${md(n.content)}</div>
+      <div class="toolsUsed">${toolsHTML(n)}</div><div class="body">${md(n.content)}</div>
       <div class="tools">${n.role==='assistant'&&!n.streaming?`<button class="small" data-fork="${n.id}" title="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">${emptyBranchFrom(n.id)?'⑂ 未開始の分岐へ':'⑂ ここから分岐'}</button><button class="small plan${n.planned?' on':''}" data-plan="${n.id}" title="分岐するか迷っているときの印。俯瞰図で黄色く表示">${n.planned?'★ 予定解除':'☆ 分岐予定'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="small" data-edit="${n.id}" title="この質問を書き直して送り直す">✎ 質問を編集する</button>`:''}${n.role==='assistant'&&!n.streaming&&n.id!==B(n.branchId).headNodeId?`<button class="small" data-go="${n.id}" title="この回答までを文脈にして続ける（送信すると新しい枝になります）">ここから続ける</button>`:''}</div>
     </div>`;
     const kids=childBranchesOf(n.id);
@@ -638,6 +646,10 @@ async function ensureGists(){
 function fillShortGists(){for(const id of conv.order){const n=N(id);if(!n.gist&&n.content&&n.content.length<=20&&!n.streaming)n.gist=n.content.trim();}}
 function togglePlan(nid){const n=N(nid);n.planned=!n.planned;persist();renderAll();toast(n.planned?'★ 分岐予定に追加（俯瞰図で黄色表示）':'分岐予定を解除');}
 function plannedNodes(){return conv.order.map(N).filter(n=>n.planned);}
+
+/* ========== Web検索の表示 ========== */
+function toolsHTML(n){return (n.tools||[]).map(t=>`<span class="toolchip"><span class="ui">${t.name==='web_fetch'?'🌐 取得':'🔍 Web検索'}</span>${t.q?`「<span class="var">${esc(excerpt(t.q,40))}</span>」`:''}</span>`).join('');}
+function renderWebBtn(){const b=$('#webBtn');if(!b)return;if(IS_ARTIFACT){b.hidden=true;return;}const on=!!settings.web;b.classList.toggle('on',on);b.innerHTML=`<span class="ui">🌐 Web検索</span> <span class="ui">${on?'オン':'オフ'}</span>`;b.title=on?'AIが必要に応じてWeb検索と取得を使います（クリックでオフ）':'Web検索を使わない（クリックでオン）';}
 
 /* ========== 質問の編集 ========== */
 function editContext(nid){
@@ -997,6 +1009,7 @@ function renderModelPop(){
   pop.querySelectorAll('[data-m]').forEach(el=>el.onclick=e=>{e.stopPropagation();setv('model',el.dataset.m||null);});
   pop.querySelectorAll('[data-e]').forEach(el=>el.onclick=e=>{e.stopPropagation();setv('effort',el.dataset.e||null);});
 }
+$('#webBtn').onclick=()=>{settings.web=!settings.web;saveSettings();renderWebBtn();toast(settings.web?'Web検索をオンにしました。必要な質問で自動的に検索します':'Web検索をオフにしました');};
 $('#modelBtn').onclick=e=>{e.stopPropagation();const p=$('#modelPop');p.classList.toggle('on');if(p.classList.contains('on'))renderModelPop();};
 document.addEventListener('click',e=>{if(!e.target.closest('#modelPop')&&!e.target.closest('#modelBtn'))$('#modelPop').classList.remove('on');});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#modelPop').classList.remove('on');});

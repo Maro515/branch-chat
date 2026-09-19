@@ -113,12 +113,13 @@ class H(SimpleHTTPRequestHandler):
         model = req.get("model", "claude-opus-5")
         effort = req.get("effort")
         engine = req.get("engine", "claude")
+        web = bool(req.get("web"))  # Web検索を許可するか（検索と取得だけ。ファイルやコマンドは使わせない）
         if effort not in EFFORTS:
             effort = None
         if engine == "codex":
             os.makedirs(CODEX_CWD, exist_ok=True)
             # 読み取り専用・履歴を残さない・利用者の設定(MCPやフック)を読み込まない素の会話として実行
-            cmd = [CODEX or "codex", "exec", "--json", "--ephemeral", "--skip-git-repo-check",
+            cmd = [CODEX or "codex"] + (["--search"] if web else []) + ["exec", "--json", "--ephemeral", "--skip-git-repo-check",
                    "--ignore-user-config", "--ignore-rules", "-s", "read-only", "-C", CODEX_CWD, "-m", model]
             if effort:
                 cmd += ["-c", f"model_reasoning_effort={effort}"]
@@ -126,9 +127,10 @@ class H(SimpleHTTPRequestHandler):
             # codex exec には system の差し替えが無いので、指示を先頭に付けて1本のプロンプトにする
             prompt = (system + "\n\nあなたは会話アシスタントとして振る舞い、コマンド実行やファイル操作は行わず、文章だけで答えてください。\n\n---\n\n" + prompt)
         else:
-            cmd = [CLAUDE, "-p", "--model", model, "--system-prompt", system,
-                   "--tools", "", "--no-session-persistence", "--strict-mcp-config",
-                   "--output-format", "stream-json", "--include-partial-messages", "--verbose"]
+            cmd = [CLAUDE, "-p", "--model", model, "--system-prompt", system, "--tools"]
+            cmd += (["WebSearch", "WebFetch", "--allowedTools", "WebSearch", "WebFetch"] if web else [""])
+            cmd += ["--no-session-persistence", "--strict-mcp-config",
+                    "--output-format", "stream-json", "--include-partial-messages", "--verbose"]
             if effort and effort != "ultra":
                 cmd += ["--effort", effort]
         self.send_response(200); self._cors()
@@ -158,7 +160,9 @@ class H(SimpleHTTPRequestHandler):
                 t = ev.get("type")
                 if engine == "codex":
                     # codex は1文字ずつではなく、発言のまとまり単位で届く
-                    if t == "item.completed" and (ev.get("item") or {}).get("type") == "agent_message":
+                    if t == "item.completed" and (ev.get("item") or {}).get("type") == "web_search":
+                        send({"tool": {"name": "web_search", "q": (ev["item"].get("query") or "")}})
+                    elif t == "item.completed" and (ev.get("item") or {}).get("type") == "agent_message":
                         txt = (ev["item"].get("text") or "")
                         if txt:
                             send({"text": ("" if first else "\n\n") + txt}); first = False
@@ -180,6 +184,11 @@ class H(SimpleHTTPRequestHandler):
                             send({"text": d.get("text", "")})
                     elif e.get("type") == "message_delta":
                         send({"usage": e.get("usage")})
+                elif t == "assistant":
+                    for c in (ev.get("message") or {}).get("content") or []:
+                        if c.get("type") == "tool_use" and c.get("name") in ("WebSearch", "WebFetch"):
+                            inp = c.get("input") or {}
+                            send({"tool": {"name": "web_search" if c["name"] == "WebSearch" else "web_fetch", "q": inp.get("query") or inp.get("url") or ""}})
                 elif t == "result":
                     send({"done": True, "is_error": ev.get("is_error"),
                           "result": ev.get("result") if ev.get("is_error") else None,

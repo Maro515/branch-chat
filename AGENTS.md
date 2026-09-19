@@ -55,6 +55,7 @@ branch-chat/
 - `/api/status` は `auth`（各CLIの `installed` / `loggedIn` / プラン種別）を返す。判定は公式コマンド（`claude auth status`、`codex login status`）で行い、メールアドレス等は画面へ渡さない。`bridge.py` も同じ形で返す。
 - `/api/login`（デスクトップのみ）は利用者のターミナルで**固定の**ログインコマンドを開始するだけ。任意のコマンドを受け取る作りにしない。
 - **チュートリアル**（`TUT_PAGES`、ヘッダーの「？ 使い方」、初回は自動表示）は両HTML共通。接続ページだけ `IS_ARTIFACT` / `IS_DESKTOP` で内容が変わる。インストールやログインのコマンドを書き換えるときは、必ず公式ドキュメントか実機の `--help` で確かめる。
+- **Web検索**（`settings.web`、送信ボタン上の「🌐 Web検索」）: 送信の `web` フラグで、Claude は WebSearch/WebFetch のみ許可、Codex は `--search`（`exec` の前に置くトップレベル指定）、API は `web_search` サーバーツール。エンジンは `{tool:{name,q}}` イベントを流し、画面は `node.tools` としてチップ表示する。Artifact版は非対応（sample は外部通信不可）。
 - 追加API（デスクトップのみ）: `/api/backup`（POST で会話を `userData/backups/` に保存、GET で最新を返す）。画面側は `persist()` から `scheduleBackup()`、起動時に `restoreFromBackup()`。ブラウザ版では `IS_DESKTOP` が偽なので何もしない。
 - フォントは `npm run vendor` で `desktop/vendor/fonts/`（git管理外）に取得し、`sync-app.mjs` が同梱して読み込み先を差し替える。`index.html` のフォント `<link>` の書式を変えたら `sync-app.mjs` の置換も直す（合わないと sync がエラーで止まる）。アイコンは `npm run icon` で `build/icon.png` を再生成。
 - スモークテストは `userData` を一時フォルダに分けている。利用者の実データ（`~/Library/Application Support/BranCHAT`）をテストで汚さない。
@@ -152,7 +153,7 @@ claude.ai にサインインしていないブラウザでは Claude 呼び出�
 - **localStorage のキー名（`bc.*.v1`）とデータモデルの既存フィールド。** 利用者の会話が消える。どうしても変えるなら読み込み時の移行処理を同時に入れ、書き出しJSONの後方互換を保つ。本線の id `'main'` も固定。
 - **「全ブランチをAIが認知する」仕組み**（`buildContext` の3層と会話マップの注入、`updateSummary`）。軽量化のために要約カードを外す・現在ブランチだけにする、は不可。
 - **Artifact の公開URL・favicon・capabilities。** 新しいArtifactを作らない。`mcp` など共有範囲を狭める capability を勝手に足さない。
-- **`bridge.py` の安全側の設定:** `127.0.0.1` バインド。Claude 側は `--tools ""`、`--strict-mcp-config`、`--no-session-persistence`。Codex 側は `-s read-only`、`--ephemeral`、`--ignore-user-config`、`--ignore-rules`、空の作業フォルダ。`~/.codex/auth.json` は存在確認だけで中身を読まない。外部公開（`0.0.0.0`）にしない。ツールやMCPを有効にする変更は利用者の明示的な依頼があるときだけ。
+- **`bridge.py` の安全側の設定:** `127.0.0.1` バインド。Claude 側は `--tools ""`（Web検索オン時だけ `--tools WebSearch WebFetch --allowedTools WebSearch WebFetch`。ファイルやコマンド系のツールは決して足さない）、`--strict-mcp-config`、`--no-session-persistence`。Codex 側は `-s read-only`、`--ephemeral`、`--ignore-user-config`、`--ignore-rules`、空の作業フォルダ。`~/.codex/auth.json` は存在確認だけで中身を読まない。外部公開（`0.0.0.0`）にしない。ツールやMCPを有効にする変更は利用者の明示的な依頼があるときだけ。
 - **秘密情報をリポジトリに入れない。** APIキーはブラウザの localStorage にのみ保存される設計。`check.sh` が `sk-ant-` を検出する。
 - **GitHub Pages を再有効化しない**（利用者の指示で停止済み。公開先は Artifact に一本化）。リポジトリ `Maro515/branch-chat` はソース管理専用。
 - 親フォルダの `launch.json` の他プロジェクトの設定、および `branch-chat` の port 8991。
