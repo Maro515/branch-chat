@@ -150,6 +150,8 @@ function chatInner(req, onEvent, mcpCfg) {
   const engine = req.engine === 'codex' ? 'codex' : 'claude';
   const effort = EFFORTS.includes(req.effort) ? req.effort : null;
   const web = !!req.web; // Web検索を許可するか（検索と取得だけ。ファイルやコマンドは使わせない）
+  const images = (Array.isArray(req.images) ? req.images : []).filter((im) => im && im.data).slice(0, 4);
+  const tmpImgs = [];
   let cmd, args;
   if (engine === 'codex') {
     if (!codexOk()) { onEvent({ error: 'Codex CLI が見つからないか、ChatGPT にログインしていません' }); onEvent({ done: true }); return () => {}; }
@@ -157,6 +159,7 @@ function chatInner(req, onEvent, mcpCfg) {
     cmd = CODEX;
     args = [...(web ? ['--search'] : []), 'exec', '--json', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules', '-s', 'read-only', '-C', CODEX_CWD, '-m', model];
     if (effort) args.push('-c', `model_reasoning_effort=${effort}`);
+    for (const im of images) { const fp = path.join(CODEX_CWD, `branchat-img-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`); fs.writeFileSync(fp, Buffer.from(im.data, 'base64')); tmpImgs.push(fp); args.push('-i', fp); } // codex は -i <file> で画像を渡す
     args.push('-');
     prompt = system + '\n\nあなたは会話アシスタントとして振る舞い、コマンド実行やファイル操作は行わず、文章だけで答えてください。\n\n---\n\n' + prompt;
   } else {
@@ -167,6 +170,10 @@ function chatInner(req, onEvent, mcpCfg) {
     if (Object.keys(mcpCfg).length) { args.push('--mcp-config', JSON.stringify({ mcpServers: mcpCfg })); allowed.push(...Object.keys(mcpCfg).map((k) => 'mcp__' + k)); } // 選んだサーバーのツールだけ自動許可
     if (allowed.length) args.push('--allowedTools', ...allowed);
     args.push('--no-session-persistence', '--strict-mcp-config', '--output-format', 'stream-json', '--include-partial-messages', '--verbose');
+    if (images.length) { // 画像は content blocks で渡す（--input-format stream-json）
+      args.push('--input-format', 'stream-json');
+      prompt = JSON.stringify({ type: 'user', message: { role: 'user', content: [...images.map((im) => ({ type: 'image', source: { type: 'base64', media_type: im.media_type || 'image/jpeg', data: im.data } })), { type: 'text', text: prompt }] } }) + '\n';
+    }
     if (effort && effort !== 'ultra') args.push('--effort', effort);
   }
   const env = { ...process.env, PATH: PATH_EXT };
@@ -179,7 +186,7 @@ function chatInner(req, onEvent, mcpCfg) {
   child.stdin.end(prompt);
 
   let buf = '', errBuf = '', first = true, finished = false;
-  const finish = () => { if (!finished) { finished = true; onEvent({ done: true }); } };
+  const finish = () => { if (!finished) { finished = true; for (const fp of tmpImgs) { try { fs.unlinkSync(fp); } catch (e) { /* 既に無い */ } } onEvent({ done: true }); } };
   const handle = (line) => {
     let ev; try { ev = JSON.parse(line); } catch (e) { return; }
     const t = ev.type;

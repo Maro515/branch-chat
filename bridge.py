@@ -162,6 +162,8 @@ class H(SimpleHTTPRequestHandler):
         engine = req.get("engine", "claude")
         web = bool(req.get("web"))  # Web検索を許可するか（検索と取得だけ。ファイルやコマンドは使わせない）
         mcp = [n for n in (req.get("mcp") or []) if isinstance(n, str)][:8]  # 使う MCP サーバー名（Claude のみ）
+        images = [im for im in (req.get("images") or []) if isinstance(im, dict) and im.get("data")][:4]
+        tmp_imgs = []
         if effort not in EFFORTS:
             effort = None
         if engine == "codex":
@@ -171,6 +173,12 @@ class H(SimpleHTTPRequestHandler):
                    "--ignore-user-config", "--ignore-rules", "-s", "read-only", "-C", CODEX_CWD, "-m", model]
             if effort:
                 cmd += ["-c", f"model_reasoning_effort={effort}"]
+            for im in images:  # codex は -i <file> で画像を渡す
+                import base64, tempfile as _tf
+                fd, fp = _tf.mkstemp(prefix="branchat-img-", suffix=".jpg", dir=CODEX_CWD); os.close(fd)
+                with open(fp, "wb") as f:
+                    f.write(base64.b64decode(im["data"]))
+                tmp_imgs.append(fp); cmd += ["-i", fp]
             cmd += ["-"]
             # codex exec には system の差し替えが無いので、指示を先頭に付けて1本のプロンプトにする
             prompt = (system + "\n\nあなたは会話アシスタントとして振る舞い、コマンド実行やファイル操作は行わず、文章だけで答えてください。\n\n---\n\n" + prompt)
@@ -186,6 +194,11 @@ class H(SimpleHTTPRequestHandler):
                 cmd += ["--allowedTools"] + allowed
             cmd += ["--no-session-persistence", "--strict-mcp-config",
                     "--output-format", "stream-json", "--include-partial-messages", "--verbose"]
+            if images:  # 画像は content blocks で渡す（--input-format stream-json）
+                cmd += ["--input-format", "stream-json"]
+                prompt = json.dumps({"type": "user", "message": {"role": "user", "content":
+                    [{"type": "image", "source": {"type": "base64", "media_type": im.get("media_type", "image/jpeg"), "data": im["data"]}} for im in images]
+                    + [{"type": "text", "text": prompt}]}}, ensure_ascii=False) + "\n"
             if effort and effort != "ultra":
                 cmd += ["--effort", effort]
         self.send_response(200); self._cors()
@@ -266,6 +279,9 @@ class H(SimpleHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             p.kill()
         finally:
+            for fp in tmp_imgs:
+                try: os.remove(fp)
+                except Exception: pass
             try: send({"done": True})
             except Exception: pass
 
