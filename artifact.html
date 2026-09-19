@@ -901,41 +901,54 @@ function effortsFor(v){return [];}
 function bridgeModel(v){return v;}
 const globalModel=()=>settings.tier;const setGlobalModel=v=>{settings.tier=v;};
 
-/* ========== モデル・思考量（会話/ブランチごと） ========== */
-// 優先順位: ブランチの指定 > 会話の指定 > 全体の既定。値が無い(null)層は上位に従う
+/* ========== モデル・思考量（ブランチごと） ========== */
+// 継承: 自分のブランチの指定 → 分岐元のブランチ → … → 本線 → 全体の既定。指定が無いブランチは分岐元に従う
 const validModel=v=>MODEL_OPTS.some(o=>o.v===v)?v:null;
 const validEffort=v=>EFFORT_OPTS.some(o=>o.v===v)?v:null;
 const modelLabel=v=>(MODEL_OPTS.find(o=>o.v===v)||{l:v||'—'}).l;
-function effModel(bid){const b=B(bid);return validModel(b&&b.model)||validModel(conv.model)||validModel(globalModel())||MODEL_OPTS[0].v;}
+function parentBranchId(bid){const b=B(bid);if(!b||!b.forkFromNodeId||!N(b.forkFromNodeId))return null;return N(b.forkFromNodeId).branchId;}
+function resolveUp(bid,key,valid){
+  let id=bid,guard=0;
+  while(id&&guard++<100){const b=B(id);const v=b&&valid(b[key]);if(v)return {v,src:id};id=parentBranchId(id);}
+  return {v:valid(key==='model'?globalModel():settings.effort),src:'global'};
+}
+// 旧形式（会話単位の指定）は本線の指定へ移す。本線の指定＝会話全体の指定として働く
+function migrateConvModel(){for(const k of ['model','effort']){if(conv&&conv[k]!==undefined){const m=B('main');if(m&&m[k]===undefined)m[k]=conv[k];delete conv[k];}}}
+function effModel(bid){return resolveUp(bid,'model',validModel).v||MODEL_OPTS[0].v;}
 function effEffort(bid){return null;} // 思考量は階層に含まれる
 function effLabel(bid){const e=effEffort(bid);return modelLabel(effModel(bid))+(e?' · '+e:'');}
-function modelSource(bid){const b=B(bid);if(b&&(validModel(b.model)||validEffort(b.effort)))return 'branch';if(validModel(conv.model)||validEffort(conv.effort))return 'conv';return 'global';}
+function modelSource(bid){const a=resolveUp(bid,'model',validModel).src,b=EFFORT_OPTS.length?resolveUp(bid,'effort',validEffort).src:'global';if(a===bid||b===bid)return bid;return a!=='global'?a:b;}
+const sourceName=(src,bid)=>src==='global'?'全体の既定':src===bid?'このブランチの設定':(src==='main'?'本線の設定':`分岐元「${B(src).name}」の設定`);
 let mpScope='branch';
 function renderModelBtn(){
-  const bid=effectiveBranchForSend();const src=modelSource(bid);const b=B(bid);
-  const btn=$('#modelBtn');btn.style.setProperty('--bc',src==='branch'?b.color:src==='conv'?'var(--indigo)':'#9fb3d9');
+  migrateConvModel();
+  const bid=effectiveBranchForSend();const src=modelSource(bid);
+  const btn=$('#modelBtn');btn.style.setProperty('--bc',src==='global'?'#9fb3d9':B(src).color);
   btn.innerHTML=`<span class="ov"></span><span class="var">${esc(effLabel(bid))}</span><span>▾</span>`;
-  btn.title=({branch:'このブランチ専用の設定',conv:'この会話の設定',global:'全体の既定'})[src]+'で応答します。クリックで変更';
+  btn.title=sourceName(src,bid)+'で応答します。クリックで変更';
   if($('#modelPop').classList.contains('on'))renderModelPop();
 }
 function renderModelPop(){
-  const bid=effectiveBranchForSend();const b=B(bid);
-  const tgt=mpScope==='branch'?b:mpScope==='conv'?conv:null;
+  const bid=effectiveBranchForSend();const b=B(bid);const pid=parentBranchId(bid);
+  const tgt=mpScope==='branch'?b:null;
   const curM=tgt?validModel(tgt.model):validModel(globalModel());
   const curE=tgt?validEffort(tgt.effort):validEffort(settings.effort);
-  const upM=mpScope==='branch'?(validModel(conv.model)||validModel(globalModel())):validModel(globalModel());
-  const upE=mpScope==='branch'?(validEffort(conv.effort)||validEffort(settings.effort)):validEffort(settings.effort);
-  const inh=(cur,up,kind)=>mpScope==='global'?'':`<button class="small${cur?'':' on'}" data-${kind}="">上位に従う（${esc(kind==='m'?modelLabel(up):(up||'high'))}）</button>`;
+  // 「従う先」: 本線なら全体の既定、本線から分かれたブランチなら本線、それより深ければ分岐元のブランチ
+  const upName=!pid?'全体の既定':(pid==='main'?'本線の設定':`分岐元「${excerpt(B(pid).name,8)}」の設定`);
+  const upM=pid?effModel(pid):validModel(globalModel());
+  const upE=pid?effEffort(pid):validEffort(settings.effort);
+  const inh=(cur,up,kind)=>mpScope==='global'?'':`<button class="small${cur?'':' on'}" data-${kind}=""><span class="var">${esc(upName)}</span>（${esc(kind==='m'?modelLabel(up):(up||'指定なし'))}）</button>`;
   $('#modelPop').innerHTML=`<div class="mph ui">適用先</div>
-    <div class="row2"><button class="small${mpScope==='branch'?' on':''}" data-scope="branch">このブランチ「<span class="var">${esc(excerpt(b.name,10))}</span>」</button><button class="small${mpScope==='conv'?' on':''}" data-scope="conv">この会話</button><button class="small${mpScope==='global'?' on':''}" data-scope="global">全体の既定</button></div>
+    <div class="row2"><button class="small${mpScope==='branch'?' on':''}" data-scope="branch">このブランチ「<span class="var">${esc(excerpt(b.name,10))}</span>」</button><button class="small${mpScope==='global'?' on':''}" data-scope="global">全体の既定</button></div>
+    <div class="hint ui" style="margin-top:4px">${mpScope==='branch'?(bid==='main'?'本線の設定は、個別に指定していない全ブランチにも引き継がれます':'このブランチと、ここから先の分岐にだけ効きます'):'すべての会話の初期値です'}</div>
     <div class="mph ui">モデル</div>
     <div class="row2">${inh(curM,upM,'m')}</div>
     ${[['claude','Claude'],['codex','GPT（Codex CLI）']].filter(([eg])=>MODEL_OPTS.some(o=>modelEngine(o.v)===eg)).map(([eg,nm])=>`${MODEL_OPTS.some(o=>modelEngine(o.v)==='codex')?`<div class="mph ui" style="margin-top:6px">${nm}</div>`:''}<div class="row2">${MODEL_OPTS.filter(o=>modelEngine(o.v)===eg).map(o=>`<button class="small${curM===o.v?' on':''}" data-m="${esc(o.v)}" title="${esc(o.d||'')}">${esc(o.l)}</button>`).join('')}</div>`).join('')}
     ${EFFORT_OPTS.length?`<div class="mph ui">思考量</div><div class="row2">${inh(curE,upE,'e')}${EFFORT_OPTS.map(o=>{const ok=effortsFor(effModel(bid)).includes(o.v);return `<button class="small${curE===o.v?' on':''}" data-e="${o.v}" ${ok?'':'disabled'} title="${ok?esc(o.d||''):'今のモデルでは使えません'}">${esc(o.l)}</button>`;}).join('')}</div>${effortsFor(effModel(bid)).length?'':'<div class="hint ui">今のモデルは思考量の指定に対応していません</div>'}`:`<div class="mph ui">思考量</div><div class="hint ui">この版では思考量はモデルの階層に含まれます（高度＝深く考える / 速い＝考えない）</div>`}
-    <div class="res"><span class="ui">次の送信:</span> <b>${esc(effLabel(bid))}</b> <span class="hint ui">（${({branch:'ブランチの設定',conv:'会話の設定',global:'全体の既定'})[modelSource(bid)]}）</span></div>`;
+    <div class="res"><span class="ui">次の送信:</span> <b>${esc(effLabel(bid))}</b> <span class="hint">（<span class="var">${esc(sourceName(modelSource(bid),bid))}</span>）</span></div>`;
   const pop=$('#modelPop');
   pop.querySelectorAll('[data-scope]').forEach(el=>el.onclick=e=>{e.stopPropagation();mpScope=el.dataset.scope;renderModelPop();});
-  const setv=(key,val)=>{if(mpScope==='global'){if(key==='model')setGlobalModel(val);else settings.effort=val;saveSettings();}else{const t=mpScope==='branch'?B(effectiveBranchForSend()):conv;if(val)t[key]=val;else delete t[key];persist();}renderModelBtn();renderFocus();};
+  const setv=(key,val)=>{if(mpScope==='global'){if(key==='model')setGlobalModel(val);else settings.effort=val;saveSettings();}else{const t=B(effectiveBranchForSend());if(val)t[key]=val;else delete t[key];persist();}renderModelBtn();renderFocus();};
   pop.querySelectorAll('[data-m]').forEach(el=>el.onclick=e=>{e.stopPropagation();setv('model',el.dataset.m||null);});
   pop.querySelectorAll('[data-e]').forEach(el=>el.onclick=e=>{e.stopPropagation();setv('effort',el.dataset.e||null);});
 }

@@ -52,7 +52,7 @@ branch-chat/
 ### データモデル（localStorage に JSON で保存）
 
 ```js
-conv = { id, title, createdAt, order:[nodeId...], activeNodeId, model?, effort?,
+conv = { id, title, createdAt, order:[nodeId...], activeNodeId,
   nodes:    { [id]: { id, parentId, role:'user'|'assistant', content, branchId, ts, seq,
                       gist?, planned?, usage?, tier?, model?, effort?, mergedFrom?, streaming? } },
   branches: { [id]: { id, name, color, forkFromNodeId, headNodeId, summary, pinned,
@@ -62,7 +62,7 @@ conv = { id, title, createdAt, order:[nodeId...], activeNodeId, model?, effort?,
 
 - ノードは `parentId` だけのツリー。ブランチは「ツリー上の名前付きパス」。本線の id は固定で `'main'`。
 - 未開始の分岐 = `headNodeId === forkFromNodeId`（`isEmptyBranch`）。同じ回答からの未開始分岐は1つまで。
-- **モデルと思考量は3層で解決する:** ブランチの `model`/`effort` > 会話の `model`/`effort` > 全体の既定（`settings`）。値が無い層は上位に従う（`effModel` / `effEffort`）。選択肢は版ごとの `MODEL_OPTS` / `EFFORT_OPTS`。index.html はモデルID＋思考量5段階、artifact.html は階層3種で思考量の指定なし。別の版の値が入った会話を読み込んでも `validModel` が無視して上位に従うので壊れない。モデルが対応しない思考量は `effEffort` がその段階以下の最大へ丸める（例: GPT-5.5 で max → xhigh）。対応段階が空のモデル（Haiku）には思考量を送らない。ブリッジへはモデルから引いた `engine` を一緒に送るので、**ブランチごとに Claude と GPT を混在**できる。会話マップはただの文章なのでどのモデルにも同じものを渡す。
+- **モデルと思考量はブランチの系譜で継承する:** 自分のブランチの `model`/`effort` → 分岐元のブランチ → … → 本線 → 全体の既定（`settings`）。`resolveUp` が解決する。本線の指定が会話全体の指定として働くので、会話単位の指定は廃止（旧データの `conv.model`/`conv.effort` は `migrateConvModel` が本線へ移す）。UIの「従う先」の表示は、本線なら「全体の既定」、本線から分かれたブランチなら「本線の設定」、それより深ければ「分岐元「X」の設定」。選択肢は版ごとの `MODEL_OPTS` / `EFFORT_OPTS`。index.html はモデルID＋思考量5段階、artifact.html は階層3種で思考量の指定なし。別の版の値が入った会話を読み込んでも `validModel` が無視して上位に従うので壊れない。モデルが対応しない思考量は `effEffort` がその段階以下の最大へ丸める（例: GPT-5.5 で max → xhigh）。対応段階が空のモデル（Haiku）には思考量を送らない。ブリッジへはモデルから引いた `engine` を一緒に送るので、**ブランチごとに Claude と GPT を混在**できる。会話マップはただの文章なのでどのモデルにも同じものを渡す。
 - 保存キー: `bc.convs.v1`（全会話）、`bc.active.v1`、`bc.settings.v1`。
 - 状態を変えたら `persist()`、画面は `renderAll()`。
 
