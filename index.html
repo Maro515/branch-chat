@@ -294,6 +294,8 @@ header{z-index:5}
 .msg .imgs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
 .msg .imgs img{max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);background:#fff}
 #composer.dragover{outline:2px dashed var(--c1);outline-offset:-4px}
+#status{display:none}
+#composer{padding-bottom:10px}
 </style>
 </head>
 <body>
@@ -323,7 +325,7 @@ header{z-index:5}
       <div id="imgStrip"></div>
       <div class="row">
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
-          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden></div></div>
+          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="ctxBtn" class="prow"><span class="ui">📋 送信コンテキストを見る</span><span class="st ui">AIに渡る内容</span></button></div></div>
         <textarea id="input" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）"></textarea>
         <div class="sendCol"><div id="modelPop"></div><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
@@ -1240,6 +1242,7 @@ async function addImages(files){if(!imagesSupported){toast('この接続方式�
 function imgsHTML(n){return (n.images&&n.images.length)?`<div class="imgs">${n.images.map(t=>`<img src="${t}" alt="添付画像">`).join('')}</div>`:'';}
 $('#plusBtn').onclick=e=>{e.stopPropagation();$('#modelPop').classList.remove('on');renderPlus();$('#plusPop').classList.toggle('on');};
 document.addEventListener('click',e=>{if(!e.target.closest('#plusPop')&&!e.target.closest('#plusBtn')){$('#plusPop').classList.remove('on');}});
+$('#ctxBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');const l=document.getElementById('ctxLink');if(l)l.click();};
 $('#imgBtn').onclick=e=>{e.stopPropagation();$('#imgFile').click();};
 $('#imgFile').onchange=async()=>{await addImages($('#imgFile').files);$('#imgFile').value='';};
 $('#input').addEventListener('paste',e=>{const fs=[...(e.clipboardData&&e.clipboardData.files||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();addImages(fs);}});
