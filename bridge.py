@@ -2,17 +2,47 @@
 """BranCHAT ローカルブリッジ。
 
 静的ファイル(index.html)を配信しつつ、POST /api/chat を受けて
-ログイン済みの `claude` CLI(ヘッドレス -p モード)を起動し、SSEで返す。
-Claude Pro/Max の定額枠で動く(APIキー不要)。
+ログイン済みの CLI をヘッドレスで起動し、SSEで返す(APIキー不要)。
+  engine=claude : `claude -p`   … Claude Pro/Max の定額枠
+  engine=codex  : `codex exec`  … ChatGPT プランの定額枠
+どちらもツールを使わせない素の会話モデルとして呼ぶ。
 
 使い方:  python3 bridge.py [port]   (既定 8991)
 """
-import json, os, shutil, subprocess, sys, threading
+import json, os, shutil, subprocess, sys, tempfile, threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8991
 CLAUDE = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude")
+CODEX = next((c for c in [shutil.which("codex"),
+                          "/Applications/ChatGPT.app/Contents/Resources/codex",
+                          "/Applications/Codex.app/Contents/Resources/codex",
+                          os.path.expanduser("~/.local/bin/codex")] if c and os.path.exists(c)), None)
+CODEX_HOME = os.environ.get("CODEX_HOME") or os.path.expanduser("~/.codex")
+CODEX_CWD = os.path.join(tempfile.gettempdir(), "branchat-codex")  # 空の作業フォルダ(読み取り専用サンドボックスで使用)
+EFFORTS = ["low", "medium", "high", "xhigh", "max", "ultra"]
+
+
+def codex_ok():
+    return bool(CODEX) and os.path.exists(os.path.join(CODEX_HOME, "auth.json"))
+
+
+def codex_models():
+    """Codex が手元にキャッシュしているモデル一覧(名前と思考量の段階)。中身は読むが認証情報には触れない。"""
+    out = []
+    try:
+        d = json.load(open(os.path.join(CODEX_HOME, "models_cache.json"), encoding="utf-8"))
+        for m in (d.get("models") if isinstance(d, dict) else d) or []:
+            slug = m.get("slug") or m.get("id")
+            if not slug or "review" in slug:
+                continue
+            ef = [(e.get("effort") if isinstance(e, dict) else e) for e in (m.get("supported_reasoning_levels") or [])]
+            out.append({"id": slug, "name": m.get("display_name") or slug,
+                        "efforts": [e for e in EFFORTS if e in ef], "default_effort": m.get("default_reasoning_level")})
+    except Exception:
+        pass
+    return out or [{"id": "gpt-5.5", "name": "GPT-5.5", "efforts": ["low", "medium", "high", "xhigh"], "default_effort": "medium"}]
 
 
 def claude_ok():
@@ -37,7 +67,8 @@ class H(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.startswith("/api/status"):
-            body = json.dumps({"ok": claude_ok(), "claude": CLAUDE}).encode()
+            body = json.dumps({"ok": claude_ok(), "claude": CLAUDE, "codex_ok": codex_ok(), "codex": CODEX,
+                               "codex_models": codex_models() if codex_ok() else []}, ensure_ascii=False).encode()
             self.send_response(200); self._cors()
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
@@ -53,11 +84,25 @@ class H(SimpleHTTPRequestHandler):
         prompt = req.get("prompt", "")
         model = req.get("model", "claude-opus-5")
         effort = req.get("effort")
-        cmd = [CLAUDE, "-p", "--model", model, "--system-prompt", system,
-               "--tools", "", "--no-session-persistence", "--strict-mcp-config",
-               "--output-format", "stream-json", "--include-partial-messages", "--verbose"]
-        if effort:
-            cmd += ["--effort", effort]
+        engine = req.get("engine", "claude")
+        if effort not in EFFORTS:
+            effort = None
+        if engine == "codex":
+            os.makedirs(CODEX_CWD, exist_ok=True)
+            # 読み取り専用・履歴を残さない・利用者の設定(MCPやフック)を読み込まない素の会話として実行
+            cmd = [CODEX or "codex", "exec", "--json", "--ephemeral", "--skip-git-repo-check",
+                   "--ignore-user-config", "--ignore-rules", "-s", "read-only", "-C", CODEX_CWD, "-m", model]
+            if effort:
+                cmd += ["-c", f"model_reasoning_effort={effort}"]
+            cmd += ["-"]
+            # codex exec には system の差し替えが無いので、指示を先頭に付けて1本のプロンプトにする
+            prompt = (system + "\n\nあなたは会話アシスタントとして振る舞い、コマンド実行やファイル操作は行わず、文章だけで答えてください。\n\n---\n\n" + prompt)
+        else:
+            cmd = [CLAUDE, "-p", "--model", model, "--system-prompt", system,
+                   "--tools", "", "--no-session-persistence", "--strict-mcp-config",
+                   "--output-format", "stream-json", "--include-partial-messages", "--verbose"]
+            if effort and effort != "ultra":
+                cmd += ["--effort", effort]
         self.send_response(200); self._cors()
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
         self.send_header("Cache-Control", "no-cache")
@@ -73,15 +118,32 @@ class H(SimpleHTTPRequestHandler):
             p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE, cwd=HERE, env=env, text=True)
         except Exception as e:
-            send({"error": f"claude 起動失敗: {e}"}); return
+            send({"error": f"{engine} 起動失敗: {e}"}); return
         threading.Thread(target=lambda: (p.stdin.write(prompt), p.stdin.close()), daemon=True).start()
         try:
+            first = True
             for line in p.stdout:
                 line = line.strip()
                 if not line: continue
                 try: ev = json.loads(line)
                 except Exception: continue
                 t = ev.get("type")
+                if engine == "codex":
+                    # codex は1文字ずつではなく、発言のまとまり単位で届く
+                    if t == "item.completed" and (ev.get("item") or {}).get("type") == "agent_message":
+                        txt = (ev["item"].get("text") or "")
+                        if txt:
+                            send({"text": ("" if first else "\n\n") + txt}); first = False
+                    elif t == "turn.completed":
+                        u = ev.get("usage") or {}
+                        cached = u.get("cached_input_tokens", 0) or 0
+                        send({"usage": {"input_tokens": max(0, (u.get("input_tokens", 0) or 0) - cached),
+                                        "cache_read_input_tokens": cached,
+                                        "output_tokens": u.get("output_tokens", 0) or 0}})
+                    elif t in ("error", "turn.failed"):
+                        msg = ev.get("message") or (ev.get("error") or {}).get("message") or json.dumps(ev, ensure_ascii=False)[:500]
+                        send({"error": f"codex: {msg}"})
+                    continue
                 if t == "stream_event":
                     e = ev.get("event", {})
                     if e.get("type") == "content_block_delta":
@@ -99,7 +161,7 @@ class H(SimpleHTTPRequestHandler):
             p.wait()
             if p.returncode != 0:
                 err = p.stderr.read()[-2000:]
-                send({"error": f"claude 終了コード {p.returncode}: {err}"})
+                send({"error": f"{engine} 終了コード {p.returncode}: {err}"})
         except (BrokenPipeError, ConnectionResetError):
             p.kill()
         finally:
@@ -108,5 +170,5 @@ class H(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"BranCHAT bridge: http://localhost:{PORT}/  (claude: {CLAUDE}, ok={claude_ok()})")
+    print(f"BranCHAT bridge: http://localhost:{PORT}/  (claude: {CLAUDE}, ok={claude_ok()} / codex: {CODEX}, ok={codex_ok()})")
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()

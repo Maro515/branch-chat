@@ -10,7 +10,7 @@ AIチャットを「直線」ではなく「分岐する平面タイムライン
 - 設定（⚙）から接続方式を選択:
   - **ダミー応答**: APIなしで分岐・俯瞰図の操作を試す
   - **Claude API**: APIキーを入力（キーはこのブラウザにのみ保存）
-  - **ローカルブリッジ**: `python3 bridge.py` を起動し http://localhost:8991/ を開くと、ログイン済みの `claude` CLI（Claude Pro/Max の定額枠）で動作
+  - **ローカルブリッジ**: `python3 bridge.py` を起動し http://localhost:8991/ を開くと、ログイン済みの `claude` CLI（Claude Pro/Max の定額枠）と `codex` CLI（ChatGPT プランの定額枠、ChatGPT アプリ同梱のものを自動検出）で動作。送信ボタン上のモデル変更ボタンから、会話・ブランチごとに Claude / GPT のモデルと思考量を選べる
 
 `artifact.html` は claude.ai Artifact 版（`sample` capability で閲覧者のアカウントを使用。モデル階層 標準/高度/速い を設定で選択）。
 - AIの回答にカーソルを乗せて「⑂ ここから分岐」／迷っているときは「☆ 分岐予定」

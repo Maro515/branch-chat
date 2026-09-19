@@ -792,7 +792,7 @@ $('#exportBtn').onclick=async()=>{const data=JSON.stringify(conv,null,1);const f
   else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=fn;a.click();}};
 $('#importBtn').onclick=()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const f=i.files[0];const r=new FileReader();r.onload=()=>{try{const c=JSON.parse(r.result);if(!c.nodes||!c.branches)throw 0;c.id=c.id||uid();convs[c.id]=c;conv=c;persist();showFocus();toast('読み込みました');}catch(e){toast('読み込み失敗');}};r.readAsText(f);};i.click();};
 $('#settingsBtn').onclick=async()=>{await probeClaude();$('#sProvider').value=settings.provider;$('#sTier').value=settings.tier;$('#sBudget').value=settings.budget;$('#sExtra').value=settings.extra;$('#settings').showModal();};
-$('#sCancel').onclick=()=>$('#settings').close();
+$('#sCancel').onclick=()=>{$('#settings').close();refreshModelCatalog();};
 $('#sSave').onclick=()=>{settings.provider=$('#sProvider').value;settings.tier=$('#sTier').value;settings.budget=+$('#sBudget').value||40000;settings.extra=$('#sExtra').value.trim();
   if(settings.provider==='claude'&&sampleChecked&&!sampleFn)toast('この画面では Claude を呼べません。ダミー応答に切り替えます');
   saveSettings();$('#settings').close();renderAll();};
@@ -886,6 +886,11 @@ $('#demoBtn').onclick=async()=>{if(await askConfirm('見本の会話「【デモ
 /* モデル選択肢（この版で選べるもの） */
 const MODEL_OPTS=[{v:'default',l:'標準',d:'バランス型。考えてから書く'},{v:'complex',l:'高度',d:'最も高性能。深く考える・遅い'},{v:'quick',l:'速い',d:'考えずに即応答'}];
 const EFFORT_OPTS=[]; // Artifact の sample には思考量の指定が無い（階層に含まれる）
+const ALL_EFFORTS=[];
+function refreshModelCatalog(){} // この版は選択肢が固定
+const modelEngine=v=>'claude';
+function effortsFor(v){return [];}
+function bridgeModel(v){return v;}
 const globalModel=()=>settings.tier;const setGlobalModel=v=>{settings.tier=v;};
 
 /* ========== モデル・思考量（会話/ブランチごと） ========== */
@@ -894,7 +899,7 @@ const validModel=v=>MODEL_OPTS.some(o=>o.v===v)?v:null;
 const validEffort=v=>EFFORT_OPTS.some(o=>o.v===v)?v:null;
 const modelLabel=v=>(MODEL_OPTS.find(o=>o.v===v)||{l:v||'—'}).l;
 function effModel(bid){const b=B(bid);return validModel(b&&b.model)||validModel(conv.model)||validModel(globalModel())||MODEL_OPTS[0].v;}
-function effEffort(bid){if(!EFFORT_OPTS.length)return null;const b=B(bid);return validEffort(b&&b.effort)||validEffort(conv.effort)||validEffort(settings.effort)||'high';}
+function effEffort(bid){return null;} // 思考量は階層に含まれる
 function effLabel(bid){const e=effEffort(bid);return modelLabel(effModel(bid))+(e?' · '+e:'');}
 function modelSource(bid){const b=B(bid);if(b&&(validModel(b.model)||validEffort(b.effort)))return 'branch';if(validModel(conv.model)||validEffort(conv.effort))return 'conv';return 'global';}
 let mpScope='branch';
@@ -916,8 +921,9 @@ function renderModelPop(){
   $('#modelPop').innerHTML=`<div class="mph ui">適用先</div>
     <div class="row2"><button class="small${mpScope==='branch'?' on':''}" data-scope="branch">このブランチ「<span class="var">${esc(excerpt(b.name,10))}</span>」</button><button class="small${mpScope==='conv'?' on':''}" data-scope="conv">この会話</button><button class="small${mpScope==='global'?' on':''}" data-scope="global">全体の既定</button></div>
     <div class="mph ui">モデル</div>
-    <div class="row2">${inh(curM,upM,'m')}${MODEL_OPTS.map(o=>`<button class="small${curM===o.v?' on':''}" data-m="${o.v}" title="${esc(o.d||'')}">${esc(o.l)}</button>`).join('')}</div>
-    ${EFFORT_OPTS.length?`<div class="mph ui">思考量</div><div class="row2">${inh(curE,upE,'e')}${EFFORT_OPTS.map(o=>`<button class="small${curE===o.v?' on':''}" data-e="${o.v}" title="${esc(o.d||'')}">${esc(o.l)}</button>`).join('')}</div>`:`<div class="mph ui">思考量</div><div class="hint ui">この版では思考量はモデルの階層に含まれます（高度＝深く考える / 速い＝考えない）</div>`}
+    <div class="row2">${inh(curM,upM,'m')}</div>
+    ${[['claude','Claude'],['codex','GPT（Codex CLI）']].filter(([eg])=>MODEL_OPTS.some(o=>modelEngine(o.v)===eg)).map(([eg,nm])=>`${MODEL_OPTS.some(o=>modelEngine(o.v)==='codex')?`<div class="mph ui" style="margin-top:6px">${nm}</div>`:''}<div class="row2">${MODEL_OPTS.filter(o=>modelEngine(o.v)===eg).map(o=>`<button class="small${curM===o.v?' on':''}" data-m="${esc(o.v)}" title="${esc(o.d||'')}">${esc(o.l)}</button>`).join('')}</div>`).join('')}
+    ${EFFORT_OPTS.length?`<div class="mph ui">思考量</div><div class="row2">${inh(curE,upE,'e')}${EFFORT_OPTS.map(o=>{const ok=effortsFor(effModel(bid)).includes(o.v);return `<button class="small${curE===o.v?' on':''}" data-e="${o.v}" ${ok?'':'disabled'} title="${ok?esc(o.d||''):'今のモデルでは使えません'}">${esc(o.l)}</button>`;}).join('')}</div>${effortsFor(effModel(bid)).length?'':'<div class="hint ui">今のモデルは思考量の指定に対応していません</div>'}`:`<div class="mph ui">思考量</div><div class="hint ui">この版では思考量はモデルの階層に含まれます（高度＝深く考える / 速い＝考えない）</div>`}
     <div class="res"><span class="ui">次の送信:</span> <b>${esc(effLabel(bid))}</b> <span class="hint ui">（${({branch:'ブランチの設定',conv:'会話の設定',global:'全体の既定'})[modelSource(bid)]}）</span></div>`;
   const pop=$('#modelPop');
   pop.querySelectorAll('[data-scope]').forEach(el=>el.onclick=e=>{e.stopPropagation();mpScope=el.dataset.scope;renderModelPop();});

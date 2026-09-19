@@ -16,7 +16,7 @@ BranCHAT（旧称 Branch Chat）は、AIとの会話を直線ではなく**分�
 branch-chat/
 ├── index.html      ローカル版の本体（単一HTML）。接続: ダミー / ローカルブリッジ / Claude API
 ├── artifact.html   claude.ai Artifact 版。接続: Claude（閲覧者のアカウント） / ダミー
-├── bridge.py       静的配信 + POST /api/chat → `claude -p` を起動してSSEで返す（定額枠で動く）
+├── bridge.py       静的配信 + POST /api/chat → `claude -p`（engine=claude）か `codex exec`（engine=codex）を起動してSSEで返す。どちらも各CLIのログイン＝定額枠で動く
 ├── check.sh        静的チェック（変更後に必ず実行）
 ├── PLAN.md         設計書（3層コンテキスト、フェーズ、検証シナリオ S1〜S4）
 ├── README.md       利用者向け説明
@@ -40,7 +40,7 @@ branch-chat/
 | 設定ダイアログ | APIキー、モデル名、要約モデル | モデル階層（標準/高度/速い）のみ |
 | 既定値 | provider `dummy`、予算 60000 | provider `claude`、予算 40000（入力上限64KBのため） |
 | 書き出し | `<a download>` | `downloads` capability（無ければ `<a download>`） |
-| モデル選択肢 | `MODEL_OPTS`=モデルID4種、`EFFORT_OPTS`=5段階 | `MODEL_OPTS`=階層3種、`EFFORT_OPTS`=空 |
+| モデル選択肢 | `MODEL_OPTS`=Claude 4種＋（ブリッジ接続かつ Codex CLI がある場合）ブリッジが報告する GPT モデル。`refreshModelCatalog` が組み立てる。各モデルは `engine` と対応する思考量 `efforts` を持つ | `MODEL_OPTS`=階層3種、`EFFORT_OPTS`=空。`refreshModelCatalog` 等は関数の対を保つための空実装 |
 | 応答後の表示 | 実トークン数（usage） | 実際に応答した階層（`modelTierApplied`） |
 
 両方に同じ変更を入れる定石は、Pythonで2ファイルをループし、置換前の文字列を `assert a in s` で確認してから置換すること（過去のコミットはすべてこの方式）。
@@ -62,7 +62,7 @@ conv = { id, title, createdAt, order:[nodeId...], activeNodeId, model?, effort?,
 
 - ノードは `parentId` だけのツリー。ブランチは「ツリー上の名前付きパス」。本線の id は固定で `'main'`。
 - 未開始の分岐 = `headNodeId === forkFromNodeId`（`isEmptyBranch`）。同じ回答からの未開始分岐は1つまで。
-- **モデルと思考量は3層で解決する:** ブランチの `model`/`effort` > 会話の `model`/`effort` > 全体の既定（`settings`）。値が無い層は上位に従う（`effModel` / `effEffort`）。選択肢は版ごとの `MODEL_OPTS` / `EFFORT_OPTS`。index.html はモデルID＋思考量5段階、artifact.html は階層3種で思考量の指定なし。別の版の値が入った会話を読み込んでも `validModel` が無視して上位に従うので壊れない。Haiku には思考量を送らない。
+- **モデルと思考量は3層で解決する:** ブランチの `model`/`effort` > 会話の `model`/`effort` > 全体の既定（`settings`）。値が無い層は上位に従う（`effModel` / `effEffort`）。選択肢は版ごとの `MODEL_OPTS` / `EFFORT_OPTS`。index.html はモデルID＋思考量5段階、artifact.html は階層3種で思考量の指定なし。別の版の値が入った会話を読み込んでも `validModel` が無視して上位に従うので壊れない。モデルが対応しない思考量は `effEffort` がその段階以下の最大へ丸める（例: GPT-5.5 で max → xhigh）。対応段階が空のモデル（Haiku）には思考量を送らない。ブリッジへはモデルから引いた `engine` を一緒に送るので、**ブランチごとに Claude と GPT を混在**できる。会話マップはただの文章なのでどのモデルにも同じものを渡す。
 - 保存キー: `bc.convs.v1`（全会話）、`bc.active.v1`、`bc.settings.v1`。
 - 状態を変えたら `persist()`、画面は `renderAll()`。
 
@@ -101,7 +101,7 @@ python3 bridge.py
    - S2: 孫ブランチの内容も本線から参照できる
    - S3: 過去の回答から分岐したとき、祖先パスが分岐点で切れている（`ancestors(id).map(label)` で確認）
    - S4: 無関係なブランチの話題が本線の回答に混ざらない
-4. 実モデルでの確認が必要なときだけ、ブリッジ＋`claude-haiku-4-5` で最小回数にする（利用者の定額枠を消費する）。ループやテストスクリプトから実モデルを連打しない。
+4. 実モデルでの確認が必要なときだけ、ブリッジ＋`claude-haiku-4-5`（Codex 側は `gpt-5.5` の low）で最小回数にする（利用者の定額枠を消費する）。ループやテストスクリプトから実モデルを連打しない。
 
 自動テストは無い。ロジックの確認はブラウザのコンソールからアプリの関数（`send` `createBranch` `openFork` `buildContext` `editQuestion` など、すべてグローバル）を直接呼ぶ。
 
@@ -135,7 +135,7 @@ claude.ai にサインインしていないブラウザでは Claude 呼び出�
 - **localStorage のキー名（`bc.*.v1`）とデータモデルの既存フィールド。** 利用者の会話が消える。どうしても変えるなら読み込み時の移行処理を同時に入れ、書き出しJSONの後方互換を保つ。本線の id `'main'` も固定。
 - **「全ブランチをAIが認知する」仕組み**（`buildContext` の3層と会話マップの注入、`updateSummary`）。軽量化のために要約カードを外す・現在ブランチだけにする、は不可。
 - **Artifact の公開URL・favicon・capabilities。** 新しいArtifactを作らない。`mcp` など共有範囲を狭める capability を勝手に足さない。
-- **`bridge.py` の安全側の設定:** `127.0.0.1` バインド、`--tools ""`、`--strict-mcp-config`、`--no-session-persistence`。外部公開（`0.0.0.0`）にしない。ツールやMCPを有効にする変更は利用者の明示的な依頼があるときだけ。
+- **`bridge.py` の安全側の設定:** `127.0.0.1` バインド。Claude 側は `--tools ""`、`--strict-mcp-config`、`--no-session-persistence`。Codex 側は `-s read-only`、`--ephemeral`、`--ignore-user-config`、`--ignore-rules`、空の作業フォルダ。`~/.codex/auth.json` は存在確認だけで中身を読まない。外部公開（`0.0.0.0`）にしない。ツールやMCPを有効にする変更は利用者の明示的な依頼があるときだけ。
 - **秘密情報をリポジトリに入れない。** APIキーはブラウザの localStorage にのみ保存される設計。`check.sh` が `sk-ant-` を検出する。
 - **GitHub Pages を再有効化しない**（利用者の指示で停止済み。公開先は Artifact に一本化）。リポジトリ `Maro515/branch-chat` はソース管理専用。
 - 親フォルダの `launch.json` の他プロジェクトの設定、および `branch-chat` の port 8991。
