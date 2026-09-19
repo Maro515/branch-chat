@@ -3,7 +3,7 @@
 //   engine=codex  : `codex exec`  … ChatGPT プランの定額枠
 // どちらもツールを使わせない素の会話モデルとして呼ぶ（安全側の設定は bridge.py と揃えること）。
 'use strict';
-const { spawn, execFileSync } = require('node:child_process');
+const { spawn, execFile, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -59,8 +59,47 @@ function codexModels() {
   return out.length ? out : [{ id: 'gpt-5.5', name: 'GPT-5.5', efforts: ['low', 'medium', 'high', 'xhigh'], default_effort: 'medium' }];
 }
 
-function status() {
-  return { ok: claudeOk(), claude: CLAUDE, codex_ok: codexOk(), codex: CODEX, codex_models: codexOk() ? codexModels() : [], desktop: true };
+// ログイン状態は各CLIの公式コマンドで確かめる（メールアドレス等の個人情報は画面へ渡さない）。30秒キャッシュ
+function run(cmd, args, timeout = 8000) {
+  return new Promise((resolve) => {
+    execFile(cmd, args, { env: { ...process.env, PATH: PATH_EXT }, timeout, encoding: 'utf8' }, (err, stdout, stderr) => resolve({ code: err ? (err.code || 1) : 0, out: String(stdout || ''), err: String(stderr || '') }));
+  });
+}
+let authCache = null, authAt = 0;
+async function authState(force) {
+  if (!force && authCache && Date.now() - authAt < 30000) return authCache;
+  const st = { claude: { installed: !!CLAUDE, loggedIn: false, plan: null }, codex: { installed: !!CODEX, loggedIn: false, method: null } };
+  await Promise.all([
+    (async () => { if (!CLAUDE) return; const r = await run(CLAUDE, ['auth', 'status']); try { const j = JSON.parse(r.out); st.claude.loggedIn = !!j.loggedIn; st.claude.plan = j.subscriptionType || null; } catch (e) { st.claude.loggedIn = false; } })(),
+    (async () => { if (!CODEX) return; const r = await run(CODEX, ['login', 'status']); const t = (r.out + r.err); st.codex.loggedIn = /logged in/i.test(t) && !/not logged in/i.test(t); const m = t.match(/using\s+([A-Za-z ]+)/i); st.codex.method = m ? m[1].trim() : null; })(),
+  ]);
+  authCache = st; authAt = Date.now(); return st;
+}
+async function status(force) {
+  const a = await authState(force);
+  const cOk = a.claude.installed && a.claude.loggedIn, xOk = a.codex.installed && a.codex.loggedIn;
+  return { ok: cOk, claude: CLAUDE, codex_ok: xOk, codex: CODEX, codex_models: xOk ? codexModels() : [], auth: a, desktop: true, platform: process.platform };
+}
+
+// 利用者のターミナルでログイン用コマンドを開始する。実行するのは固定のコマンドだけ
+function loginCommand(engine) {
+  if (engine === 'claude') return CLAUDE ? `"${CLAUDE}" auth login` : null;
+  if (engine === 'codex') return CODEX ? `"${CODEX}" login` : null;
+  return null;
+}
+function openLoginTerminal(engine) {
+  const cmdline = loginCommand(engine);
+  if (!cmdline) return { ok: false, reason: 'not_installed' };
+  authCache = null;
+  try {
+    if (process.platform === 'darwin') {
+      const script = `tell application "Terminal"\nactivate\ndo script ${JSON.stringify(cmdline)}\nend tell`;
+      spawn('osascript', ['-e', script], { detached: true, stdio: 'ignore' }).unref();
+    } else if (IS_WIN) {
+      spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', cmdline], { detached: true, stdio: 'ignore', windowsVerbatimArguments: true }).unref();
+    } else return { ok: false, reason: 'unsupported_os', command: cmdline };
+    return { ok: true, command: cmdline };
+  } catch (e) { return { ok: false, reason: String(e.message || e), command: cmdline }; }
 }
 
 /**
@@ -126,4 +165,4 @@ function chat(req, onEvent) {
   return () => { try { child.kill(); } catch (e) { /* 既に終了 */ } };
 }
 
-module.exports = { status, chat, EFFORTS };
+module.exports = { status, chat, openLoginTerminal, loginCommand, EFFORTS };

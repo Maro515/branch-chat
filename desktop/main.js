@@ -25,7 +25,13 @@ async function handle(request) {
   const url = new URL(request.url);
   if (url.host !== 'branchat') return new Response('not found', { status: 404 });
 
-  if (url.pathname === '/api/status') return Response.json(engines.status());
+  if (url.pathname === '/api/status') return Response.json(await engines.status(url.searchParams.get('force') === '1'));
+
+  if (url.pathname === '/api/login') { // ログイン用のターミナルを開く（固定コマンドのみ）
+    if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
+    let b = {}; try { b = await request.json(); } catch (e) { /* 空でよい */ }
+    return Response.json(engines.openLoginTerminal(b.engine === 'codex' ? 'codex' : 'claude'));
+  }
 
   if (url.pathname === '/api/chat') {
     if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
@@ -100,6 +106,7 @@ async function runSmoke(win) {
     await new Promise((r) => win.webContents.once('did-finish-load', r));
     await new Promise((r) => setTimeout(r, 1200));
     out.page = await win.webContents.executeJavaScript(`(async()=>{
+      if(document.getElementById('tutDlg').open)closeTut();
       await probeBridge();
       const r={title:document.title,origin:location.origin,bridgeOk,claudeCliOk,codex:codexInfo.ok,models:MODEL_OPTS.map(o=>o.l),fontsLocal:!!document.querySelector('link[href="fonts/fonts.css"]'),fontsReady:(await document.fonts.ready,document.fonts.check('16px DotGothic16')&&document.fonts.check('15px "Noto Sans JP"')),lsWorks:(()=>{try{localStorage.setItem('bc.smoke','1');return localStorage.getItem('bc.smoke')==='1';}catch(e){return false;}})()};
       settings.provider='dummy'; loadDemo();
@@ -113,6 +120,7 @@ async function runSmoke(win) {
         settings.provider='bridge'; B('main').model='claude-haiku-4-5'; gotoBranch('main');
         await send('1+1は？数字だけで答えて。'); const n=N(conv.activeNodeId); r.live={text:n.content.slice(0,60),usage:n.usage,model:n.model};
       }
+      if(${process.env.SMOKE_TUT === '1'}){openTut(1);await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     const img = await win.webContents.capturePage();
     const shot = path.join(process.env.SMOKE_OUT || require('node:os').tmpdir(), 'branchat-smoke.png');

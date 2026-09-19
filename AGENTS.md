@@ -52,6 +52,9 @@ branch-chat/
 - 画面は `index.html` をそのまま使う。**デスクトップ専用のUI分岐は `IS_DESKTOP`（`location.protocol==='app:'`）で最小限に。** 別のHTMLを作らない。
 - `engines.js` は `bridge.py` の Node 版。**両者の挙動（イベント形式 `{text}{usage}{rate_limit}{error}{done}`、CLI の安全側フラグ、Codex のモデル一覧の取り方）は常に揃える。** 片方を変えたらもう片方も変える。
 - `main.js` は独自スキーム `app://branchat/` で `app/` を配信し、`/api/status` `/api/chat` を処理する。オリジンを変えると利用者の会話（localStorage）が見えなくなるので、スキーム名とホスト名は変更禁止。
+- `/api/status` は `auth`（各CLIの `installed` / `loggedIn` / プラン種別）を返す。判定は公式コマンド（`claude auth status`、`codex login status`）で行い、メールアドレス等は画面へ渡さない。`bridge.py` も同じ形で返す。
+- `/api/login`（デスクトップのみ）は利用者のターミナルで**固定の**ログインコマンドを開始するだけ。任意のコマンドを受け取る作りにしない。
+- **チュートリアル**（`TUT_PAGES`、ヘッダーの「？ 使い方」、初回は自動表示）は両HTML共通。接続ページだけ `IS_ARTIFACT` / `IS_DESKTOP` で内容が変わる。インストールやログインのコマンドを書き換えるときは、必ず公式ドキュメントか実機の `--help` で確かめる。
 - 追加API（デスクトップのみ）: `/api/backup`（POST で会話を `userData/backups/` に保存、GET で最新を返す）。画面側は `persist()` から `scheduleBackup()`、起動時に `restoreFromBackup()`。ブラウザ版では `IS_DESKTOP` が偽なので何もしない。
 - フォントは `npm run vendor` で `desktop/vendor/fonts/`（git管理外）に取得し、`sync-app.mjs` が同梱して読み込み先を差し替える。`index.html` のフォント `<link>` の書式を変えたら `sync-app.mjs` の置換も直す（合わないと sync がエラーで止まる）。アイコンは `npm run icon` で `build/icon.png` を再生成。
 - スモークテストは `userData` を一時フォルダに分けている。利用者の実データ（`~/Library/Application Support/BranCHAT`）をテストで汚さない。
@@ -130,7 +133,7 @@ claude.ai にサインインしていないブラウザでは Claude 呼び出�
 - 素の JavaScript。関数と状態はグローバル。区画コメントの並びを保ち、新機能は該当区画か「起動」の直前に新区画として足す。
 - **画面に出す可変文字列は必ず `esc()` を通す。** AI本文は `md()`（内部で `esc` 済み）。
 - **`confirm()` `prompt()` `alert()` は使わない。** Artifact のサンドボックスで黙って無効になる。`askConfirm(msg, okLabel)` と `askPrompt(title, default)` を `await` する。
-- `localStorage` を直接触らない。`lsGet` / `lsSet`（Artifact版）か既存の `persist()` / `saveSettings()` を使う。
+- `localStorage` を直接触らない。`lsGetSafe` / `lsSetSafe`（try/catch 付き）か既存の `persist()` / `saveSettings()` を使う。**一括置換でヘルパー自身の中身まで書き換えないこと**（過去に `lsGet` が自分を呼ぶ形になり、Artifact版で保存が全く効いていなかった。`check.sh` が検出する）。
 - 文言は日本語、利用者目線で具体的に。ボタンは起きることをそのまま書く（「分岐を取り消す」）。
 
 ### デザインの決まり（利用者の指示で確定したもの）

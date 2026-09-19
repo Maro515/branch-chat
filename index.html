@@ -229,6 +229,28 @@ header{z-index:5}
 #msgs>.msg:not(.user):only-of-type{max-width:none}
 @media (max-width:600px){.msg:not(.user){max-width:none}}
 #focus button.primary.stop{background:#b91c1c;border-color:#b91c1c}
+
+/* ===== チュートリアル ===== */
+#tutDlg{max-width:680px;padding:0;overflow:hidden}
+#tutDlg .thead{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+#tutDlg .thead h2{margin:0;flex:1}
+#tutDlg .tbody{padding:16px 18px;max-height:62vh;overflow:auto;font-family:"Noto Sans JP","Hiragino Sans",sans-serif;line-height:1.8}
+#tutDlg .tbody h3{margin:14px 0 6px;font-size:14px;color:var(--glow)}
+#tutDlg .tbody h3:first-child{margin-top:0}
+#tutDlg .tbody ol,#tutDlg .tbody ul{margin:4px 0 8px;padding-left:22px}
+#tutDlg .tbody li{margin:3px 0}
+#tutDlg .tfoot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid var(--line)}
+#tutDlg .dots{display:flex;gap:6px;flex:1}
+#tutDlg .dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+#tutDlg .dots i.on{background:var(--glow);box-shadow:0 0 8px var(--glow)}
+.cmd{display:flex;align-items:center;gap:6px;margin:4px 0 8px}
+.cmd code{flex:1;display:block;background:rgba(3,10,26,.85);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;white-space:pre-wrap;word-break:break-all;color:#cfe6ff;user-select:all}
+.engine{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0;background:rgba(10,26,58,.5)}
+.engine .eh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.engine .eh b{font-size:15px}
+.badge{font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid currentColor}
+.badge.ok{color:#34d399}.badge.warn{color:#ffd93d}.badge.ng{color:#f87171}
+.kbd{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:12px;background:rgba(20,50,110,.35)}
 </style>
 </head>
 <body>
@@ -246,6 +268,7 @@ header{z-index:5}
   </div>
   <button class="small" id="exportBtn">書き出し</button>
   <button class="small" id="importBtn">読み込み</button>
+  <button class="small" id="helpBtn" title="チュートリアルを開く">？ 使い方</button>
   <button class="small" id="settingsBtn">⚙ 設定</button>
 </header>
 <div id="branchBar"></div>
@@ -306,6 +329,11 @@ header{z-index:5}
   <input type="text" id="qInput">
   <div class="btns"><button id="qCancel">キャンセル</button><button class="primary" id="qOk">OK</button></div>
 </dialog>
+<dialog id="tutDlg">
+  <div class="thead"><h2 id="tutTitle">はじめに</h2><button class="small" id="tutClose">閉じる</button></div>
+  <div class="tbody" id="tutBody"></div>
+  <div class="tfoot"><div class="dots" id="tutDots"></div><button id="tutPrev">戻る</button><button class="primary" id="tutNext">次へ</button></div>
+</dialog>
 <dialog id="ctxDlg">
   <h2>AIに送るコンテキスト（プレビュー）</h2>
   <div class="hint">system に注入される会話マップ。これが「全ブランチをAIが認知する」仕組みです。</div>
@@ -338,6 +366,7 @@ function md(s){ // 最小限のMarkdown
 
 /* ========== 設定 ========== */
 const SET_KEY='bc.settings.v1';
+const IS_ARTIFACT=false;
 const IS_DESKTOP=location.protocol==='app:'; // Electron 版は app://branchat/ で配信される
 let settings=Object.assign({provider:IS_DESKTOP?'bridge':'dummy',apiKey:'',model:'claude-opus-5',effort:'high',sumModel:'claude-haiku-4-5',budget:60000,extra:''},JSON.parse(localStorage.getItem(SET_KEY)||'{}'));
 function saveSettings(){localStorage.setItem(SET_KEY,JSON.stringify(settings));}
@@ -592,7 +621,7 @@ function renderFocus(){
     const kids=childBranchesOf(n.id);
     if(kids.length)html+=`<div class="badges"><span class="ui">→ ここから分岐:</span> ${kids.map(k=>`<span class="chip${k.status==='closed'?' closed':''}" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}${isEmptyBranch(k)?'（未開始）':''}</span>${isEmptyBranch(k)?`<button class="small" data-cancelbr="${k.id}" title="この未開始の分岐を取り消す">✕ 取り消す</button>`:''}`).join('')}</div>`;
   }
-  if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答の下にある「⑂ ここから分岐」で話題を分けられます。<div class="editBtns"><span class="hint ui">使い方を試すなら</span><button class="small" id="demoBtn2">デモ会話を読み込む</button></div>${IS_DESKTOP&&!bridgeOk?`<div style="margin-top:10px;padding:10px 12px;border:1.5px solid var(--ystroke);border-radius:10px;background:#fffbe6"><b class="ui">AIに接続する準備</b><br>このアプリは、お使いのパソコンにある次のどちらかのログインを使って動きます。<br>1. <b>Claude Code</b>: インストール後、ターミナルで <code>claude</code> を一度起動してログイン<br>2. <b>ChatGPT アプリ</b>（Codex 同梱）: インストールしてログイン<br>準備ができたらアプリを再起動してください。それまではダミー応答で操作を試せます。</div>`:''}</div></div>`;
+  if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答の下にある「⑂ ここから分岐」で話題を分けられます。<div class="editBtns"><span class="hint ui">使い方を試すなら</span><button class="small" id="demoBtn2">デモ会話を読み込む</button></div>${IS_DESKTOP&&!bridgeOk?`<div style="margin-top:10px;padding:10px 12px;border:1.5px solid var(--ystroke);border-radius:10px;background:#fffbe6"><b class="ui">AIに接続する準備が必要です</b><br>Claude か ChatGPT（Codex）のどちらかにログインすると使えます。手順は画面の案内に沿って進められます。<div class="editBtns"><button class="small primary" id="tutConnectBtn">接続の手順を見る</button></div></div>`:''}</div></div>`;
   const m=$('#msgs');const stick=m.scrollHeight-m.scrollTop-m.clientHeight<200;
   m.innerHTML=html+'<div id="tailSpace"></div>';
   updateTailSpace();
@@ -602,6 +631,7 @@ function renderFocus(){
   m.querySelectorAll('[data-cancelbr]').forEach(el=>el.onclick=e=>{e.stopPropagation();const id=el.dataset.cancelbr;if(conv._pendingBranch===id)cancelBranch(id);else{const b=B(id);if(b&&isEmptyBranch(b)){const name=b.name;delete conv.branches[id];persist();renderAll();toast(`分岐「${name}」を取り消しました`);}}});
   m.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>openEdit(el.dataset.edit));
   const d2=document.getElementById('demoBtn2');if(d2)d2.onclick=loadDemo;
+  const tcb=document.getElementById('tutConnectBtn');if(tcb)tcb.onclick=()=>openTut(1);
   m.querySelectorAll('.badges .chip').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.b));
   if(stick)m.scrollTop=m.scrollHeight;
   if(!busy)setStatus(`概算 ${buildContext(conv.activeNodeId).tokens} tok を次回送信`);
@@ -1017,11 +1047,93 @@ $('#modelBtn').onclick=e=>{e.stopPropagation();const p=$('#modelPop');p.classLis
 document.addEventListener('click',e=>{if(!e.target.closest('#modelPop')&&!e.target.closest('#modelBtn'))$('#modelPop').classList.remove('on');});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#modelPop').classList.remove('on');});
 
+
+/* ========== チュートリアル ========== */
+const IS_MAC=/Mac/i.test(navigator.platform||navigator.userAgent);
+let tutPage=0,tutAuth=null;
+const cmdBox=c=>`<div class="cmd"><code>${esc(c)}</code><button class="small" data-copy="${esc(c)}">コピー</button></div>`;
+function tutConnectHTML(){
+  if(IS_ARTIFACT)return `<h3 class="ui">AIへの接続（この版は準備不要）</h3>
+    <p>この画面は claude.ai の中で動いており、<b>あなた自身の Claude アカウント</b>で応答します。最初の送信時に「この Artifact が Claude を使うこと」の許可を求められるので、許可してください。利用量はご自身のプランから消費されます。</p>
+    <p>モデルは送信ボタンの上のボタンから「標準 / 高度 / 速い」を選べます。</p>`;
+  const a=tutAuth&&tutAuth.auth;
+  const row=(nm,st,planTxt)=>{let cls='ng',txt='未インストール';if(st&&st.installed&&st.loggedIn){cls='ok';txt='利用できます'+(planTxt?`（${planTxt}）`:'');}else if(st&&st.installed){cls='warn';txt='インストール済み・未ログイン';}return `<span class="badge ${cls} ui">${txt}</span>`;};
+  const cInstall=IS_MAC?'curl -fsSL https://claude.ai/install.sh | bash':'irm https://claude.ai/install.ps1 | iex';
+  const codexBin=(tutAuth&&tutAuth.codex)||(IS_MAC?'/Applications/ChatGPT.app/Contents/Resources/codex':'codex');
+  const q=s=>/\s/.test(s)?`"${s}"`:s;
+  const term=IS_MAC?'「ターミナル」（Launchpad で「ターミナル」と検索）':'「PowerShell」（スタートメニューで検索）';
+  const canOpen=IS_DESKTOP&&tutAuth;
+  return `<p>このアプリは APIキーを使わず、<b>お使いのパソコンでログイン済みの公式ツール</b>を通して AI を呼びます。費用はそれぞれの定額プランの範囲内です。<b>どちらか一方だけで使えます。</b></p>
+    ${!tutAuth?`<p class="hint ui">${IS_DESKTOP?'状態を確認中…':'ブリッジに接続できません。このフォルダで python3 bridge.py を起動し、http://localhost:8991/ を開いてください（APIキーで使う場合は ⚙設定 から）。'}</p>`:''}
+    <div class="engine"><div class="eh"><b>Claude</b>${a?row('Claude',a.claude,a.claude.plan?a.claude.plan.toUpperCase()+' プラン':''):''}</div>
+      <ol><li>Claude の有料プラン（Pro / Max など）に加入していることを確認します。無料プランでは使えません。</li>
+      <li>${term}を開き、次を貼り付けて Enter（Claude Code のインストール）。${cmdBox(cInstall)}</li>
+      <li>続けて次を実行すると、ブラウザが開きます。claude.ai のアカウントでログインし「許可」を押します。${cmdBox('claude auth login')}${canOpen&&a&&a.claude.installed&&!a.claude.loggedIn?'<button class="small primary" data-login="claude">ターミナルでログインを開始</button>':''}</li>
+      <li>確認: 次の結果に <code>"loggedIn": true</code> と出れば完了です。${cmdBox('claude auth status')}</li></ol></div>
+    <div class="engine"><div class="eh"><b>GPT（Codex）</b>${a?row('Codex',a.codex,a.codex.method?a.codex.method+' でログイン':''):''}</div>
+      <ol><li>ChatGPT の有料プランに加入していることを確認します。</li>
+      <li>ChatGPT のデスクトップアプリを公式サイトからインストールします（Codex が同梱されています）。</li>
+      <li>${term}で次を実行し、開いたブラウザで ChatGPT のアカウントにログインします。${cmdBox(q(codexBin)+' login')}${canOpen&&a&&a.codex.installed&&!a.codex.loggedIn?'<button class="small primary" data-login="codex">ターミナルでログインを開始</button>':''}</li>
+      <li>確認: <code>Logged in using ChatGPT</code> と出れば完了です。${cmdBox(q(codexBin)+' login status')}</li></ol></div>
+    <div class="editBtns"><span class="hint ui">ログインを済ませたら</span><button class="small" id="tutRecheck">状態を再確認</button></div>
+    <p class="hint">ログイン情報はこのアプリには保存されず、各ツールが自分で管理します。アプリが受け取るのは「ログイン済みかどうか」と「プランの種類」だけです。</p>`;
+}
+const TUT_PAGES=[
+  ()=>({t:'BranCHAT へようこそ',h:`<p>BranCHAT は、AIとの会話を<b>1本の線ではなく、枝分かれする地図</b>として進めるチャットです。</p>
+    <ul><li>話が脇道にそれそうなときは<b>分岐</b>させ、本線はそのまま残せます。</li>
+    <li>分岐先でも、AIは<b>本線の内容を引き継いだ状態</b>で答えます。</li>
+    <li>本線に戻ったとき、AIは<b>すべての分岐で決まったこと</b>を把握しています。</li>
+    <li><b>俯瞰図</b>で、どこから何が分かれたかを一望できます。</li></ul>
+    <p class="hint">このチュートリアルは、右上の「？ 使い方」からいつでも開けます。</p>`}),
+  ()=>({t:'AIへの接続',h:tutConnectHTML()}),
+  ()=>({t:'基本の操作',h:`<h3 class="ui">送る</h3><p>下の入力欄に書いて <span class="kbd">Enter</span>（改行は <span class="kbd">Shift</span>+<span class="kbd">Enter</span>）。生成中は送信ボタンが「■ 停止」になり、途中で止められます。</p>
+    <h3 class="ui">分岐する</h3><ul><li>AIの回答の下の<b>「⑂ ここから分岐」</b>を押すと、その回答から新しい枝が始まります。過去の回答からでも分岐できます。</li>
+    <li>回答の<b>一部を選択</b>すると「これについて質問する」が出ます。「分岐して質問」を選ぶと、選んだ部分が枝の名前になります。</li>
+    <li>迷っているときは<b>「☆ 分岐予定」</b>で印だけ付けておけます（俯瞰図で黄色く表示）。</li>
+    <li>まだ発言していない枝は、分岐点の下の「✕ 取り消す」で取り消せます。</li></ul>
+    <h3 class="ui">戻る・直す</h3><ul><li>上の帯のブランチ名を押すと、その枝へ移動します。今いる枝の名前をもう一度押すと名前を変えられます。</li>
+    <li>自分の発言の<b>「✎ 質問を編集する」</b>で書き直して送り直せます。途中の質問を直した場合は、元のやり取りを残したまま新しい枝になります。</li></ul>`}),
+  ()=>({t:'俯瞰図とモデル',h:`<h3 class="ui">俯瞰図</h3><p>右上の <b>View</b> から「俯瞰図」に切り替えます。</p>
+    <ul><li>丸の<b>大きさ</b>は使ったトークン量、<b>波紋</b>は現在位置（藍）と分岐点、<b>黄色</b>は分岐予定です。丸を押すとその発言へ移動します。</li>
+    <li>右のカードに各枝の「話題・結論・未解決」の要約が出ます。AIにはこの要約が毎回渡っています。</li>
+    <li>要約では足りない枝は「📌 全文を参照」、済んだ枝は「終了」、結論を今の枝へ取り込むなら「現在ブランチに合流」。</li></ul>
+    <h3 class="ui">モデルと思考量</h3><ul><li>送信ボタンの上のボタンで、<b>枝ごとに</b>モデル${IS_ARTIFACT?'の階層':'と思考量'}を変えられます。</li>
+    <li>指定していない枝は<b>本線の設定</b>（さらに分岐した枝は分岐元の設定）を引き継ぎます。本線に設定すれば会話全体に効きます。</li>
+    ${IS_ARTIFACT?'':'<li>Claude と GPT を枝ごとに使い分けても、どちらも他の枝の結論を把握して答えます。GPT（Codex）の回答は1文字ずつではなく、まとまって表示されます。</li>'}</ul>`}),
+  ()=>({t:'データの扱い',h:`<ul><li>会話は<b>この${IS_DESKTOP?'アプリ':'ブラウザ'}の中</b>に保存されます。${IS_DESKTOP?'さらに自動でバックアップを取り、データが消えた場合は起動時に復元を提案します。':''}</li>
+    <li>ヘッダーの「書き出し / 読み込み」で、会話をファイルとして持ち運べます（別の版のBranCHATへ移すときもこれを使います）。</li>
+    <li>「＋会話」で新しい会話、「✎ 名前」「🗑 削除」で整理できます。</li></ul>
+    <h3 class="ui">まず試すなら</h3><p>見本の会話を読み込むと、分岐・分岐予定・要約・俯瞰図をすぐ確認できます（架空の薬剤を使った例です）。</p>
+    <div class="editBtns"><button class="small primary" id="tutDemo">デモ会話を読み込む</button></div>`}),
+];
+async function tutLoadAuth(force){
+  if(IS_ARTIFACT)return;
+  try{const r=await fetch('/api/status'+(force?'?force=1':''),{cache:'no-store'});tutAuth=await r.json();if(typeof probeBridge==='function')await probeBridge();}catch(e){tutAuth=null;}
+}
+function renderTut(){
+  const pg=TUT_PAGES[tutPage]();$('#tutTitle').textContent=pg.t;$('#tutBody').innerHTML=pg.h;$('#tutBody').scrollTop=0;
+  $('#tutDots').innerHTML=TUT_PAGES.map((_,i)=>`<i class="${i===tutPage?'on':''}"></i>`).join('');
+  $('#tutPrev').disabled=tutPage===0;$('#tutNext').textContent=tutPage===TUT_PAGES.length-1?'はじめる':'次へ';
+  $('#tutBody').querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copy);b.textContent='コピーしました';}catch(e){const c=b.previousElementSibling;const r=document.createRange();r.selectNodeContents(c);const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='選択しました（Cmd/Ctrl+C）';}setTimeout(()=>b.textContent='コピー',1800);});
+  $('#tutBody').querySelectorAll('[data-login]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await(await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({engine:b.dataset.login})})).json();toast(r.ok?'ターミナルを開きました。ブラウザでログインを済ませてから「状態を再確認」を押してください':'ターミナルを開けませんでした。上のコマンドを手で実行してください');}catch(e){toast('上のコマンドを手で実行してください');}b.disabled=false;});
+  const rc=document.getElementById('tutRecheck');if(rc)rc.onclick=async()=>{rc.disabled=true;rc.textContent='確認中…';await tutLoadAuth(true);renderTut();renderAll();};
+  const dm=document.getElementById('tutDemo');if(dm)dm.onclick=()=>{closeTut();loadDemo();};
+}
+function openTut(page){tutPage=page||0;renderTut();$('#tutDlg').showModal();tutLoadAuth(false).then(()=>{if($('#tutDlg').open&&tutPage===1)renderTut();});}
+function closeTut(){lsSetSafe('bc.tutorialSeen','1');$('#tutDlg').close();}
+function lsSetSafe(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function lsGetSafe(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+$('#tutClose').onclick=closeTut;$('#tutDlg').addEventListener('cancel',e=>{e.preventDefault();closeTut();});
+$('#tutPrev').onclick=()=>{if(tutPage>0){tutPage--;renderTut();}};
+$('#tutNext').onclick=()=>{if(tutPage<TUT_PAGES.length-1){tutPage++;renderTut();}else closeTut();};
+$('#helpBtn').onclick=()=>openTut(0);
+
 /* ========== 起動 ========== */
 loadActive();
 restoreFromBackup();
 probeBridge().then(()=>{if(IS_DESKTOP&&!bridgeOk){toast('Claude Code も Codex CLI も見つかりません。設定を確認してください');return;}if(bridgeOk&&settings.provider==='dummy'&&!localStorage.getItem('bc.bridgeNoticed')){localStorage.setItem('bc.bridgeNoticed','1');toast('ブリッジを検出。設定で「ローカルブリッジ」を選ぶと定額枠で本物の応答になります');}});
 showFocus();
+if(!lsGetSafe('bc.tutorialSeen'))setTimeout(()=>openTut(0),400);
 </script>
 </body>
 </html>

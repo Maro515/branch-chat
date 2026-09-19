@@ -21,8 +21,9 @@ no(r'(?<![A-Za-z])prompt\(',art,'artifact.html に prompt() が無い')
 no(r'(?<![A-Za-z])confirm\(|(?<![A-Za-z])prompt\(',idx,'index.html にも confirm()/prompt() が無い')
 no(r'<!DOCTYPE|<html|<body',art,'artifact.html に骨格タグが無い')
 no(r'api\.anthropic\.com|/api/chat',art,'artifact.html に外部API/ブリッジ呼び出しが無い')
-no(r'localStorage\.',art,'artifact.html の localStorage 直接参照は lsGet/lsSet の2箇所だけ',allow=2)
+no(r'localStorage\.',art,'artifact.html の localStorage 直接参照は lsGetSafe/lsSetSafe の2箇所だけ',allow=2)
 no(r'sk-ant-[A-Za-z0-9]',idx+art,'APIキーらしき文字列が無い')
+no(r'ls(Get|Set)=[^;]*\{try\{(return )?ls(Get|Set)\(',idx+art,'保存ヘルパーが自分自身を呼んでいない（過去に一括置換で壊れた）')
 # 関数の取りこぼし（片方にだけある関数）
 fn=lambda t:set(re.findall(r'(?:async\s+)?function\*?\s+([A-Za-z_$][\w$]*)\s*\(',t))
 only_idx=fn(idx)-fn(art)-{'streamAPI','streamBridge','probeBridge','scheduleBackup','restoreFromBackup'}

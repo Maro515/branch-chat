@@ -28,6 +28,30 @@ def codex_ok():
     return bool(CODEX) and os.path.exists(os.path.join(CODEX_HOME, "auth.json"))
 
 
+def _run(cmd, args):
+    try:
+        r = subprocess.run([cmd] + args, capture_output=True, text=True, timeout=8)
+        return (r.stdout or "") + (r.stderr or "")
+    except Exception:
+        return ""
+
+
+def auth_state():
+    """各CLIの公式コマンドでログイン状態を確かめる(メールアドレス等は画面へ渡さない)。engines.js と同じ形。"""
+    st = {"claude": {"installed": claude_ok(), "loggedIn": False, "plan": None},
+          "codex": {"installed": bool(CODEX), "loggedIn": False, "method": None}}
+    if claude_ok():
+        try:
+            j = json.loads(_run(CLAUDE, ["auth", "status"]))
+            st["claude"]["loggedIn"] = bool(j.get("loggedIn")); st["claude"]["plan"] = j.get("subscriptionType")
+        except Exception:
+            pass
+    if CODEX:
+        t = _run(CODEX, ["login", "status"]).lower()
+        st["codex"]["loggedIn"] = ("logged in" in t) and ("not logged in" not in t)
+    return st
+
+
 def codex_models():
     """Codex が手元にキャッシュしているモデル一覧(名前と思考量の段階)。中身は読むが認証情報には触れない。"""
     out = []
@@ -67,8 +91,12 @@ class H(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.startswith("/api/status"):
-            body = json.dumps({"ok": claude_ok(), "claude": CLAUDE, "codex_ok": codex_ok(), "codex": CODEX,
-                               "codex_models": codex_models() if codex_ok() else []}, ensure_ascii=False).encode()
+            a = auth_state()
+            c_ok = a["claude"]["installed"] and a["claude"]["loggedIn"]
+            x_ok = a["codex"]["installed"] and a["codex"]["loggedIn"]
+            body = json.dumps({"ok": c_ok, "claude": CLAUDE, "codex_ok": x_ok, "codex": CODEX,
+                               "codex_models": codex_models() if x_ok else [], "auth": a,
+                               "desktop": False, "platform": sys.platform}, ensure_ascii=False).encode()
             self.send_response(200); self._cors()
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
