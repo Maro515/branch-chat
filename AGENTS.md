@@ -40,6 +40,7 @@ branch-chat/
 | 設定ダイアログ | APIキー、モデル名、要約モデル | モデル階層（標準/高度/速い）のみ |
 | 既定値 | provider `dummy`、予算 60000 | provider `claude`、予算 40000（入力上限64KBのため） |
 | 書き出し | `<a download>` | `downloads` capability（無ければ `<a download>`） |
+| モデル選択肢 | `MODEL_OPTS`=モデルID4種、`EFFORT_OPTS`=5段階 | `MODEL_OPTS`=階層3種、`EFFORT_OPTS`=空 |
 | 応答後の表示 | 実トークン数（usage） | 実際に応答した階層（`modelTierApplied`） |
 
 両方に同じ変更を入れる定石は、Pythonで2ファイルをループし、置換前の文字列を `assert a in s` で確認してから置換すること（過去のコミットはすべてこの方式）。
@@ -51,16 +52,17 @@ branch-chat/
 ### データモデル（localStorage に JSON で保存）
 
 ```js
-conv = { id, title, createdAt, order:[nodeId...], activeNodeId,
+conv = { id, title, createdAt, order:[nodeId...], activeNodeId, model?, effort?,
   nodes:    { [id]: { id, parentId, role:'user'|'assistant', content, branchId, ts, seq,
-                      gist?, planned?, usage?, tier?, mergedFrom?, streaming? } },
+                      gist?, planned?, usage?, tier?, model?, effort?, mergedFrom?, streaming? } },
   branches: { [id]: { id, name, color, forkFromNodeId, headNodeId, summary, pinned,
-                      status:'open'|'closed', createdAt, autoNamed, seq } },
+                      status:'open'|'closed', createdAt, autoNamed, seq, model?, effort? } },
   _pendingBranch?, _pendingQuote?, _returnNode?, _anchor? }   // 一時状態（保存されるが消えても良い）
 ```
 
 - ノードは `parentId` だけのツリー。ブランチは「ツリー上の名前付きパス」。本線の id は固定で `'main'`。
 - 未開始の分岐 = `headNodeId === forkFromNodeId`（`isEmptyBranch`）。同じ回答からの未開始分岐は1つまで。
+- **モデルと思考量は3層で解決する:** ブランチの `model`/`effort` > 会話の `model`/`effort` > 全体の既定（`settings`）。値が無い層は上位に従う（`effModel` / `effEffort`）。選択肢は版ごとの `MODEL_OPTS` / `EFFORT_OPTS`。index.html はモデルID＋思考量5段階、artifact.html は階層3種で思考量の指定なし。別の版の値が入った会話を読み込んでも `validModel` が無視して上位に従うので壊れない。Haiku には思考量を送らない。
 - 保存キー: `bc.convs.v1`（全会話）、`bc.active.v1`、`bc.settings.v1`。
 - 状態を変えたら `persist()`、画面は `renderAll()`。
 

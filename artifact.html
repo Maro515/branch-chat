@@ -202,6 +202,20 @@ header{z-index:5}
 .badges{padding-left:6px}
 #msgs>.msg:only-of-type{max-width:min(92%,680px)}
 @media (max-width:600px){.msg{max-width:92%}.msg.editing{width:92%}}
+
+/* ===== モデル変更ボタンとポップアップ ===== */
+.sendCol{display:flex;flex-direction:column;gap:6px;align-items:stretch;position:relative}
+#modelBtn{font-size:12px;padding:4px 10px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+#modelBtn .ov{width:8px;height:8px;border-radius:50%;background:var(--bc,#9fb3d9);flex:none}
+#modelPop{position:absolute;right:0;bottom:calc(100% + 8px);width:min(340px,calc(100vw - 32px));background:#fff;border:1.5px solid var(--indigo);border-radius:12px;box-shadow:0 8px 30px rgba(30,58,110,.28);padding:10px;z-index:30;display:none;color:var(--indigo);max-height:70vh;overflow:auto}
+#modelPop.on{display:block}
+#modelPop .mph{font-size:11px;color:var(--indigo2);letter-spacing:.08em;margin:8px 0 4px}
+#modelPop .mph:first-child{margin-top:0}
+#modelPop .row2{display:flex;flex-wrap:wrap;gap:6px}
+#modelPop button{font-size:12px;padding:4px 9px}
+#modelPop button.on{background:var(--indigo)!important;color:#fff!important;border-color:var(--indigo)!important}
+#modelPop .res{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-size:12px}
+#modelPop .res b{font-family:"Noto Sans JP",sans-serif}
 </style>
 <header>
   <h1>⑂ BranCHAT</h1>
@@ -227,7 +241,7 @@ header{z-index:5}
     <div id="composer">
       <div class="row">
         <textarea id="input" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行）"></textarea>
-        <button class="primary" id="sendBtn">送信</button>
+        <div class="sendCol"><div id="modelPop"></div><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
       <div id="status"></div>
     </div>
@@ -416,7 +430,7 @@ async function* streamClaude(system,messages,model,opts={}){
   // 指示(system相当)は先頭の user ターンとして渡す（Artifact の sample にはsystemが無い）
   const turns=[{role:'user',content:system},...messages.map(m=>({role:m.role,content:m.content}))];
   const q=[];let done=false,err=null,wake=null,result=null;
-  const p=sample(turns,{cache:false,modelTier:opts.raw?'quick':(settings.tier||'default'),onText:({delta})=>{q.push(delta);if(wake)wake();}});
+  const p=sample(turns,{cache:false,modelTier:opts.raw?'quick':(validModel(model)||settings.tier||'default'),onText:({delta})=>{q.push(delta);if(wake)wake();}});
   p.then(r=>{result=r;done=true;if(wake)wake();},e=>{err=e;done=true;if(wake)wake();});
   while(true){
     while(q.length)yield {text:q.shift()};
@@ -472,7 +486,8 @@ async function send(text,opts={}){
   const ctx=buildContext(u.id,{pinIds:opts.pinIds});
   setStatus(`Claude が考えています… 概算 ${ctx.tokens} tok`);
   try{
-    for await(const ev of provider()(ctx.system,ctx.messages,settings.model)){
+  const model=effModel(bid),effort=effEffort(bid);a.model=model;if(effort)a.effort=effort;
+    for await(const ev of provider()(ctx.system,ctx.messages,model,{effort})){
       if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){el.querySelector('.body').innerHTML=md(a.content);updateTailSpace();autoScroll();}}
       if(ev.usage)a.usage=ev.usage;
       if(ev.rate)a.rate=ev.rate;
@@ -489,13 +504,13 @@ async function send(text,opts={}){
   updateSummary(bid);
   fillShortGists();ensureGists();
 }
-function setStatus(s){$('#status').innerHTML=`<span>${esc(s)}</span><span><span class="ui">接続:</span> ${settings.provider==='dummy'?'ダミー':'Claude（閲覧者のアカウント）/ '+({default:'標準',complex:'高度',quick:'速い'}[settings.tier]||'標準')}</span><a href="#" id="ctxLink" class="ui">送信コンテキストを見る</a>`;
+function setStatus(s){$('#status').innerHTML=`<span>${esc(s)}</span><span><span class="ui">接続:</span> ${settings.provider==='dummy'?'ダミー':'Claude（閲覧者のアカウント）/ '+esc(effLabel(effectiveBranchForSend()))}</span><a href="#" id="ctxLink" class="ui">送信コンテキストを見る</a>`;
   $('#ctxLink').onclick=e=>{e.preventDefault();const c=buildContext(conv.activeNodeId);$('#ctxPre').textContent=c.system+'\n\n===== messages ('+c.messages.length+') =====\n'+c.messages.map(m=>`[${m.role}] ${excerpt(m.content,200)}`).join('\n');$('#ctxDlg').showModal();};
 }
 function autoScroll(){const m=$('#msgs');if(m.scrollHeight-m.scrollTop-m.clientHeight<200)m.scrollTop=m.scrollHeight;}
 
 /* ========== 描画: フォーカス ========== */
-function renderAll(){renderConvSel();renderBranchBar();renderFocus();if($('#overview').classList.contains('on'))renderOverview();}
+function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderModelBtn();if($('#overview').classList.contains('on'))renderOverview();}
 function renderConvSel(){const s=$('#convSel');s.innerHTML=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt).map(c=>`<option value="${c.id}"${c.id===conv.id?' selected':''}>${esc(c.title)}${c.order.length?` (${c.order.length})`:'（空）'}</option>`).join('');}
 function renderBranchBar(){
   const cur=currentBranchId();
@@ -728,7 +743,7 @@ function renderOverview(){
     const toks=branchNodes(b.id).reduce((a,n)=>a+tokensOf(n),0);
     const sum=b.summary?`<div class="sum"><b>話題</b>${esc(b.summary.topic)}<b>結論</b>${esc(b.summary.conclusions)}<b>未解決</b>${esc(b.summary.open)}</div>`:`<div class="sum hint ui">要約未作成（AIの回答後に自動生成）</div>`;
     return `<div class="card${b.pinned?' pinned':''}" style="--bc:${b.color}"><h3>${esc(b.name)}${b.id===cur?' <span class="hint">現在</span>':''}${b.status==='closed'?' <span class="hint">終了</span>':''}</h3>
-      <div class="from">${from} / ${branchNodes(b.id).length} <span class="ui">発言</span> / ${toks} tok</div>${sum}
+      <div class="from">${from} / ${branchNodes(b.id).length} <span class="ui">発言</span> / ${toks} tok${(validModel(b.model)||validEffort(b.effort))?` / <span title="このブランチ専用のモデル設定">⚙ ${esc(effLabel(b.id))}</span>`:''}</div>${sum}
       <div class="act">
         <button class="small" data-go="${b.id}">移動</button>
         <button class="small" data-pin="${b.id}">${b.pinned?'📌 参照解除':'📌 全文を参照'}</button>
@@ -867,6 +882,52 @@ function loadDemo(){
   toast('デモ会話を作成しました。本線・分岐3本・分岐予定・要約が入っています');
 }
 $('#demoBtn').onclick=async()=>{if(await askConfirm('見本の会話「【デモ】ゾルミン療法の相談」を新しく作成しますか？\n（架空の薬剤を使った例で、医学的助言ではありません）','作成する'))loadDemo();};
+
+/* モデル選択肢（この版で選べるもの） */
+const MODEL_OPTS=[{v:'default',l:'標準',d:'バランス型。考えてから書く'},{v:'complex',l:'高度',d:'最も高性能。深く考える・遅い'},{v:'quick',l:'速い',d:'考えずに即応答'}];
+const EFFORT_OPTS=[]; // Artifact の sample には思考量の指定が無い（階層に含まれる）
+const globalModel=()=>settings.tier;const setGlobalModel=v=>{settings.tier=v;};
+
+/* ========== モデル・思考量（会話/ブランチごと） ========== */
+// 優先順位: ブランチの指定 > 会話の指定 > 全体の既定。値が無い(null)層は上位に従う
+const validModel=v=>MODEL_OPTS.some(o=>o.v===v)?v:null;
+const validEffort=v=>EFFORT_OPTS.some(o=>o.v===v)?v:null;
+const modelLabel=v=>(MODEL_OPTS.find(o=>o.v===v)||{l:v||'—'}).l;
+function effModel(bid){const b=B(bid);return validModel(b&&b.model)||validModel(conv.model)||validModel(globalModel())||MODEL_OPTS[0].v;}
+function effEffort(bid){if(!EFFORT_OPTS.length)return null;const b=B(bid);return validEffort(b&&b.effort)||validEffort(conv.effort)||validEffort(settings.effort)||'high';}
+function effLabel(bid){const e=effEffort(bid);return modelLabel(effModel(bid))+(e?' · '+e:'');}
+function modelSource(bid){const b=B(bid);if(b&&(validModel(b.model)||validEffort(b.effort)))return 'branch';if(validModel(conv.model)||validEffort(conv.effort))return 'conv';return 'global';}
+let mpScope='branch';
+function renderModelBtn(){
+  const bid=effectiveBranchForSend();const src=modelSource(bid);const b=B(bid);
+  const btn=$('#modelBtn');btn.style.setProperty('--bc',src==='branch'?b.color:src==='conv'?'var(--indigo)':'#9fb3d9');
+  btn.innerHTML=`<span class="ov"></span><span class="var">${esc(effLabel(bid))}</span><span>▾</span>`;
+  btn.title=({branch:'このブランチ専用の設定',conv:'この会話の設定',global:'全体の既定'})[src]+'で応答します。クリックで変更';
+  if($('#modelPop').classList.contains('on'))renderModelPop();
+}
+function renderModelPop(){
+  const bid=effectiveBranchForSend();const b=B(bid);
+  const tgt=mpScope==='branch'?b:mpScope==='conv'?conv:null;
+  const curM=tgt?validModel(tgt.model):validModel(globalModel());
+  const curE=tgt?validEffort(tgt.effort):validEffort(settings.effort);
+  const upM=mpScope==='branch'?(validModel(conv.model)||validModel(globalModel())):validModel(globalModel());
+  const upE=mpScope==='branch'?(validEffort(conv.effort)||validEffort(settings.effort)):validEffort(settings.effort);
+  const inh=(cur,up,kind)=>mpScope==='global'?'':`<button class="small${cur?'':' on'}" data-${kind}="">上位に従う（${esc(kind==='m'?modelLabel(up):(up||'high'))}）</button>`;
+  $('#modelPop').innerHTML=`<div class="mph ui">適用先</div>
+    <div class="row2"><button class="small${mpScope==='branch'?' on':''}" data-scope="branch">このブランチ「<span class="var">${esc(excerpt(b.name,10))}</span>」</button><button class="small${mpScope==='conv'?' on':''}" data-scope="conv">この会話</button><button class="small${mpScope==='global'?' on':''}" data-scope="global">全体の既定</button></div>
+    <div class="mph ui">モデル</div>
+    <div class="row2">${inh(curM,upM,'m')}${MODEL_OPTS.map(o=>`<button class="small${curM===o.v?' on':''}" data-m="${o.v}" title="${esc(o.d||'')}">${esc(o.l)}</button>`).join('')}</div>
+    ${EFFORT_OPTS.length?`<div class="mph ui">思考量</div><div class="row2">${inh(curE,upE,'e')}${EFFORT_OPTS.map(o=>`<button class="small${curE===o.v?' on':''}" data-e="${o.v}" title="${esc(o.d||'')}">${esc(o.l)}</button>`).join('')}</div>`:`<div class="mph ui">思考量</div><div class="hint ui">この版では思考量はモデルの階層に含まれます（高度＝深く考える / 速い＝考えない）</div>`}
+    <div class="res"><span class="ui">次の送信:</span> <b>${esc(effLabel(bid))}</b> <span class="hint ui">（${({branch:'ブランチの設定',conv:'会話の設定',global:'全体の既定'})[modelSource(bid)]}）</span></div>`;
+  const pop=$('#modelPop');
+  pop.querySelectorAll('[data-scope]').forEach(el=>el.onclick=e=>{e.stopPropagation();mpScope=el.dataset.scope;renderModelPop();});
+  const setv=(key,val)=>{if(mpScope==='global'){if(key==='model')setGlobalModel(val);else settings.effort=val;saveSettings();}else{const t=mpScope==='branch'?B(effectiveBranchForSend()):conv;if(val)t[key]=val;else delete t[key];persist();}renderModelBtn();renderFocus();};
+  pop.querySelectorAll('[data-m]').forEach(el=>el.onclick=e=>{e.stopPropagation();setv('model',el.dataset.m||null);});
+  pop.querySelectorAll('[data-e]').forEach(el=>el.onclick=e=>{e.stopPropagation();setv('effort',el.dataset.e||null);});
+}
+$('#modelBtn').onclick=e=>{e.stopPropagation();const p=$('#modelPop');p.classList.toggle('on');if(p.classList.contains('on'))renderModelPop();};
+document.addEventListener('click',e=>{if(!e.target.closest('#modelPop')&&!e.target.closest('#modelBtn'))$('#modelPop').classList.remove('on');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#modelPop').classList.remove('on');});
 
 /* ========== 起動 ========== */
 if(!['claude','dummy'].includes(settings.provider))settings.provider='claude';
