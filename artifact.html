@@ -253,6 +253,23 @@ header{z-index:5}
 .toolsUsed{display:flex;flex-wrap:wrap;gap:6px}
 .toolsUsed:empty{display:none}
 .toolchip{font-size:12px;color:var(--indigo2);background:#eef3fb;border:1px solid var(--line);border-radius:999px;padding:1px 10px;margin-bottom:6px}
+#mcpBtn{font-size:12px;padding:4px 10px}
+#mcpBtn.on{background:#eef7ee!important;border-color:var(--c3)!important;color:var(--c3)!important;font-weight:700}
+#mcpPop{position:absolute;right:0;bottom:calc(100% + 8px);width:min(340px,calc(100vw - 32px));background:#fff;border:1.5px solid var(--indigo);border-radius:12px;box-shadow:0 8px 30px rgba(30,58,110,.28);padding:10px;z-index:30;display:none;color:var(--indigo);max-height:60vh;overflow:auto}
+#mcpPop.on{display:block}
+#mcpPop .mph{font-size:11px;color:var(--indigo2);letter-spacing:.08em;margin:0 0 4px}
+.mcprow{display:flex;align-items:center;gap:8px;padding:5px 4px;border-top:1px dashed var(--line);font-size:13px;cursor:pointer}
+.mcprow.dis{opacity:.55;cursor:default}
+.mcprow .hint{margin-left:auto;font-size:11px}
+/* 生成中の表示: 2x2 の箱が回る */
+.spin4{display:inline-grid;grid-template-columns:repeat(2,9px);gap:3px;width:21px;height:21px;animation:spin4 1.1s cubic-bezier(.6,.1,.4,.9) infinite;vertical-align:middle}
+.spin4 i{display:block;width:9px;height:9px;border-radius:2px;background:var(--c1);animation:spin4i 1.1s ease-in-out infinite}
+.spin4 i:nth-child(2){background:var(--c2);animation-delay:.15s}.spin4 i:nth-child(3){background:var(--c3);animation-delay:.3s}.spin4 i:nth-child(4){background:var(--c4);animation-delay:.45s}
+@keyframes spin4{to{transform:rotate(360deg)}}
+@keyframes spin4i{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.55);opacity:.55}}
+.waiting{display:flex;align-items:center;gap:10px;color:var(--indigo2);font-size:13px;padding:6px 0}
+.spin4.mini{grid-template-columns:repeat(2,5px);gap:2px;width:12px;height:12px}.spin4.mini i{width:5px;height:5px;border-radius:1px}
+@media (prefers-reduced-motion:reduce){.spin4,.spin4 i{animation:none}}
 </style>
 <header>
   <h1>⑂ BranCHAT</h1>
@@ -279,7 +296,7 @@ header{z-index:5}
     <div id="composer">
       <div class="row">
         <textarea id="input" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行）"></textarea>
-        <div class="sendCol"><div id="modelPop"></div><button id="webBtn" class="small" title="Web検索"></button><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
+        <div class="sendCol"><div id="modelPop"></div><div id="mcpPop"></div><button id="mcpBtn" class="small" title="連携ツール（MCP）"></button><button id="webBtn" class="small" title="Web検索"></button><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
       <div id="status"></div>
     </div>
@@ -361,7 +378,7 @@ function md(s){ // 最小限のMarkdown
 /* ========== 設定 ========== */
 const SET_KEY='bc.settings.v1';
 const IS_ARTIFACT=true,IS_DESKTOP=false;
-let settings=Object.assign({provider:'claude',tier:'default',model:'claude',sumModel:'quick',budget:40000,extra:''},JSON.parse(lsGet(SET_KEY)||'{}'));
+let settings=Object.assign({provider:'claude',tier:'default',model:'claude',sumModel:'quick',budget:40000,extra:'',web:false,mcp:[]},JSON.parse(lsGet(SET_KEY)||'{}'));
 function saveSettings(){lsSet(SET_KEY,JSON.stringify(settings));}
 let sampleFn=null,sampleChecked=false;
 async function probeClaude(){
@@ -537,11 +554,14 @@ async function send(text,opts={}){
   conv.activeNodeId=a.id;persist();renderAll();
   const web=!!settings.web&&!IS_ARTIFACT;
   const ctx=buildContext(u.id,{pinIds:opts.pinIds});
-  if(web)ctx.system+='\n\n## Web検索\n最新情報・事実確認・出典が必要なときは Web検索（必要なら取得）を使ってください。使った場合は回答の末尾に出典のURLを示してください。検索が不要な質問では使わないでください。';
+  if(web)ctx.system+='\n\n## Web検索\nWeb検索（必要ならページ取得）が使えます。最新情報・具体的な事実・数値・固有名詞・出典が関わる質問では原則として検索し、回答の末尾に出典のURLを示してください。検索を省いてよいのは、挨拶や言い換え、既に会話に出ている内容の整理など、外部情報がまったく不要な場合だけです。';
+  const mcpSel=(!IS_ARTIFACT&&settings.mcp&&settings.mcp.length)?settings.mcp.filter(n=>mcpList.some(sv=>sv.name===n&&!sv.needsAuth)):[];
+  if(mcpSel.length)ctx.system+=`\n\n## 外部ツール（MCP）\n次の連携ツールが使えます: ${mcpSel.join(' / ')}。参照・検索・取得のために使い、結果を根拠として示してください。作成・送信・削除・更新などデータを変える操作は、ユーザーが明確に指示した場合以外は行わないでください。`;
   setStatus(`Claude が考えています… 概算 ${ctx.tokens} tok`);
   try{
   const model=effModel(bid),effort=effEffort(bid);a.model=model;if(effort)a.effort=effort;
-    for await(const ev of provider()(ctx.system,ctx.messages,model,{effort,web,signal:abortCtl.signal})){
+    for await(const ev of provider()(ctx.system,ctx.messages,model,{effort,web,mcp:mcpSel,signal:abortCtl.signal})){
+      if(ev.mcp_status){const bad=ev.mcp_status.filter(m=>m.status!=='connected');if(bad.length){const names=bad.map(m=>mcpDisplay(m.name));settings.mcpUnavailable=[...new Set([...(settings.mcpUnavailable||[]),...bad.map(m=>{const sv=mcpList.find(x=>x.slug===m.name);return sv?sv.name:m.name;})])];settings.mcp=(settings.mcp||[]).filter(n=>!settings.mcpUnavailable.includes(n));saveSettings();renderMcpBtn();toast('この連携は今の版では使えません（ログインが必要）: '+names.join(', '));}}
       if(ev.tool){(a.tools=a.tools||[]).push(ev.tool);const el=document.getElementById('n-'+a.id);if(el){const tu=el.querySelector('.toolsUsed');if(tu)tu.innerHTML=toolsHTML(a);}}
       if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){el.querySelector('.body').innerHTML=md(a.content);updateTailSpace();autoScroll();}}
       if(ev.usage)a.usage=ev.usage;
@@ -566,7 +586,7 @@ function setStatus(s){$('#status').innerHTML=`<span>${esc(s)}</span><span><span 
 function autoScroll(){const m=$('#msgs');if(m.scrollHeight-m.scrollTop-m.clientHeight<200)m.scrollTop=m.scrollHeight;}
 
 /* ========== 描画: フォーカス ========== */
-function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderModelBtn();renderWebBtn();if($('#overview').classList.contains('on'))renderOverview();}
+function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderModelBtn();renderWebBtn();renderMcpBtn();if($('#overview').classList.contains('on'))renderOverview();}
 function renderConvSel(){const s=$('#convSel');s.innerHTML=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt).map(c=>`<option value="${c.id}"${c.id===conv.id?' selected':''}>${esc(c.title)}${c.order.length?` (${c.order.length})`:'（空）'}</option>`).join('');}
 function renderBranchBar(){
   const cur=currentBranchId();
@@ -591,8 +611,8 @@ function renderFocus(){
     const outside=n.branchId!==cur||after;
     if(after&&path.indexOf(n)===actIdx+1)html+=`<div class="divider ui" style="--bc:${b.color}">ここまでを文脈にして続けます。ここから送信すると新しい枝になります（末尾から続けるには <a href="#" data-gohead="${cur}">この枝の最後へ</a>）</div>`;
     html+=`<div class="msg ${n.role}${outside?' outside':''}${n.planned?' planned':''}${n.id===conv.activeNodeId&&after!==undefined&&actIdx>=0&&actIdx<path.length-1?' cursor':''}" id="n-${n.id}" style="--bc:${b.color}">
-      <div class="meta"><span class="tag">${esc(label(n))}</span><span class="ui">${n.role==='user'?'あなた':'AI'}</span><span title="このメッセージのトークン（概算）">${tokensOf(n)} tok</span>${n.tier?`<span class="ui">${({default:'標準',complex:'高度',quick:'速い'})[n.tier]||n.tier}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="ui">…生成中</span>':''}</div>
-      <div class="toolsUsed">${toolsHTML(n)}</div><div class="body">${md(n.content)}</div>
+      <div class="meta"><span class="tag">${esc(label(n))}</span><span class="ui">${n.role==='user'?'あなた':'AI'}</span><span title="このメッセージのトークン（概算）">${tokensOf(n)} tok</span>${n.tier?`<span class="ui">${({default:'標準',complex:'高度',quick:'速い'})[n.tier]||n.tier}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="spin4 mini"><i></i><i></i><i></i><i></i></span>':''}</div>
+      <div class="toolsUsed">${toolsHTML(n)}</div><div class="body">${n.streaming&&!n.content?`<div class="waiting"><span class="spin4"><i></i><i></i><i></i><i></i></span><span class="ui">${n.role==='assistant'?'回答を生成中…':''}</span></div>`:md(n.content)}</div>
       <div class="tools">${n.role==='assistant'&&!n.streaming?`<button class="small" data-fork="${n.id}" title="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">${emptyBranchFrom(n.id)?'⑂ 未開始の分岐へ':'⑂ ここから分岐'}</button><button class="small plan${n.planned?' on':''}" data-plan="${n.id}" title="分岐するか迷っているときの印。俯瞰図で黄色く表示">${n.planned?'★ 予定解除':'☆ 分岐予定'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="small" data-edit="${n.id}" title="この質問を書き直して送り直す">✎ 質問を編集する</button>`:''}${n.role==='assistant'&&!n.streaming&&n.id!==B(n.branchId).headNodeId?`<button class="small" data-go="${n.id}" title="この回答までを文脈にして続ける（送信すると新しい枝になります）">ここから続ける</button>`:''}</div>
     </div>`;
     const kids=childBranchesOf(n.id);
@@ -648,7 +668,25 @@ function togglePlan(nid){const n=N(nid);n.planned=!n.planned;persist();renderAll
 function plannedNodes(){return conv.order.map(N).filter(n=>n.planned);}
 
 /* ========== Web検索の表示 ========== */
-function toolsHTML(n){return (n.tools||[]).map(t=>`<span class="toolchip"><span class="ui">${t.name==='web_fetch'?'🌐 取得':'🔍 Web検索'}</span>${t.q?`「<span class="var">${esc(excerpt(t.q,40))}</span>」`:''}</span>`).join('');}
+function toolsHTML(n){return (n.tools||[]).map(t=>`<span class="toolchip"><span class="ui">${t.name==='mcp'?'🔌 '+esc(mcpDisplay(t.server))+': ':t.name==='web_fetch'?'🌐 取得':'🔍 Web検索'}</span>${t.name==='mcp'?`<span class="var">${esc(t.tool||'')}</span>`:''}${t.q?`「<span class="var">${esc(excerpt(t.q,40))}</span>」`:''}</span>`).join('');}
+function mcpDisplay(slug){const sv=mcpList.find(x=>x.slug===slug);return (sv?sv.name:slug||'MCP').replace(/^claude\.ai /,'');}
+let mcpList=[],mcpLoaded=false;
+async function loadMcp(force){
+  if(IS_ARTIFACT||settings.provider!=='bridge'){mcpList=[];return;}
+  if(mcpLoaded&&!force)return;
+  try{const r=await fetch('/api/mcp'+(force?'?force=1':''),{cache:'no-store'});const j=await r.json();mcpList=j.servers||[];mcpLoaded=true;}catch(e){mcpList=[];}
+  settings.mcp=(settings.mcp||[]).filter(n=>mcpList.some(sv=>sv.name===n));renderMcpBtn();
+}
+function renderMcpBtn(){const b=$('#mcpBtn');if(!b)return;if(IS_ARTIFACT||settings.provider!=='bridge'){b.hidden=true;return;}b.hidden=false;const n=(settings.mcp||[]).length;b.classList.toggle('on',n>0);b.innerHTML=`<span class="ui">🔌 MCP</span> <span class="ui">${n?n+'件':'なし'}</span>`;b.title=n?'使う連携: '+settings.mcp.join(', '):'連携ツール（MCP）を選ぶ';}
+function renderMcpPop(){
+  const pop=$('#mcpPop');
+  if(!mcpList.length){pop.innerHTML=`<div class="mph ui">連携ツール（MCP）</div><div class="hint">${mcpLoaded?'Claude Code に登録されたMCPサーバーがありません。ターミナルで claude mcp add … で登録すると、ここに出ます。':'読み込み中…'}</div>`;return;}
+  pop.innerHTML=`<div class="mph ui">連携ツール（MCP）</div><div class="hint ui" style="margin-bottom:6px">選んだ連携だけをAIに渡します（Claude のみ。GPT では使えません）。選ぶほど1回の送信が重くなります。</div>
+    ${mcpList.map(sv=>{const on=(settings.mcp||[]).includes(sv.name);const dis=sv.needsAuth||(settings.mcpUnavailable||[]).includes(sv.name);return `<label class="mcprow${dis?' dis':''}"><input type="checkbox" data-mcp="${esc(sv.name)}" ${on?'checked':''} ${dis?'disabled':''}> <span class="var">${esc(sv.name.replace(/^claude\.ai /,''))}</span> <span class="hint">${dis?'認証が必要な連携は今は使えません':sv.kind==='http'?'（オンライン）':'（このPC上）'}</span></label>`;}).join('')}
+    <div class="editBtns"><button class="small" id="mcpReload">一覧を更新</button></div>`;
+  pop.querySelectorAll('[data-mcp]').forEach(cb=>cb.onchange=()=>{const set=new Set(settings.mcp||[]);if(cb.checked)set.add(cb.dataset.mcp);else set.delete(cb.dataset.mcp);settings.mcp=[...set];saveSettings();renderMcpBtn();});
+  const rl=document.getElementById('mcpReload');if(rl)rl.onclick=async e=>{e.stopPropagation();rl.disabled=true;await loadMcp(true);renderMcpPop();};
+}
 function renderWebBtn(){const b=$('#webBtn');if(!b)return;if(IS_ARTIFACT){b.hidden=true;return;}const on=!!settings.web;b.classList.toggle('on',on);b.innerHTML=`<span class="ui">🌐 Web検索</span> <span class="ui">${on?'オン':'オフ'}</span>`;b.title=on?'AIが必要に応じてWeb検索と取得を使います（クリックでオフ）':'Web検索を使わない（クリックでオン）';}
 
 /* ========== 質問の編集 ========== */
@@ -1009,6 +1047,8 @@ function renderModelPop(){
   pop.querySelectorAll('[data-m]').forEach(el=>el.onclick=e=>{e.stopPropagation();setv('model',el.dataset.m||null);});
   pop.querySelectorAll('[data-e]').forEach(el=>el.onclick=e=>{e.stopPropagation();setv('effort',el.dataset.e||null);});
 }
+$('#mcpBtn').onclick=async e=>{e.stopPropagation();const p=$('#mcpPop');$('#modelPop').classList.remove('on');p.classList.toggle('on');if(p.classList.contains('on')){renderMcpPop();await loadMcp(false);renderMcpPop();}};
+document.addEventListener('click',e=>{if(!e.target.closest('#mcpPop')&&!e.target.closest('#mcpBtn'))$('#mcpPop').classList.remove('on');});
 $('#webBtn').onclick=()=>{settings.web=!settings.web;saveSettings();renderWebBtn();toast(settings.web?'Web検索をオンにしました。必要な質問で自動的に検索します':'Web検索をオフにしました');};
 $('#modelBtn').onclick=e=>{e.stopPropagation();const p=$('#modelPop');p.classList.toggle('on');if(p.classList.contains('on'))renderModelPop();};
 document.addEventListener('click',e=>{if(!e.target.closest('#modelPop')&&!e.target.closest('#modelBtn'))$('#modelPop').classList.remove('on');});

@@ -27,6 +27,8 @@ async function handle(request) {
 
   if (url.pathname === '/api/status') return Response.json(await engines.status(url.searchParams.get('force') === '1'));
 
+  if (url.pathname === '/api/mcp') return Response.json({ servers: await engines.mcpServers(url.searchParams.get('force') === '1') });
+
   if (url.pathname === '/api/login') { // ログイン用のターミナルを開く（固定コマンドのみ）
     if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
     let b = {}; try { b = await request.json(); } catch (e) { /* 空でよい */ }

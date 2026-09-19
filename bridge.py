@@ -28,9 +28,9 @@ def codex_ok():
     return bool(CODEX) and os.path.exists(os.path.join(CODEX_HOME, "auth.json"))
 
 
-def _run(cmd, args):
+def _run(cmd, args, timeout=8):
     try:
-        r = subprocess.run([cmd] + args, capture_output=True, text=True, timeout=8)
+        r = subprocess.run([cmd] + args, capture_output=True, text=True, timeout=timeout)
         return (r.stdout or "") + (r.stderr or "")
     except Exception:
         return ""
@@ -50,6 +50,47 @@ def auth_state():
         t = _run(CODEX, ["login", "status"]).lower()
         st["codex"]["loggedIn"] = ("logged in" in t) and ("not logged in" not in t)
     return st
+
+
+_mcp_cache = {"at": 0, "list": []}
+
+
+def mcp_servers(force=False):
+    """Claude Code に登録済みの MCP サーバー一覧（`claude mcp list` の出力を読む。接続確認に約10秒かかるので60秒キャッシュ）。"""
+    import time
+    if not force and _mcp_cache["list"] and time.time() - _mcp_cache["at"] < 60:
+        return _mcp_cache["list"]
+    out = []
+    if not claude_ok():
+        return out
+    for line in _run(CLAUDE, ["mcp", "list"], timeout=40).splitlines():
+        line = line.strip()
+        if ":" not in line or " - " not in line:
+            continue
+        name, rest = line.split(":", 1)
+        target, _, status = rest.rpartition(" - ")
+        target = target.strip(); status = status.strip()
+        kind = "http" if target.startswith("http") else "stdio"
+        out.append({"name": name.strip(), "target": target, "kind": kind,
+                    "connected": "Connected" in status, "needsAuth": "auth" in status.lower(),
+                    "slug": "".join(ch if ch.isalnum() else "_" for ch in name.strip())})
+    _mcp_cache["at"] = time.time(); _mcp_cache["list"] = out
+    return out
+
+
+def mcp_config_for(names, servers):
+    """選択したサーバーだけを --mcp-config に渡す定義にする。名前は英数字とアンダースコアに正規化。"""
+    cfg = {}
+    for sv in servers:
+        if sv["name"] not in names:
+            continue
+        key = sv["slug"]
+        if sv["kind"] == "http":
+            cfg[key] = {"type": "http", "url": sv["target"]}
+        else:
+            parts = sv["target"].split(" ")
+            cfg[key] = {"type": "stdio", "command": parts[0], "args": parts[1:]}
+    return cfg
 
 
 def codex_models():
@@ -90,6 +131,12 @@ class H(SimpleHTTPRequestHandler):
         self.send_response(204); self._cors(); self.end_headers()
 
     def do_GET(self):
+        if self.path.startswith("/api/mcp"):
+            body = json.dumps({"servers": mcp_servers(force="force=1" in self.path)}, ensure_ascii=False).encode()
+            self.send_response(200); self._cors()
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers(); self.wfile.write(body); return
         if self.path.startswith("/api/status"):
             a = auth_state()
             c_ok = a["claude"]["installed"] and a["claude"]["loggedIn"]
@@ -114,6 +161,7 @@ class H(SimpleHTTPRequestHandler):
         effort = req.get("effort")
         engine = req.get("engine", "claude")
         web = bool(req.get("web"))  # Web検索を許可するか（検索と取得だけ。ファイルやコマンドは使わせない）
+        mcp = [n for n in (req.get("mcp") or []) if isinstance(n, str)][:8]  # 使う MCP サーバー名（Claude のみ）
         if effort not in EFFORTS:
             effort = None
         if engine == "codex":
@@ -128,7 +176,14 @@ class H(SimpleHTTPRequestHandler):
             prompt = (system + "\n\nあなたは会話アシスタントとして振る舞い、コマンド実行やファイル操作は行わず、文章だけで答えてください。\n\n---\n\n" + prompt)
         else:
             cmd = [CLAUDE, "-p", "--model", model, "--system-prompt", system, "--tools"]
-            cmd += (["WebSearch", "WebFetch", "--allowedTools", "WebSearch", "WebFetch"] if web else [""])
+            cmd += (["WebSearch", "WebFetch"] if web else [""])
+            allowed = (["WebSearch", "WebFetch"] if web else [])
+            mcp_cfg = mcp_config_for(mcp, mcp_servers()) if mcp else {}
+            if mcp_cfg:
+                cmd += ["--mcp-config", json.dumps({"mcpServers": mcp_cfg})]
+                allowed += ["mcp__" + k for k in mcp_cfg]  # 選んだサーバーのツールだけ自動許可
+            if allowed:
+                cmd += ["--allowedTools"] + allowed
             cmd += ["--no-session-persistence", "--strict-mcp-config",
                     "--output-format", "stream-json", "--include-partial-messages", "--verbose"]
             if effort and effort != "ultra":
@@ -184,11 +239,20 @@ class H(SimpleHTTPRequestHandler):
                             send({"text": d.get("text", "")})
                     elif e.get("type") == "message_delta":
                         send({"usage": e.get("usage")})
+                elif t == "system" and ev.get("subtype") == "init" and mcp:
+                    send({"mcp_status": [{"name": m.get("name"), "status": m.get("status")} for m in ev.get("mcp_servers") or []]})
                 elif t == "assistant":
                     for c in (ev.get("message") or {}).get("content") or []:
-                        if c.get("type") == "tool_use" and c.get("name") in ("WebSearch", "WebFetch"):
-                            inp = c.get("input") or {}
-                            send({"tool": {"name": "web_search" if c["name"] == "WebSearch" else "web_fetch", "q": inp.get("query") or inp.get("url") or ""}})
+                        if c.get("type") != "tool_use":
+                            continue
+                        inp = c.get("input") or {}
+                        nm = c.get("name") or ""
+                        if nm in ("WebSearch", "WebFetch"):
+                            send({"tool": {"name": "web_search" if nm == "WebSearch" else "web_fetch", "q": inp.get("query") or inp.get("url") or ""}})
+                        elif nm.startswith("mcp__"):
+                            parts = nm.split("__", 2)
+                            q = next((str(v) for v in inp.values() if isinstance(v, (str, int, float)) and str(v).strip()), "")
+                            send({"tool": {"name": "mcp", "server": parts[1] if len(parts) > 1 else "", "tool": parts[2] if len(parts) > 2 else nm, "q": q[:80]}})
                 elif t == "result":
                     send({"done": True, "is_error": ev.get("is_error"),
                           "result": ev.get("result") if ev.get("is_error") else None,

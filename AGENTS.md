@@ -55,7 +55,9 @@ branch-chat/
 - `/api/status` は `auth`（各CLIの `installed` / `loggedIn` / プラン種別）を返す。判定は公式コマンド（`claude auth status`、`codex login status`）で行い、メールアドレス等は画面へ渡さない。`bridge.py` も同じ形で返す。
 - `/api/login`（デスクトップのみ）は利用者のターミナルで**固定の**ログインコマンドを開始するだけ。任意のコマンドを受け取る作りにしない。
 - **チュートリアル**（`TUT_PAGES`、ヘッダーの「？ 使い方」、初回は自動表示）は両HTML共通。接続ページだけ `IS_ARTIFACT` / `IS_DESKTOP` で内容が変わる。インストールやログインのコマンドを書き換えるときは、必ず公式ドキュメントか実機の `--help` で確かめる。
-- **Web検索**（`settings.web`、送信ボタン上の「🌐 Web検索」）: 送信の `web` フラグで、Claude は WebSearch/WebFetch のみ許可、Codex は `--search`（`exec` の前に置くトップレベル指定）、API は `web_search` サーバーツール。エンジンは `{tool:{name,q}}` イベントを流し、画面は `node.tools` としてチップ表示する。Artifact版は非対応（sample は外部通信不可）。
+- **Web検索**（`settings.web`、既定オン、送信ボタン上の「🌐 Web検索」。プロンプトは「外部情報が不要な場合だけ省く」）: 送信の `web` フラグで、Claude は WebSearch/WebFetch のみ許可、Codex は `--search`（`exec` の前に置くトップレベル指定）、API は `web_search` サーバーツール。エンジンは `{tool:{name,q}}` イベントを流し、画面は `node.tools` としてチップ表示する。Artifact版は非対応（sample は外部通信不可）。
+- **MCP**（`settings.mcp`、送信ボタン上の「🔌 MCP」、Claude のみ）: `/api/mcp` が `claude mcp list` を読んで一覧を返す（接続確認に約10秒かかるので60秒キャッシュ、`?force=1` で更新）。送信の `mcp` に選んだサーバー名を渡すと、エンジンは**その定義だけ** `--mcp-config` に入れて `--strict-mcp-config` のまま起動し、`--allowedTools mcp__<slug>` で自動許可する（`--strict-mcp-config` を外して全部読み込むと約9万トークン・10秒かかるので禁止）。claude.ai 連携のうち OAuth が必要なもの（Gmail / Notion / Drive / Calendar 等）は `--mcp-config` では `needs-auth` になり使えない。init の `mcp_servers` を `{mcp_status}` として流し、画面は失敗したものを `settings.mcpUnavailable` に記録して選べなくする。公開サーバー（PubMed）とローカル stdio サーバーは動作確認済み。書き込み系の抑止は system プロンプトの指示のみ（ツール単位の許可制御は未実装）。
+- **生成中の表示**: `.spin4`（2×2の箱が回る）。本文が空の間は `.waiting`、見出し行には `.spin4.mini`。`prefers-reduced-motion` で停止。
 - 追加API（デスクトップのみ）: `/api/backup`（POST で会話を `userData/backups/` に保存、GET で最新を返す）。画面側は `persist()` から `scheduleBackup()`、起動時に `restoreFromBackup()`。ブラウザ版では `IS_DESKTOP` が偽なので何もしない。
 - フォントは `npm run vendor` で `desktop/vendor/fonts/`（git管理外）に取得し、`sync-app.mjs` が同梱して読み込み先を差し替える。`index.html` のフォント `<link>` の書式を変えたら `sync-app.mjs` の置換も直す（合わないと sync がエラーで止まる）。アイコンは `npm run icon` で `build/icon.png` を再生成。
 - スモークテストは `userData` を一時フォルダに分けている。利用者の実データ（`~/Library/Application Support/BranCHAT`）をテストで汚さない。

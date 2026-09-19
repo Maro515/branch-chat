@@ -75,6 +75,33 @@ async function authState(force) {
   ]);
   authCache = st; authAt = Date.now(); return st;
 }
+// Claude Code に登録済みの MCP サーバー一覧（`claude mcp list` の出力を読む）
+let mcpCache = { at: 0, list: [] };
+async function mcpServers(force) {
+  if (!CLAUDE) return [];
+  if (!force && mcpCache.list.length && Date.now() - mcpCache.at < 60000) return mcpCache.list; // 接続確認に約10秒かかるので60秒キャッシュ
+  const r = await run(CLAUDE, ['mcp', 'list'], 40000);
+  const out = [];
+  for (let line of (r.out + r.err).split('\n')) {
+    line = line.trim();
+    if (!line.includes(':') || !line.includes(' - ')) continue;
+    const i = line.indexOf(':'); const name = line.slice(0, i).trim(); const rest = line.slice(i + 1);
+    const j = rest.lastIndexOf(' - '); const target = rest.slice(0, j).trim(); const status = rest.slice(j + 3).trim();
+    out.push({ name, target, kind: target.startsWith('http') ? 'http' : 'stdio', connected: /Connected/.test(status), needsAuth: /auth/i.test(status), slug: name.replace(/[^A-Za-z0-9]/g, '_') });
+  }
+  mcpCache = { at: Date.now(), list: out };
+  return out;
+}
+// 選択したサーバーだけを --mcp-config に渡す定義にする
+function mcpConfigFor(names, servers) {
+  const cfg = {};
+  for (const sv of servers) {
+    if (!names.includes(sv.name)) continue;
+    if (sv.kind === 'http') cfg[sv.slug] = { type: 'http', url: sv.target };
+    else { const parts = sv.target.split(' '); cfg[sv.slug] = { type: 'stdio', command: parts[0], args: parts.slice(1) }; }
+  }
+  return cfg;
+}
 async function status(force) {
   const a = await authState(force);
   const cOk = a.claude.installed && a.claude.loggedIn, xOk = a.codex.installed && a.codex.loggedIn;
@@ -107,6 +134,16 @@ function openLoginTerminal(engine) {
  * 戻り値の関数を呼ぶと子プロセスを止める。
  */
 function chat(req, onEvent) {
+  // MCP を使うときはサーバー一覧を先に読む（非同期）ので、実体は chatInner
+  const mcp = Array.isArray(req.mcp) ? req.mcp.filter((n) => typeof n === 'string').slice(0, 8) : [];
+  if (mcp.length && req.engine !== 'codex') {
+    let stop = () => {}; let cancelled = false;
+    mcpServers().then((servers) => { if (!cancelled) stop = chatInner(req, onEvent, mcpConfigFor(mcp, servers)); });
+    return () => { cancelled = true; stop(); };
+  }
+  return chatInner(req, onEvent, {});
+}
+function chatInner(req, onEvent, mcpCfg) {
   const system = String(req.system || '');
   let prompt = String(req.prompt || '');
   const model = String(req.model || 'claude-opus-5');
@@ -125,8 +162,11 @@ function chat(req, onEvent) {
   } else {
     if (!claudeOk()) { onEvent({ error: 'Claude Code（claude コマンド）が見つかりません。インストールとログインを確認してください' }); onEvent({ done: true }); return () => {}; }
     cmd = CLAUDE;
-    args = ['-p', '--model', model, '--system-prompt', system, '--tools', ...(web ? ['WebSearch', 'WebFetch', '--allowedTools', 'WebSearch', 'WebFetch'] : ['']),
-      '--no-session-persistence', '--strict-mcp-config', '--output-format', 'stream-json', '--include-partial-messages', '--verbose'];
+    const allowed = web ? ['WebSearch', 'WebFetch'] : [];
+    args = ['-p', '--model', model, '--system-prompt', system, '--tools', ...(web ? ['WebSearch', 'WebFetch'] : [''])];
+    if (Object.keys(mcpCfg).length) { args.push('--mcp-config', JSON.stringify({ mcpServers: mcpCfg })); allowed.push(...Object.keys(mcpCfg).map((k) => 'mcp__' + k)); } // 選んだサーバーのツールだけ自動許可
+    if (allowed.length) args.push('--allowedTools', ...allowed);
+    args.push('--no-session-persistence', '--strict-mcp-config', '--output-format', 'stream-json', '--include-partial-messages', '--verbose');
     if (effort && effort !== 'ultra') args.push('--effort', effort);
   }
   const env = { ...process.env, PATH: PATH_EXT };
@@ -155,8 +195,15 @@ function chat(req, onEvent) {
       const e = ev.event || {};
       if (e.type === 'content_block_delta' && e.delta && e.delta.type === 'text_delta') onEvent({ text: e.delta.text || '' });
       else if (e.type === 'message_delta') onEvent({ usage: e.usage });
+    } else if (t === 'system' && ev.subtype === 'init' && Object.keys(mcpCfg).length) {
+      onEvent({ mcp_status: (ev.mcp_servers || []).map((m) => ({ name: m.name, status: m.status })) });
     } else if (t === 'assistant') {
-      for (const c of ((ev.message || {}).content || [])) if (c.type === 'tool_use' && (c.name === 'WebSearch' || c.name === 'WebFetch')) onEvent({ tool: { name: c.name === 'WebSearch' ? 'web_search' : 'web_fetch', q: (c.input && (c.input.query || c.input.url)) || '' } });
+      for (const c of ((ev.message || {}).content || [])) {
+        if (c.type !== 'tool_use') continue;
+        const inp = c.input || {};
+        if (c.name === 'WebSearch' || c.name === 'WebFetch') onEvent({ tool: { name: c.name === 'WebSearch' ? 'web_search' : 'web_fetch', q: inp.query || inp.url || '' } });
+        else if (String(c.name).startsWith('mcp__')) { const parts = String(c.name).split('__'); const q = Object.values(inp).find((v) => ['string', 'number'].includes(typeof v) && String(v).trim()); onEvent({ tool: { name: 'mcp', server: parts[1] || '', tool: parts.slice(2).join('__') || c.name, q: q ? String(q).slice(0, 80) : '' } }); }
+      }
     } else if (t === 'result') { if (ev.is_error) onEvent({ error: String(ev.result || 'claude がエラーを返しました').slice(0, 800) }); }
     else if (t === 'rate_limit_event') onEvent({ rate_limit: ev.rate_limit_info });
   };
@@ -169,4 +216,4 @@ function chat(req, onEvent) {
   return () => { try { child.kill(); } catch (e) { /* 既に終了 */ } };
 }
 
-module.exports = { status, chat, openLoginTerminal, loginCommand, EFFORTS };
+module.exports = { status, chat, mcpServers, openLoginTerminal, loginCommand, EFFORTS };
