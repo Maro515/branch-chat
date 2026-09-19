@@ -228,6 +228,7 @@ header{z-index:5}
 .msg:not(.user).anchorFlash{border-radius:12px}
 #msgs>.msg:not(.user):only-of-type{max-width:none}
 @media (max-width:600px){.msg:not(.user){max-width:none}}
+#focus button.primary.stop{background:#b91c1c;border-color:#b91c1c}
 </style>
 </head>
 <body>
@@ -362,6 +363,23 @@ function newConversation(title){
 function persist(){
   localStorage.setItem(CONVS_KEY,JSON.stringify(convs));
   localStorage.setItem(ACTIVE_KEY,conv.id);
+  scheduleBackup();
+}
+// デスクトップ版: 会話をアプリのデータフォルダへ自動バックアップ（3秒まとめて1回）。ブラウザ版では何もしない
+let backupTimer=null;
+function scheduleBackup(){
+  if(!IS_DESKTOP)return;clearTimeout(backupTimer);
+  backupTimer=setTimeout(()=>{fetch('/api/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({convs,active:conv&&conv.id,savedAt:Date.now()})}).catch(()=>{});},3000);
+}
+async function restoreFromBackup(){
+  // 保存データが空（初回起動・データ消失）のときだけ、バックアップからの復元を提案する
+  if(!IS_DESKTOP)return;
+  const hasData=Object.values(convs).some(c=>c.order&&c.order.length);if(hasData)return;
+  try{const r=await fetch('/api/backup',{cache:'no-store'});if(!r.ok)return;const j=await r.json();
+    const n=j&&j.convs?Object.values(j.convs).filter(c=>c.order&&c.order.length).length:0;if(!n)return;
+    const when=j.savedAt?new Date(j.savedAt).toLocaleString('ja-JP'):'';
+    if(await askConfirm(`バックアップ（${when}）に ${n} 件の会話があります。復元しますか？`,'復元する')){convs=j.convs;conv=convs[j.active]||Object.values(convs)[0];persist();showFocus();toast('バックアップから復元しました');}
+  }catch(e){}
 }
 function loadActive(){
   const id=localStorage.getItem(ACTIVE_KEY);
@@ -448,7 +466,7 @@ async function* streamAPI(system,messages,model,opts={}){
   if(opts&&opts.effort&&!/haiku/.test(model))body.output_config={effort:opts.effort};
   const headers={'Content-Type':'application/json','x-api-key':settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
   if(model==='claude-opus-5'||model==='claude-fable-5-1'){headers['anthropic-beta']='server-side-fallback-2026-07-01';body.fallbacks='default';}
-  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers,body:JSON.stringify(body)});
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers,body:JSON.stringify(body),signal:opts.signal});
   if(!r.ok){throw new Error(`API ${r.status}: ${(await r.text()).slice(0,300)}`);}
   const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
   while(true){const {value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
@@ -464,7 +482,7 @@ async function* streamBridge(system,messages,model,opts={}){
   const hist=messages.slice(0,-1).map(m=>`${m.role==='user'?'【ユーザー】':'【あなた(AI)】'}\n${m.content}`).join('\n\n');
   const last=messages[messages.length-1];
   const prompt=opts.raw?last.content:(hist?`以下はこれまでの会話ログです。\n\n${hist}\n\n---\n\n`:'')+`【ユーザーの新しい発言】\n${last.content}\n\n上の発言に対して、AIとして返答だけを書いてください。`;
-  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system,prompt,model:bridgeModel(model),engine:modelEngine(bridgeModel(model)),effort:opts.effort||undefined})});
+  const r=await fetch('/api/chat',{method:'POST',signal:opts.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({system,prompt,model:bridgeModel(model),engine:modelEngine(bridgeModel(model)),effort:opts.effort||undefined})});
   if(!r.ok)throw new Error('bridge '+r.status);
   const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
   while(true){const {value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
@@ -477,12 +495,12 @@ async function* streamBridge(system,messages,model,opts={}){
         if(ev.done)return;
       }}}
 }
-async function* streamDummy(system,messages,model){
+async function* streamDummy(system,messages,model,opts={}){
   const names=Object.values(conv.branches).map(b=>b.name+(b.summary?'(要約あり)':''));
   const cur=B(currentBranchId()).name;
   const last=messages[messages.length-1].content;
   const txt=`（ダミー応答・${model}）\n現在ブランチ「${cur}」で「${excerpt(last,30)}」を受け取りました。\n認知しているブランチ: ${names.join(' / ')}\n祖先パス ${messages.length} 件、system ${estTok(system)} tok 相当を受信。設定でAPIかブリッジを選ぶと本物の応答になります。`;
-  for(const ch of txt){await new Promise(r=>setTimeout(r,8));yield {text:ch};}
+  for(const ch of txt){if(opts&&opts.signal&&opts.signal.aborted)return;await new Promise(r=>setTimeout(r,8));yield {text:ch};}
 }
 function provider(){return settings.provider==='api'?streamAPI:settings.provider==='bridge'?streamBridge:streamDummy;}
 
@@ -512,8 +530,10 @@ async function updateSummary(bid){
 
 /* ========== 送信 ========== */
 let busy=false;
+let abortCtl=null;
+function setSendBtn(running){const b=$('#sendBtn');b.textContent=running?'■ 停止':'送信';b.classList.toggle('stop',running);b.title=running?'生成を中断する':'';}
 async function send(text,opts={}){
-  if(busy||!text.trim())return;busy=true;$('#sendBtn').disabled=true;
+  if(busy||!text.trim())return;busy=true;abortCtl=new AbortController();setSendBtn(true);
   const bid=opts.branchId||currentBranchId();
   const parentId=opts.parentId!==undefined?opts.parentId:(conv.activeNodeId);
   const u=addNode('user',text,parentId,bid);
@@ -523,17 +543,18 @@ async function send(text,opts={}){
   setStatus(`送信中… 概算 ${ctx.tokens} tok`);
   try{
   const model=effModel(bid),effort=effEffort(bid);a.model=model;if(effort)a.effort=effort;
-    for await(const ev of provider()(ctx.system,ctx.messages,model,{effort})){
+    for await(const ev of provider()(ctx.system,ctx.messages,model,{effort,signal:abortCtl.signal})){
       if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){el.querySelector('.body').innerHTML=md(a.content);updateTailSpace();autoScroll();}}
       if(ev.usage)a.usage=ev.usage;
       if(ev.rate)a.rate=ev.rate;
     }
+    if(abortCtl&&abortCtl.signal.aborted)throw {code:'cancelled',message:'中止'};
     if(!a.content)a.content='（空の応答）';
-  }catch(e){a.content+=`\n\n⚠️ エラー: ${e.message}`;toast('エラー: '+e.message);}
+  }catch(e){if(abortCtl&&abortCtl.signal.aborted){a.content+=(a.content?'\n\n':'')+'（中止しました）';}else{a.content+=`\n\n⚠️ エラー: ${e.message}`;toast('エラー: '+e.message);}}
   delete a.streaming;persist();renderAll();
   const u2=a.usage?` / 実トークン in ${a.usage.input_tokens||0}+cache ${a.usage.cache_read_input_tokens||0} out ${a.usage.output_tokens||0}`:'';
   setStatus(`完了 概算 ${ctx.tokens} tok${u2}`);
-  busy=false;$('#sendBtn').disabled=false;
+  busy=false;abortCtl=null;setSendBtn(false);
   updateSummary(bid);
   fillShortGists();ensureGists();
 }
@@ -571,7 +592,7 @@ function renderFocus(){
     const kids=childBranchesOf(n.id);
     if(kids.length)html+=`<div class="badges"><span class="ui">→ ここから分岐:</span> ${kids.map(k=>`<span class="chip${k.status==='closed'?' closed':''}" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}${isEmptyBranch(k)?'（未開始）':''}</span>${isEmptyBranch(k)?`<button class="small" data-cancelbr="${k.id}" title="この未開始の分岐を取り消す">✕ 取り消す</button>`:''}`).join('')}</div>`;
   }
-  if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答の下にある「⑂ ここから分岐」で話題を分けられます。<div class="editBtns"><span class="hint ui">使い方を試すなら</span><button class="small" id="demoBtn2">デモ会話を読み込む</button></div></div></div>`;
+  if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答の下にある「⑂ ここから分岐」で話題を分けられます。<div class="editBtns"><span class="hint ui">使い方を試すなら</span><button class="small" id="demoBtn2">デモ会話を読み込む</button></div>${IS_DESKTOP&&!bridgeOk?`<div style="margin-top:10px;padding:10px 12px;border:1.5px solid var(--ystroke);border-radius:10px;background:#fffbe6"><b class="ui">AIに接続する準備</b><br>このアプリは、お使いのパソコンにある次のどちらかのログインを使って動きます。<br>1. <b>Claude Code</b>: インストール後、ターミナルで <code>claude</code> を一度起動してログイン<br>2. <b>ChatGPT アプリ</b>（Codex 同梱）: インストールしてログイン<br>準備ができたらアプリを再起動してください。それまではダミー応答で操作を試せます。</div>`:''}</div></div>`;
   const m=$('#msgs');const stick=m.scrollHeight-m.scrollTop-m.clientHeight<200;
   m.innerHTML=html+'<div id="tailSpace"></div>';
   updateTailSpace();
@@ -804,8 +825,8 @@ function mergeBranch(srcId){
 }
 
 /* ========== イベント ========== */
-$('#sendBtn').onclick=()=>{const t=$('#input').value;if(!t.trim())return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';send(t,{branchId:bid,parentId:conv.activeNodeId});};
-$('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('#sendBtn').click();}});
+$('#sendBtn').onclick=()=>{if(busy){if(abortCtl)abortCtl.abort();return;}const t=$('#input').value;if(!t.trim())return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';send(t,{branchId:bid,parentId:conv.activeNodeId});};
+$('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!busy)$('#sendBtn').click();}});
 $('#convSel').onchange=e=>{conv=convs[e.target.value];delete conv._pendingBranch;persist();showFocus();};
 $('#newConv').onclick=async()=>{
   if(!conv.order.length){toast('今の会話はまだ空です。そのまま使えます');$('#input').focus();return;}
@@ -998,6 +1019,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#modelPop').class
 
 /* ========== 起動 ========== */
 loadActive();
+restoreFromBackup();
 probeBridge().then(()=>{if(IS_DESKTOP&&!bridgeOk){toast('Claude Code も Codex CLI も見つかりません。設定を確認してください');return;}if(bridgeOk&&settings.provider==='dummy'&&!localStorage.getItem('bc.bridgeNoticed')){localStorage.setItem('bc.bridgeNoticed','1');toast('ブリッジを検出。設定で「ローカルブリッジ」を選ぶと定額枠で本物の応答になります');}});
 showFocus();
 </script>

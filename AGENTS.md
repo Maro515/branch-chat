@@ -52,6 +52,9 @@ branch-chat/
 - 画面は `index.html` をそのまま使う。**デスクトップ専用のUI分岐は `IS_DESKTOP`（`location.protocol==='app:'`）で最小限に。** 別のHTMLを作らない。
 - `engines.js` は `bridge.py` の Node 版。**両者の挙動（イベント形式 `{text}{usage}{rate_limit}{error}{done}`、CLI の安全側フラグ、Codex のモデル一覧の取り方）は常に揃える。** 片方を変えたらもう片方も変える。
 - `main.js` は独自スキーム `app://branchat/` で `app/` を配信し、`/api/status` `/api/chat` を処理する。オリジンを変えると利用者の会話（localStorage）が見えなくなるので、スキーム名とホスト名は変更禁止。
+- 追加API（デスクトップのみ）: `/api/backup`（POST で会話を `userData/backups/` に保存、GET で最新を返す）。画面側は `persist()` から `scheduleBackup()`、起動時に `restoreFromBackup()`。ブラウザ版では `IS_DESKTOP` が偽なので何もしない。
+- フォントは `npm run vendor` で `desktop/vendor/fonts/`（git管理外）に取得し、`sync-app.mjs` が同梱して読み込み先を差し替える。`index.html` のフォント `<link>` の書式を変えたら `sync-app.mjs` の置換も直す（合わないと sync がエラーで止まる）。アイコンは `npm run icon` で `build/icon.png` を再生成。
+- スモークテストは `userData` を一時フォルダに分けている。利用者の実データ（`~/Library/Application Support/BranCHAT`）をテストで汚さない。
 - 確認は `cd desktop && npm run smoke`（画面表示・エンジン検出・ダミー送信・スクリーンショット）。実モデルも1回試すときだけ `SMOKE_LIVE=1 npm run smoke`。
 - 計画とフェーズ（D0〜D3）は `PLAN.md` 末尾。
 

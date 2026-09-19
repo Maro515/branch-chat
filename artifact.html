@@ -224,6 +224,7 @@ header{z-index:5}
 .msg:not(.user).anchorFlash{border-radius:12px}
 #msgs>.msg:not(.user):only-of-type{max-width:none}
 @media (max-width:600px){.msg:not(.user){max-width:none}}
+#focus button.primary.stop{background:#b91c1c;border-color:#b91c1c}
 </style>
 <header>
   <h1>⑂ BranCHAT</h1>
@@ -438,7 +439,9 @@ async function* streamClaude(system,messages,model,opts={}){
   // 指示(system相当)は先頭の user ターンとして渡す（Artifact の sample にはsystemが無い）
   const turns=[{role:'user',content:system},...messages.map(m=>({role:m.role,content:m.content}))];
   const q=[];let done=false,err=null,wake=null,result=null;
-  const p=sample(turns,{cache:false,modelTier:opts.raw?'quick':(validModel(model)||settings.tier||'default'),onText:({delta})=>{q.push(delta);if(wake)wake();}});
+  const so={cache:false,modelTier:opts.raw?'quick':(validModel(model)||settings.tier||'default'),onText:({delta})=>{q.push(delta);if(wake)wake();}};
+  if(opts.signal)so.signal=opts.signal;
+  const p=sample(turns,so);
   p.then(r=>{result=r;done=true;if(wake)wake();},e=>{err=e;done=true;if(wake)wake();});
   while(true){
     while(q.length)yield {text:q.shift()};
@@ -449,12 +452,12 @@ async function* streamClaude(system,messages,model,opts={}){
   if(result&&result.modelTierApplied)yield {tier:result.modelTierApplied};
   if(result&&result.truncated)yield {text:'\n\n（長さの上限で途中までになりました）'};
 }
-async function* streamDummy(system,messages,model){
+async function* streamDummy(system,messages,model,opts={}){
   const names=Object.values(conv.branches).map(b=>b.name+(b.summary?'(要約あり)':''));
   const cur=B(currentBranchId()).name;
   const last=messages[messages.length-1].content;
   const txt=`（ダミー応答・${model}）\n現在ブランチ「${cur}」で「${excerpt(last,30)}」を受け取りました。\n認知しているブランチ: ${names.join(' / ')}\n祖先パス ${messages.length} 件、system ${estTok(system)} tok 相当を受信。設定で「Claude」を選ぶと本物の応答になります。`;
-  for(const ch of txt){await new Promise(r=>setTimeout(r,8));yield {text:ch};}
+  for(const ch of txt){if(opts&&opts.signal&&opts.signal.aborted)return;await new Promise(r=>setTimeout(r,8));yield {text:ch};}
 }
 function provider(){return settings.provider==='dummy'?streamDummy:streamClaude;}
 
@@ -484,8 +487,10 @@ async function updateSummary(bid){
 
 /* ========== 送信 ========== */
 let busy=false;
+let abortCtl=null;
+function setSendBtn(running){const b=$('#sendBtn');b.textContent=running?'■ 停止':'送信';b.classList.toggle('stop',running);b.title=running?'生成を中断する':'';}
 async function send(text,opts={}){
-  if(busy||!text.trim())return;busy=true;$('#sendBtn').disabled=true;
+  if(busy||!text.trim())return;busy=true;abortCtl=new AbortController();setSendBtn(true);
   const bid=opts.branchId||currentBranchId();
   const parentId=opts.parentId!==undefined?opts.parentId:(conv.activeNodeId);
   const u=addNode('user',text,parentId,bid);
@@ -495,20 +500,21 @@ async function send(text,opts={}){
   setStatus(`Claude が考えています… 概算 ${ctx.tokens} tok`);
   try{
   const model=effModel(bid),effort=effEffort(bid);a.model=model;if(effort)a.effort=effort;
-    for await(const ev of provider()(ctx.system,ctx.messages,model,{effort})){
+    for await(const ev of provider()(ctx.system,ctx.messages,model,{effort,signal:abortCtl.signal})){
       if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){el.querySelector('.body').innerHTML=md(a.content);updateTailSpace();autoScroll();}}
       if(ev.usage)a.usage=ev.usage;
       if(ev.rate)a.rate=ev.rate;
       if(ev.tier)a.tier=ev.tier;
     }
+    if(abortCtl&&abortCtl.signal.aborted)throw {code:'cancelled',message:'中止'};
     if(!a.content)a.content='（空の応答）';
-  }catch(e){a.content+=`\n\n⚠️ ${errCopy(e)}`;toast(errCopy(e));}
+  }catch(e){if((abortCtl&&abortCtl.signal.aborted)||(e&&e.code==='cancelled')){a.content+=(a.content?'\n\n':'')+'（中止しました）';}else{a.content+=`\n\n⚠️ ${errCopy(e)}`;toast(errCopy(e));}}
   delete a.streaming;persist();renderAll();
   const u2=a.usage?` / 実トークン in ${a.usage.input_tokens||0}+cache ${a.usage.cache_read_input_tokens||0} out ${a.usage.output_tokens||0}`:'';
   const TIER_JA={default:'標準',complex:'高度',quick:'速い'};
   const t2=a.tier?` / 実際に応答した階層: ${TIER_JA[a.tier]||a.tier}${a.tier!==(settings.tier||'default')?'（プランの都合で指定と異なります）':''}`:'';
   setStatus(`完了 概算 ${ctx.tokens} tok${u2}${t2}`);
-  busy=false;$('#sendBtn').disabled=false;
+  busy=false;abortCtl=null;setSendBtn(false);
   updateSummary(bid);
   fillShortGists();ensureGists();
 }
@@ -779,8 +785,8 @@ function mergeBranch(srcId){
 }
 
 /* ========== イベント ========== */
-$('#sendBtn').onclick=()=>{const t=$('#input').value;if(!t.trim())return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';send(t,{branchId:bid,parentId:conv.activeNodeId});};
-$('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('#sendBtn').click();}});
+$('#sendBtn').onclick=()=>{if(busy){if(abortCtl)abortCtl.abort();return;}const t=$('#input').value;if(!t.trim())return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';send(t,{branchId:bid,parentId:conv.activeNodeId});};
+$('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!busy)$('#sendBtn').click();}});
 $('#convSel').onchange=e=>{conv=convs[e.target.value];delete conv._pendingBranch;persist();showFocus();};
 $('#newConv').onclick=async()=>{
   if(!conv.order.length){toast('今の会話はまだ空です。そのまま使えます');$('#input').focus();return;}

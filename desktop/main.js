@@ -12,6 +12,8 @@ const engines = require('./engines');
 const APP_DIR = path.join(__dirname, 'app');
 const ORIGIN = 'app://branchat';
 const SMOKE = process.env.SMOKE === '1';
+// 自動確認は利用者の会話データに触れないよう、保存先を一時フォルダへ分ける
+if (SMOKE) app.setPath('userData', path.join(require('node:os').tmpdir(), 'branchat-smoke-userdata'));
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
@@ -39,6 +41,27 @@ async function handle(request) {
       cancel() { closed = true; stop(); }, // 画面側が中断したら子プロセスも止める
     });
     return new Response(stream, { headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache' } });
+  }
+
+  if (url.pathname === '/api/backup') {
+    const dir = path.join(app.getPath('userData'), 'backups');
+    const latest = path.join(dir, 'convs-latest.json');
+    if (request.method === 'GET') {
+      if (!fs.existsSync(latest)) return new Response('no backup', { status: 404 });
+      return new Response(fs.readFileSync(latest), { headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+    }
+    if (request.method === 'POST') {
+      try {
+        const text = await request.text(); JSON.parse(text); // 壊れたJSONは保存しない
+        fs.mkdirSync(dir, { recursive: true });
+        const tmp = latest + '.tmp'; fs.writeFileSync(tmp, text); fs.renameSync(tmp, latest); // 途中で落ちても壊れないよう置き換え
+        const day = path.join(dir, `convs-${new Date().toISOString().slice(0, 10)}.json`); fs.copyFileSync(latest, day); // 日ごとの世代
+        const olds = fs.readdirSync(dir).filter((f) => /^convs-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort(); // 直近14日分だけ残す
+        for (const f of olds.slice(0, Math.max(0, olds.length - 14))) fs.unlinkSync(path.join(dir, f));
+        return Response.json({ ok: true });
+      } catch (e) { return new Response('backup failed', { status: 500 }); }
+    }
+    return new Response('method not allowed', { status: 405 });
   }
 
   // 静的ファイル（app/ の外へは出さない）
@@ -78,9 +101,14 @@ async function runSmoke(win) {
     await new Promise((r) => setTimeout(r, 1200));
     out.page = await win.webContents.executeJavaScript(`(async()=>{
       await probeBridge();
-      const r={title:document.title,origin:location.origin,bridgeOk,claudeCliOk,codex:codexInfo.ok,models:MODEL_OPTS.map(o=>o.l),lsWorks:(()=>{try{localStorage.setItem('bc.smoke','1');return localStorage.getItem('bc.smoke')==='1';}catch(e){return false;}})()};
+      const r={title:document.title,origin:location.origin,bridgeOk,claudeCliOk,codex:codexInfo.ok,models:MODEL_OPTS.map(o=>o.l),fontsLocal:!!document.querySelector('link[href="fonts/fonts.css"]'),fontsReady:(await document.fonts.ready,document.fonts.check('16px DotGothic16')&&document.fonts.check('15px "Noto Sans JP"')),lsWorks:(()=>{try{localStorage.setItem('bc.smoke','1');return localStorage.getItem('bc.smoke')==='1';}catch(e){return false;}})()};
       settings.provider='dummy'; loadDemo();
       await send('スモークテスト'); r.dummyReply=N(conv.activeNodeId).content.slice(0,40);
+      // 中断: ダミー応答を途中で止める
+      const pAbort=send('中断テスト'); await new Promise(x=>setTimeout(x,120)); document.getElementById('sendBtn').click(); await pAbort; r.abort=N(conv.activeNodeId).content.includes('中止しました');
+      // バックアップ: 保存して読み戻す
+      await fetch('/api/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({convs,active:conv.id,savedAt:Date.now()})});
+      const bk=await (await fetch('/api/backup')).json(); r.backupConvs=Object.keys(bk.convs||{}).length;
       if(${process.env.SMOKE_LIVE === '1'}){
         settings.provider='bridge'; B('main').model='claude-haiku-4-5'; gotoBranch('main');
         await send('1+1は？数字だけで答えて。'); const n=N(conv.activeNodeId); r.live={text:n.content.slice(0,60),usage:n.usage,model:n.model};

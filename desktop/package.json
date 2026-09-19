@@ -16,7 +16,9 @@
     "prebuild:win": "npm run sync",
     "build:win": "electron-builder --win --x64",
     "prepack:dir": "npm run sync",
-    "pack:dir": "electron-builder --mac --dir"
+    "pack:dir": "electron-builder --mac --dir",
+    "vendor": "node scripts/vendor-fonts.mjs",
+    "icon": "electron scripts/make-icon.js"
   },
   "devDependencies": {
     "electron": "^38.0.0",
@@ -25,9 +27,35 @@
   "build": {
     "appId": "jp.maro515.branchat",
     "productName": "BranCHAT",
-    "directories": { "output": "dist" },
-    "files": ["main.js", "engines.js", "app/**/*", "package.json"],
-    "mac": { "category": "public.app-category.productivity", "target": [{ "target": "dmg", "arch": ["arm64"] }] },
-    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] }
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "engines.js",
+      "app/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
   }
 }
