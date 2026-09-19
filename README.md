@@ -19,3 +19,15 @@ AIチャットを「直線」ではなく「分岐する平面タイムライン
 設計の詳細は `PLAN.md` を参照。
 
 開発するとき（AIエージェント含む）は `AGENTS.md` を参照。変更後は `./check.sh` を実行。
+
+## デスクトップ版（開発中）
+
+`desktop/` に Electron 版があります。Python もターミナル操作も不要で、Claude Code（`claude`）または ChatGPT アプリ同梱の Codex CLI にログイン済みなら、その定額枠で動きます。
+
+```bash
+cd desktop
+npm install
+npm start          # 開発起動
+npm run smoke      # 自動確認（画面表示・エンジン検出・ダミー送信）
+npm run pack:dir   # dist/mac-arm64/BranCHAT.app を作る
+```

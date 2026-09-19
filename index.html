@@ -273,7 +273,7 @@ header{z-index:5}
   <label>接続方式</label>
   <select id="sProvider">
     <option value="dummy">ダミー応答（APIなしでUI確認）</option>
-    <option value="bridge">ローカルブリッジ（Claude CLI / Codex CLI・定額枠）</option>
+    <option value="bridge">ブリッジ（Claude CLI / Codex CLI・定額枠）</option>
     <option value="api">Claude API（従量課金・APIキー）</option>
   </select>
   <div class="hint" id="bridgeHint"></div>
@@ -337,7 +337,8 @@ function md(s){ // 最小限のMarkdown
 
 /* ========== 設定 ========== */
 const SET_KEY='bc.settings.v1';
-let settings=Object.assign({provider:'dummy',apiKey:'',model:'claude-opus-5',effort:'high',sumModel:'claude-haiku-4-5',budget:60000,extra:''},JSON.parse(localStorage.getItem(SET_KEY)||'{}'));
+const IS_DESKTOP=location.protocol==='app:'; // Electron 版は app://branchat/ で配信される
+let settings=Object.assign({provider:IS_DESKTOP?'bridge':'dummy',apiKey:'',model:'claude-opus-5',effort:'high',sumModel:'claude-haiku-4-5',budget:60000,extra:''},JSON.parse(localStorage.getItem(SET_KEY)||'{}'));
 function saveSettings(){localStorage.setItem(SET_KEY,JSON.stringify(settings));}
 let bridgeOk=false;
 let claudeCliOk=false,codexInfo={ok:false,models:[]};
@@ -345,7 +346,7 @@ async function probeBridge(){
   try{const r=await fetch('/api/status',{cache:'no-store'});const j=await r.json();claudeCliOk=!!j.ok;codexInfo={ok:!!j.codex_ok,models:j.codex_models||[]};bridgeOk=claudeCliOk||codexInfo.ok;}
   catch(e){bridgeOk=false;claudeCliOk=false;codexInfo={ok:false,models:[]};}
   refreshModelCatalog();
-  $('#bridgeHint').textContent=bridgeOk?`ブリッジ検出: Claude CLI ${claudeCliOk?'○':'×'} / Codex CLI ${codexInfo.ok?'○（GPTモデル '+codexInfo.models.length+'種）':'×'}。それぞれのログイン（定額枠）で動きます。`:'ブリッジ未検出。定額枠で使うには、このフォルダで `python3 bridge.py` を起動し http://localhost:8991/ を開いてください。';
+  $('#bridgeHint').textContent=bridgeOk?`${IS_DESKTOP?'内蔵ブリッジ':'ブリッジ検出'}: Claude CLI ${claudeCliOk?'○':'×'} / Codex CLI ${codexInfo.ok?'○（GPTモデル '+codexInfo.models.length+'種）':'×'}。それぞれのログイン（定額枠）で動きます。`:(IS_DESKTOP?'Claude Code（claude コマンド）も Codex CLI も見つかりません。どちらかをインストールしてログインしてください。':'ブリッジ未検出。定額枠で使うには、このフォルダで `python3 bridge.py` を起動し http://localhost:8991/ を開いてください。');
 }
 
 /* ========== データモデル ========== */
@@ -997,7 +998,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#modelPop').class
 
 /* ========== 起動 ========== */
 loadActive();
-probeBridge().then(()=>{if(bridgeOk&&settings.provider==='dummy'&&!localStorage.getItem('bc.bridgeNoticed')){localStorage.setItem('bc.bridgeNoticed','1');toast('ブリッジを検出。設定で「ローカルブリッジ」を選ぶと定額枠で本物の応答になります');}});
+probeBridge().then(()=>{if(IS_DESKTOP&&!bridgeOk){toast('Claude Code も Codex CLI も見つかりません。設定を確認してください');return;}if(bridgeOk&&settings.provider==='dummy'&&!localStorage.getItem('bc.bridgeNoticed')){localStorage.setItem('bc.bridgeNoticed','1');toast('ブリッジを検出。設定で「ローカルブリッジ」を選ぶと定額枠で本物の応答になります');}});
 showFocus();
 </script>
 </body>

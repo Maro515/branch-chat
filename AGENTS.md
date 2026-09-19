@@ -17,6 +17,8 @@ branch-chat/
 ├── index.html      ローカル版の本体（単一HTML）。接続: ダミー / ローカルブリッジ / Claude API
 ├── artifact.html   claude.ai Artifact 版。接続: Claude（閲覧者のアカウント） / ダミー
 ├── bridge.py       静的配信 + POST /api/chat → `claude -p`（engine=claude）か `codex exec`（engine=codex）を起動してSSEで返す。どちらも各CLIのログイン＝定額枠で動く
+├── desktop/        デスクトップ版（Electron）。main.js / engines.js / package.json / scripts/sync-app.mjs
+│                   desktop/app/ は index.html の自動コピー（git管理外・手で編集しない）
 ├── check.sh        静的チェック（変更後に必ず実行）
 ├── PLAN.md         設計書（3層コンテキスト、フェーズ、検証シナリオ S1〜S4）
 ├── README.md       利用者向け説明
@@ -44,6 +46,14 @@ branch-chat/
 | 応答後の表示 | 実トークン数（usage） | 実際に応答した階層（`modelTierApplied`） |
 
 両方に同じ変更を入れる定石は、Pythonで2ファイルをループし、置換前の文字列を `assert a in s` で確認してから置換すること（過去のコミットはすべてこの方式）。
+
+### デスクトップ版（`desktop/`）
+
+- 画面は `index.html` をそのまま使う。**デスクトップ専用のUI分岐は `IS_DESKTOP`（`location.protocol==='app:'`）で最小限に。** 別のHTMLを作らない。
+- `engines.js` は `bridge.py` の Node 版。**両者の挙動（イベント形式 `{text}{usage}{rate_limit}{error}{done}`、CLI の安全側フラグ、Codex のモデル一覧の取り方）は常に揃える。** 片方を変えたらもう片方も変える。
+- `main.js` は独自スキーム `app://branchat/` で `app/` を配信し、`/api/status` `/api/chat` を処理する。オリジンを変えると利用者の会話（localStorage）が見えなくなるので、スキーム名とホスト名は変更禁止。
+- 確認は `cd desktop && npm run smoke`（画面表示・エンジン検出・ダミー送信・スクリーンショット）。実モデルも1回試すときだけ `SMOKE_LIVE=1 npm run smoke`。
+- 計画とフェーズ（D0〜D3）は `PLAN.md` 末尾。
 
 ### スクリプトの区画（両ファイル共通、`/* ========== 名前 ========== */` で区切る）
 
@@ -139,6 +149,7 @@ claude.ai にサインインしていないブラウザでは Claude 呼び出�
 - **秘密情報をリポジトリに入れない。** APIキーはブラウザの localStorage にのみ保存される設計。`check.sh` が `sk-ant-` を検出する。
 - **GitHub Pages を再有効化しない**（利用者の指示で停止済み。公開先は Artifact に一本化）。リポジトリ `Maro515/branch-chat` はソース管理専用。
 - 親フォルダの `launch.json` の他プロジェクトの設定、および `branch-chat` の port 8991。
+- デスクトップ版の配信オリジン `app://branchat`、`appId`（`jp.maro515.branchat`）、レンダラの `contextIsolation` / `sandbox` / `nodeIntegration:false`。
 - デモ会話は**架空の薬剤「ゾルミン」**を使う。実在薬の用量など、医学的助言に見える内容をデモやサンプルに入れない。
 - 第4節の「デザインの決まり」。変えるのは利用者が頼んだときだけ。
 

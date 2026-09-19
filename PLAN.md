@@ -168,3 +168,31 @@ Claude Code のログイン（サブスクリプション）で動くため API�
 - **ブランチ数の爆発**: 俯瞰でブランチを「閉じる」と要約 1 行に縮む
 - **API キーのブラウザ保存**: 個人利用限定。共有 PC では「セッション終了時に消す」オプション
 - **CORS**: Claude API は上記ヘッダで可。他プロバイダは非対応の可能性あり
+
+---
+
+# デスクトップ版 計画（2026-09-19 開始）
+
+場所: `desktop/`（Electron）。Artifact版で使用感を固めた後の本命。利用者は自分の Claude Code / Codex CLI のログイン＝定額枠で使う。
+
+## 方針
+
+- **画面は `index.html` をそのまま使う。** `desktop/app/` へは `npm run sync` がコピーするだけ（手で編集しない・git管理しない）。UIの正は常に親フォルダの `index.html`。
+- **`bridge.py` の役割を Electron 本体（Node）に内蔵**する（`desktop/engines.js`）。利用者に Python もターミナル操作も要求しない。
+- **独自スキーム `app://branchat/`** で配信し、`/api/status` と `/api/chat`（SSE）を本体が処理する。画面側のコードは `fetch('/api/chat')` のまま動く。オリジンが固定なので localStorage の会話が起動ごとに消えない。ローカルHTTPサーバーもポートも使わない。
+- 安全側の設定は `bridge.py` と揃える（Claude: ツール無し・MCP無し・履歴無し / Codex: 読み取り専用・履歴無し・利用者設定を読まない）。レンダラは `contextIsolation`＋`sandbox`、Node 連携なし、外部リンクは既定ブラウザへ。
+
+## フェーズ
+
+| Phase | 内容 | 完了条件 |
+|---|---|---|
+| D0 骨組み | Electron 起動、app:// 配信、Claude/Codex エンジン、`npm run smoke`、`npm run pack:dir` | スモークテスト合格（画面表示・エンジン検出・ダミー送信・実モデル1回）、.app が起動する |
+| D1 配布品質 | アプリアイコン、フォント同梱（オフライン対応）、会話の自動バックアップ（userData に JSON）、CLI 未検出時のセットアップ案内、生成の中断ボタン | ネット無しでも表示が崩れない、アプリを消しても会話を復元できる |
+| D2 MCP | 設定で使う MCP サーバーを選択（`--mcp-config`）、読み取り系ツールのみ自動許可、書き込み系は確認、ツール実行を回答の上に表示 | PubMed 検索を使った回答が分岐の文脈に残る |
+| D3 配布 | Windows ビルド、署名・公証、配布方法、更新の仕組み | 他の利用者のPCで起動し、各自のログインで動く |
+
+## 既知の注意
+
+- GUIアプリは PATH が最小限。`engines.js` がログインシェルの PATH と定番の場所（`~/.local/bin`、Homebrew、ChatGPT.app 同梱の codex）を探す。
+- Codex の回答はまとまり単位で届く（1文字ずつにならない）。
+- ブラウザ版・Artifact版とは保存先が別。会話の移動は「書き出し / 読み込み」。

@@ -1,0 +1,33 @@
+{
+  "name": "branchat-desktop",
+  "productName": "BranCHAT",
+  "version": "0.1.0",
+  "description": "分岐型AIチャット BranCHAT のデスクトップ版（Claude CLI / Codex CLI のログインで動作）",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "sync": "node scripts/sync-app.mjs",
+    "prestart": "npm run sync",
+    "start": "electron .",
+    "presmoke": "npm run sync",
+    "smoke": "SMOKE=1 electron .",
+    "prebuild:mac": "npm run sync",
+    "build:mac": "electron-builder --mac",
+    "prebuild:win": "npm run sync",
+    "build:win": "electron-builder --win --x64",
+    "prepack:dir": "npm run sync",
+    "pack:dir": "electron-builder --mac --dir"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "jp.maro515.branchat",
+    "productName": "BranCHAT",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "engines.js", "app/**/*", "package.json"],
+    "mac": { "category": "public.app-category.productivity", "target": [{ "target": "dmg", "arch": ["arm64"] }] },
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] }
+  }
+}
