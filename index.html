@@ -1106,29 +1106,28 @@ function effEffort(bid){
 }
 function effLabel(bid){const e=effEffort(bid);return modelLabel(effModel(bid))+(e?' · '+e:'');}
 function modelSource(bid){const a=resolveUp(bid,'model',validModel).src,b=EFFORT_OPTS.length?resolveUp(bid,'effort',validEffort).src:'global';if(a===bid||b===bid)return bid;return a!=='global'?a:b;}
-const sourceName=(src,bid)=>src==='global'?'全体の既定':src===bid?'このブランチの設定':(src==='main'?'本線の設定':`分岐元「${B(src).name}」の設定`);
+const sourceName=(src,bid)=>src===bid?'このブランチの設定':(src==='global'||src==='main')?'本線の設定':`分岐元「${B(src).name}」の設定`;
 let mpScope='branch';
 function renderModelBtn(){
   migrateConvModel();
   const bid=effectiveBranchForSend();const src=modelSource(bid);
-  const btn=$('#modelBtn');btn.style.setProperty('--bc',src==='global'?'#9fb3d9':B(src).color);
+  const btn=$('#modelBtn');btn.style.setProperty('--bc',src==='global'?B('main').color:B(src).color);
   btn.innerHTML=`<span class="ov"></span><span class="var">${esc(effLabel(bid))}</span><span>▾</span>`;
   btn.title=sourceName(src,bid)+'で応答します。クリックで変更';
   if($('#modelPop').classList.contains('on'))renderModelPop();
 }
 function renderModelPop(){
   const bid=effectiveBranchForSend();const b=B(bid);const pid=parentBranchId(bid);
-  const tgt=mpScope==='branch'?b:null;
-  const curM=tgt?validModel(tgt.model):validModel(globalModel());
-  const curE=tgt?validEffort(tgt.effort):validEffort(settings.effort);
+  mpScope='branch';
+  const curM=pid?validModel(b.model):effModel(bid);
+  const curE=pid?validEffort(b.effort):effEffort(bid);
   // 「従う先」: 本線なら全体の既定、本線から分かれたブランチなら本線、それより深ければ分岐元のブランチ
-  const upName=!pid?'全体の既定':(pid==='main'?'本線の設定':`分岐元「${excerpt(B(pid).name,8)}」の設定`);
+  const upName=pid==='main'?'本線の設定':pid?`分岐元「${excerpt(B(pid).name,8)}」の設定`:'';
   const upM=pid?effModel(pid):validModel(globalModel());
   const upE=pid?effEffort(pid):validEffort(settings.effort);
-  const inh=(cur,up,kind)=>mpScope==='global'?'':`<button class="small${cur?'':' on'}" data-${kind}=""><span class="var">${esc(upName)}</span>（${esc(kind==='m'?modelLabel(up):(up||'指定なし'))}）</button>`;
-  $('#modelPop').innerHTML=`<div class="mph ui">適用先</div>
-    <div class="row2"><button class="small${mpScope==='branch'?' on':''}" data-scope="branch">このブランチ「<span class="var">${esc(excerpt(b.name,10))}</span>」</button><button class="small${mpScope==='global'?' on':''}" data-scope="global">全体の既定</button></div>
-    <div class="hint ui" style="margin-top:4px">${mpScope==='branch'?(bid==='main'?'本線の設定は、個別に指定していない全ブランチにも引き継がれます':'このブランチと、ここから先の分岐にだけ効きます'):'すべての会話の初期値です'}</div>
+  const inh=(cur,up,kind)=>!pid?'':`<button class="small${cur?'':' on'}" data-${kind}=""><span class="var">${esc(upName)}</span>（${esc(kind==='m'?modelLabel(up):(up||'指定なし'))}）</button>`;
+  $('#modelPop').innerHTML=`<div class="mph ui">適用先: <span class="var">${esc(excerpt(b.name,14))}</span></div>
+    <div class="hint ui" style="margin-bottom:4px">${bid==='main'?'本線の設定は、個別に指定していない全ブランチにも引き継がれます':'このブランチと、ここから先の分岐にだけ効きます'}</div>
     <div class="mph ui">モデル</div>
     <div class="row2">${inh(curM,upM,'m')}</div>
     ${[['claude','Claude'],['codex','GPT（Codex CLI）']].filter(([eg])=>MODEL_OPTS.some(o=>modelEngine(o.v)===eg)).map(([eg,nm])=>`${MODEL_OPTS.some(o=>modelEngine(o.v)==='codex')?`<div class="mph ui" style="margin-top:6px">${nm}</div>`:''}<div class="row2">${MODEL_OPTS.filter(o=>modelEngine(o.v)===eg).map(o=>`<button class="small${curM===o.v?' on':''}" data-m="${esc(o.v)}" title="${esc(o.d||'')}">${esc(o.l)}</button>`).join('')}</div>`).join('')}
@@ -1136,7 +1135,7 @@ function renderModelPop(){
     <div class="res"><span class="ui">次の送信:</span> <b>${esc(effLabel(bid))}</b> <span class="hint">（<span class="var">${esc(sourceName(modelSource(bid),bid))}</span>）</span></div>`;
   const pop=$('#modelPop');
   pop.querySelectorAll('[data-scope]').forEach(el=>el.onclick=e=>{e.stopPropagation();mpScope=el.dataset.scope;renderModelPop();});
-  const setv=(key,val)=>{if(mpScope==='global'){if(key==='model')setGlobalModel(val);else settings.effort=val;saveSettings();}else{const t=B(effectiveBranchForSend());if(val)t[key]=val;else delete t[key];persist();}renderModelBtn();renderFocus();};
+  const setv=(key,val)=>{const t=B(effectiveBranchForSend());if(val)t[key]=val;else delete t[key];if(t.id==='main'&&val){if(key==='model')setGlobalModel(val);else settings.effort=val;saveSettings();}persist();renderModelBtn();renderFocus();};
   pop.querySelectorAll('[data-m]').forEach(el=>el.onclick=e=>{e.stopPropagation();setv('model',el.dataset.m||null);});
   pop.querySelectorAll('[data-e]').forEach(el=>el.onclick=e=>{e.stopPropagation();setv('effort',el.dataset.e||null);});
 }
