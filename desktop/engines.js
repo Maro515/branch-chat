@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { CodexServer } = require('./codex-server');
+const { ClaudeSessions } = require('./claude-session');
 
 const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
 const HOME = os.homedir();
@@ -44,6 +45,8 @@ const CODEX_CWD = path.join(os.tmpdir(), 'branchat-codex'); // 空の作業フ�
 
 const claudeOk = () => !!CLAUDE;
 let codexServer = null; // 常駐の Codex app-server（最初の送信で起動）
+let claudeSessions = null; // ブランチごとに常駐する Claude Code
+function getClaudeSessions() { if (!claudeSessions) { const env = { ...process.env, PATH: PATH_EXT, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1', DISABLE_AUTOUPDATER: '1' }; delete env.CLAUDECODE; delete env.ELECTRON_RUN_AS_NODE; claudeSessions = new ClaudeSessions(CLAUDE, env, (m) => console.log('[claude] ' + m)); } return claudeSessions; }
 function getCodexServer() { if (!codexServer) codexServer = new CodexServer(CODEX, { cwd: CODEX_CWD, env: { ...process.env, PATH: PATH_EXT }, log: (m) => console.log('[codex] ' + m) }); return codexServer; }
 // auth.json は存在確認だけ。中身は読まない
 const codexOk = () => !!CODEX && fs.existsSync(path.join(CODEX_HOME, 'auth.json'));
@@ -146,8 +149,14 @@ function chat(req, onEvent) {
     });
     return () => { cancelled = true; if (stopFn) stopFn(); };
   }
-  // MCP を使うときはサーバー一覧を先に読む（非同期）ので、実体は chatInner
+  // Claude はブランチごとに常駐（続きは新しい発言だけ送る）。MCP を使うときはサーバー一覧を先に読む
   const mcp = Array.isArray(req.mcp) ? req.mcp.filter((n) => typeof n === 'string').slice(0, 8) : [];
+  if (req.engine !== 'codex' && claudeOk() && req.claudeExec !== true) {
+    let stop = () => {}; let cancelled = false;
+    const go = (cfg) => { if (cancelled) return; try { stop = getClaudeSessions().chat(req, onEvent, cfg); } catch (e) { console.log('[claude] session failed, falling back to exec: ' + e.message); stop = chatInner(req, onEvent, cfg); } };
+    if (mcp.length) mcpServers().then((servers) => go(mcpConfigFor(mcp, servers))); else go({});
+    return () => { cancelled = true; stop(); };
+  }
   if (mcp.length && req.engine !== 'codex') {
     let stop = () => {}; let cancelled = false;
     mcpServers().then((servers) => { if (!cancelled) stop = chatInner(req, onEvent, mcpConfigFor(mcp, servers)); });
@@ -236,5 +245,5 @@ function chatInner(req, onEvent, mcpCfg) {
   return () => { try { child.kill(); } catch (e) { /* 既に終了 */ } };
 }
 
-function shutdown() { if (codexServer) codexServer.stop(); }
+function shutdown() { if (codexServer) codexServer.stop(); if (claudeSessions) claudeSessions.shutdown(); }
 module.exports = { status, chat, mcpServers, openLoginTerminal, loginCommand, shutdown, EFFORTS };
