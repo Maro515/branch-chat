@@ -7,6 +7,7 @@ const { spawn, execFile, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { CodexServer } = require('./codex-server');
 
 const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
 const HOME = os.homedir();
@@ -42,6 +43,8 @@ const CODEX_HOME = process.env.CODEX_HOME || path.join(HOME, '.codex');
 const CODEX_CWD = path.join(os.tmpdir(), 'branchat-codex'); // 空の作業フォルダ（読み取り専用サンドボックスで使用）
 
 const claudeOk = () => !!CLAUDE;
+let codexServer = null; // 常駐の Codex app-server（最初の送信で起動）
+function getCodexServer() { if (!codexServer) codexServer = new CodexServer(CODEX, { cwd: CODEX_CWD, env: { ...process.env, PATH: PATH_EXT }, log: (m) => console.log('[codex] ' + m) }); return codexServer; }
 // auth.json は存在確認だけ。中身は読まない
 const codexOk = () => !!CODEX && fs.existsSync(path.join(CODEX_HOME, 'auth.json'));
 
@@ -134,6 +137,15 @@ function openLoginTerminal(engine) {
  * 戻り値の関数を呼ぶと子プロセスを止める。
  */
 function chat(req, onEvent) {
+  // Codex は常駐の app-server 経由（速い・逐次配信・ブランチごとにスレッド継続）。失敗時は従来の exec に切り替える
+  if (req.engine === 'codex' && codexOk() && req.codexExec !== true) {
+    let stopFn = null, cancelled = false, fell = false;
+    getCodexServer().chat(req, onEvent).then((f) => { stopFn = f; if (cancelled) f(); }).catch((e) => {
+      console.log('[codex] app-server failed, falling back to exec: ' + (e && (e.message || JSON.stringify(e))));
+      fell = true; if (!cancelled) stopFn = chatInner(req, onEvent, {});
+    });
+    return () => { cancelled = true; if (stopFn) stopFn(); };
+  }
   // MCP を使うときはサーバー一覧を先に読む（非同期）ので、実体は chatInner
   const mcp = Array.isArray(req.mcp) ? req.mcp.filter((n) => typeof n === 'string').slice(0, 8) : [];
   if (mcp.length && req.engine !== 'codex') {
@@ -224,4 +236,5 @@ function chatInner(req, onEvent, mcpCfg) {
   return () => { try { child.kill(); } catch (e) { /* 既に終了 */ } };
 }
 
-module.exports = { status, chat, mcpServers, openLoginTerminal, loginCommand, EFFORTS };
+function shutdown() { if (codexServer) codexServer.stop(); }
+module.exports = { status, chat, mcpServers, openLoginTerminal, loginCommand, shutdown, EFFORTS };

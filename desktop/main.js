@@ -3,11 +3,12 @@
 // 独自スキーム app://branchat/ で配信し、/api/status と /api/chat を本体(Node)が処理する。
 // → localStorage の保存先(オリジン)が固定され、ローカルHTTPサーバーもポートも不要。
 'use strict';
-const { app, BrowserWindow, protocol, net, shell, Menu } = require('electron');
+const { app, BrowserWindow, protocol, net, shell, Menu, dialog } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const engines = require('./engines');
+const exporter = require('./export');
 
 const APP_DIR = path.join(__dirname, 'app');
 const ORIGIN = 'app://branchat';
@@ -29,6 +30,29 @@ async function handle(request) {
 
   if (url.pathname === '/api/mcp') return Response.json({ servers: await engines.mcpServers(url.searchParams.get('force') === '1') });
 
+  if (url.pathname === '/api/export') { // 回答やブランチを DOCX / PPTX に。保存先は利用者が選ぶ
+    if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
+    let b; try { b = await request.json(); } catch (e) { return new Response('bad request', { status: 400 }); }
+    const kind = b.kind === 'pptx' ? 'pptx' : 'docx';
+    const title = String(b.title || 'BranCHAT').slice(0, 80);
+    const safe = title.replace(/[\\/:*?"<>|]/g, '_').trim() || 'BranCHAT';
+    try {
+      const buf = kind === 'pptx' ? await exporter.toPptx({ title, sections: b.sections || [] }) : await exporter.toDocx({ title, sections: b.sections || [] });
+      const win = BrowserWindow.getAllWindows()[0];
+      const r = await dialog.showSaveDialog(win, { title: kind === 'pptx' ? 'スライドを保存' : '文書を保存', defaultPath: path.join(app.getPath('documents'), `${safe}.${kind}`), filters: [{ name: kind.toUpperCase(), extensions: [kind] }] });
+      if (r.canceled || !r.filePath) return Response.json({ ok: false, canceled: true });
+      fs.writeFileSync(r.filePath, buf);
+      return Response.json({ ok: true, path: r.filePath });
+    } catch (e) { return Response.json({ ok: false, error: String(e && e.message || e) }); }
+  }
+  if (url.pathname === '/api/open') { // 保存したファイルやフォルダを開く（このアプリが作ったパスだけ）
+    if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
+    let b = {}; try { b = await request.json(); } catch (e) { /* 空でよい */ }
+    const fp = String(b.path || '');
+    if (!fp || !fs.existsSync(fp)) return Response.json({ ok: false });
+    if (b.reveal) shell.showItemInFolder(fp); else await shell.openPath(fp);
+    return Response.json({ ok: true });
+  }
   if (url.pathname === '/api/login') { // ログイン用のターミナルを開く（固定コマンドのみ）
     if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
     let b = {}; try { b = await request.json(); } catch (e) { /* 空でよい */ }
@@ -122,7 +146,9 @@ async function runSmoke(win) {
         settings.provider='bridge'; await probeBridge(); const g=MODEL_OPTS.find(o=>o.v==='gpt-5.5'); if(g){B('main').model='gpt-5.5'; delete B('main').effort; gotoBranch('main');
           const t0=performance.now();const pr=send('1から10までの数字を、1行に1つずつ書いて。');const aid=conv.activeNodeId;let firstAt=null;
           const tick=setInterval(()=>{if(firstAt!==null)return;const el=document.getElementById('n-'+aid);const b=el&&el.querySelector('.body');if(b&&b.textContent.trim()&&!b.querySelector('.waiting'))firstAt=performance.now()-t0;},30);
-          await pr;clearInterval(tick);const n=N(aid);r.codexRun={text:n.content.slice(0,20),effort:n.effort,firstTextMs:Math.round(firstAt===null?-1:firstAt),totalMs:Math.round(performance.now()-t0)};}
+          await pr;clearInterval(tick);const n=N(aid);r.codexRun={text:n.content.slice(0,20),effort:n.effort,firstTextMs:Math.round(firstAt===null?-1:firstAt),totalMs:Math.round(performance.now()-t0)};
+          const t1=performance.now();const pr2=send('続けて11から15まで。');const aid2=conv.activeNodeId;let f2=null;const tick2=setInterval(()=>{if(f2!==null)return;const el=document.getElementById('n-'+aid2);const b=el&&el.querySelector('.body');if(b&&b.textContent.trim()&&!b.querySelector('.waiting'))f2=performance.now()-t1;},30);
+          await pr2;clearInterval(tick2);const n2=N(aid2);r.codexRun2={text:n2.content.slice(0,20),firstTextMs:Math.round(f2===null?-1:f2),totalMs:Math.round(performance.now()-t1),usage:n2.usage};}
       }
       if(${process.env.SMOKE_LIVE === '1'}){
         settings.provider='bridge'; B('main').model='claude-haiku-4-5'; gotoBranch('main');
@@ -148,3 +174,4 @@ app.whenReady().then(() => {
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+app.on('will-quit', () => engines.shutdown());
