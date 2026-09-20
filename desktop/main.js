@@ -120,7 +120,9 @@ async function runSmoke(win) {
       const bk=await (await fetch('/api/backup')).json(); r.backupConvs=Object.keys(bk.convs||{}).length;
       if(${process.env.SMOKE_LIVE === '1'}){
         settings.provider='bridge'; B('main').model='claude-haiku-4-5'; gotoBranch('main');
-        await send('1+1は？数字だけで答えて。'); const n=N(conv.activeNodeId); r.live={text:n.content.slice(0,60),usage:n.usage,model:n.model};
+        const t0=performance.now();let firstAt=null;const pr=send('1から20までの数字を、1行に1つずつ書いて。');const aid=conv.activeNodeId;
+        const tick=setInterval(()=>{if(firstAt!==null)return;const el=document.getElementById('n-'+aid);const b=el&&el.querySelector('.body');if(b&&b.textContent.trim()&&!b.querySelector('.waiting'))firstAt=performance.now()-t0;},30);
+        await pr;clearInterval(tick);const n=N(aid);r.live={text:n.content.slice(0,40),usage:n.usage,model:n.model,firstTextMs:Math.round(firstAt===null?-1:firstAt),totalMs:Math.round(performance.now()-t0)};
       }
       if(${process.env.SMOKE_TUT === '1'}){openTut(1);await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);

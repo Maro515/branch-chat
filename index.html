@@ -296,6 +296,30 @@ header{z-index:5}
 #composer.dragover{outline:2px dashed var(--c1);outline-offset:-4px}
 #status{display:none}
 #composer{padding-bottom:10px}
+
+/* ===== Markdown ブロック表示・逐次表示 ===== */
+.msg .body{white-space:normal}
+.msg .body .ln{white-space:pre-wrap;min-height:1.5em}
+.msg .body .ln.h1,.msg .body .ln.h2{font-weight:700;font-size:1.08em;margin-top:.6em}
+.msg .body .ln.h3,.msg .body .ln.h4{font-weight:700;margin-top:.4em}
+.msg .body .ln.li{padding-left:1.4em;position:relative}
+.msg .body .ln.li::before{content:"•";position:absolute;left:.5em;color:var(--indigo2)}
+.msg .body .ln.li.num::before{content:""}
+.msg .body .ln.li.num .n{position:absolute;left:.2em;color:var(--indigo2)}
+.msg .body .ln.li.sub{padding-left:2.8em}.msg .body .ln.li.sub::before{left:1.9em}.msg .body .ln.li.num.sub .n{left:1.6em}
+.msg .body .ln.quote{border-left:3px solid var(--line);padding-left:10px;color:var(--indigo2)}
+.msg .body hr.md{border:0;border-top:1.5px solid var(--line);margin:8px 0}
+.msg .body pre{white-space:pre;margin:6px 0}
+.msg .body a{color:var(--c1)}
+.tblwrap{overflow-x:auto;margin:8px 0}
+table.md{border-collapse:collapse;font-size:.95em;min-width:60%}
+table.md th,table.md td{border:1.5px solid var(--line);padding:5px 10px;text-align:left;vertical-align:top}
+table.md th{background:#eef3fb;font-weight:700;white-space:nowrap}
+table.md tr:nth-child(even) td{background:#f8fafd}
+.msg.user .body .ln{white-space:pre-wrap}
+.reveal{animation:reveal .55s cubic-bezier(.2,.6,.3,1) both}
+@keyframes reveal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.reveal{animation:none}}
 </style>
 </head>
 <body>
@@ -402,14 +426,47 @@ function askPrompt(title,def='',ok='保存'){return new Promise(res=>{const d=$(
   const done=v=>{d.close();i.onkeydown=null;res(v);};$('#qOk').onclick=()=>done(i.value);$('#qCancel').onclick=()=>done(null);d.oncancel=e=>{e.preventDefault();done(null);};
   i.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();done(i.value);}};d.showModal();i.focus();i.select();});}
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2500);}
-function md(s){ // 最小限のMarkdown
+function mdInline(s){ // 行内の装飾（入力は生テキスト）
   s=esc(s);
-  s=s.replace(/```(\w*)\n([\s\S]*?)```/g,(m,l,c)=>'<pre>'+c.replace(/\n$/,'')+'</pre>');
-  s=s.replace(/`([^`\n]+)`/g,'<code>$1</code>');
-  s=s.replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>');
-  s=s.replace(/^### (.*)$/gm,'<b>$1</b>').replace(/^## (.*)$/gm,'<b>$1</b>').replace(/^# (.*)$/gm,'<b>$1</b>');
-  s=s.replace(/^[-*] (.*)$/gm,'・$1');
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s=s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+  s=s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,'$1<i>$2</i>');
+  s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
   return s;
+}
+function mdBlocks(src){ // Markdown をブロック（行・表・コード）ごとのHTML配列にする。逐次表示で差分だけ描き足すため
+  const lines=String(src||'').replace(/\r/g,'').split('\n');const out=[];let i=0;
+  const isRow=l=>/^\s*\|.*\|\s*$/.test(l);
+  const cells=r=>r.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>mdInline(c.trim()));
+  while(i<lines.length){
+    const L=lines[i];let m;
+    if(/^\s*```/.test(L)){const buf=[];let j=i+1;while(j<lines.length&&!/^\s*```/.test(lines[j])){buf.push(lines[j]);j++;}out.push('<pre>'+esc(buf.join('\n'))+'</pre>');i=j+1;continue;}
+    if(isRow(L)&&i+1<lines.length&&/^\s*\|?\s*:?-{2,}/.test(lines[i+1])){
+      const rows=[];let j=i;while(j<lines.length&&isRow(lines[j])){rows.push(lines[j]);j++;}
+      const head=cells(rows[0]);const body=rows.slice(2).map(cells);
+      out.push('<div class="tblwrap"><table class="md"><thead><tr>'+head.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+body.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>');i=j;continue;}
+    if((m=L.match(/^\s*(#{1,4})\s+(.*)$/))){out.push('<div class="ln h'+m[1].length+'">'+mdInline(m[2])+'</div>');i++;continue;}
+    if((m=L.match(/^(\s*)[-*・]\s+(.*)$/))){out.push('<div class="ln li'+(m[1].length>=2?' sub':'')+'">'+mdInline(m[2])+'</div>');i++;continue;}
+    if((m=L.match(/^(\s*)(\d+)[.)]\s+(.*)$/))){out.push('<div class="ln li num'+(m[1].length>=2?' sub':'')+'"><span class="n">'+m[2]+'.</span>'+mdInline(m[3])+'</div>');i++;continue;}
+    if(/^\s*(-{3,}|\*{3,})\s*$/.test(L)){out.push('<hr class="md">');i++;continue;}
+    if((m=L.match(/^\s*>\s?(.*)$/))){out.push('<div class="ln quote">'+mdInline(m[1])+'</div>');i++;continue;}
+    out.push('<div class="ln">'+(L.trim()?mdInline(L):'&nbsp;')+'</div>');i++;
+  }
+  return out;
+}
+function md(s){return mdBlocks(s).join('');}
+// 逐次表示: 前回描いたブロックと比べ、変わった所から描き直す。新しく増えたブロックは滑らかに現れる
+function renderStream(body,text){
+  const blocks=mdBlocks(text);const prev=body._blocks||[];
+  let k=0;while(k<blocks.length&&k<prev.length&&blocks[k]===prev[k])k++;
+  while(body.children.length>blocks.length)body.lastChild.remove();
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  for(let i=k;i<blocks.length;i++){const t=document.createElement('template');t.innerHTML=blocks[i];const el=t.content.firstElementChild;if(!el)continue;
+    const cur=body.children[i];
+    if(cur&&cur.tagName===el.tagName&&cur.className.replace(' reveal','')===el.className){cur.innerHTML=el.innerHTML;continue;} // 書きかけの行は中身だけ更新（フェードを途切れさせない）
+    if(!reduce){el.classList.add('reveal');el.style.animationDelay=Math.min(Math.max(0,i-Math.max(k,prev.length)),12)*70+'ms';}
+    if(cur)cur.replaceWith(el);else body.appendChild(el);}
+  body._blocks=blocks;
 }
 
 /* ========== 設定 ========== */
@@ -640,7 +697,7 @@ async function send(text,opts={}){
     for await(const ev of provider()(ctx.system,ctx.messages,model,{effort,web,mcp:mcpSel,images:(opts.images||[]).map(p=>p.full),signal:abortCtl.signal})){
       if(ev.mcp_status){const bad=ev.mcp_status.filter(m=>m.status!=='connected');if(bad.length){const names=bad.map(m=>mcpDisplay(m.name));settings.mcpUnavailable=[...new Set([...(settings.mcpUnavailable||[]),...bad.map(m=>{const sv=mcpList.find(x=>x.slug===m.name);return sv?sv.name:m.name;})])];settings.mcp=(settings.mcp||[]).filter(n=>!settings.mcpUnavailable.includes(n));saveSettings();renderMcpBtn();toast('この連携は今の版では使えません（ログインが必要）: '+names.join(', '));}}
       if(ev.tool){(a.tools=a.tools||[]).push(ev.tool);const el=document.getElementById('n-'+a.id);if(el){const tu=el.querySelector('.toolsUsed');if(tu)tu.innerHTML=toolsHTML(a);}}
-      if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){el.querySelector('.body').innerHTML=md(a.content);updateTailSpace();autoScroll();}}
+      if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){renderStream(el.querySelector('.body'),a.content);updateTailSpace();autoScroll();}}
       if(ev.usage)a.usage=ev.usage;
       if(ev.rate)a.rate=ev.rate;
     }
