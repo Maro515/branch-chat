@@ -157,6 +157,7 @@ claude.ai にサインインしていないブラウザでは Claude 呼び出�
 - **localStorage のキー名（`bc.*.v1`）とデータモデルの既存フィールド。** 利用者の会話が消える。どうしても変えるなら読み込み時の移行処理を同時に入れ、書き出しJSONの後方互換を保つ。本線の id `'main'` も固定。
 - **「全ブランチをAIが認知する」仕組み**（`buildContext` の3層と会話マップの注入、`updateSummary`）。軽量化のために要約カードを外す・現在ブランチだけにする、は不可。
 - **Artifact の公開URL・favicon・capabilities。** 新しいArtifactを作らない。`mcp` など共有範囲を狭める capability を勝手に足さない。
+- **Codex の完了判定:** `turn.completed` を受けたら即 `done` にしてプロセスを kill する（終了処理に約6秒かかり、その間「生成中」に見えていた）。GPT モデルの思考量は、どこにも指定が無ければモデル既定（`defEffort`、ChatGPT と同じ）を使う。`high` を強制しない。
 - **起動の固定費対策（両エンジン層共通）:** Claude 起動時は環境変数 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` `DISABLE_AUTOUPDATER=1` と `--setting-sources ""` を必ず付ける（1回あたり約2.7秒→0.3秒。実測済み）。`--bare` は OAuth を読まなくなるので使えない。
 - **`bridge.py` の安全側の設定:** `127.0.0.1` バインド。Claude 側は `--tools ""`（Web検索オン時だけ `--tools WebSearch WebFetch --allowedTools WebSearch WebFetch`。ファイルやコマンド系のツールは決して足さない）、`--strict-mcp-config`、`--no-session-persistence`。Codex 側は `-s read-only`、`--ephemeral`、`--ignore-user-config`、`--ignore-rules`、空の作業フォルダ。`~/.codex/auth.json` は存在確認だけで中身を読まない。外部公開（`0.0.0.0`）にしない。ツールやMCPを有効にする変更は利用者の明示的な依頼があるときだけ。
 - **秘密情報をリポジトリに入れない。** APIキーはブラウザの localStorage にのみ保存される設計。`check.sh` が `sk-ant-` を検出する。

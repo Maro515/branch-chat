@@ -1155,7 +1155,9 @@ function migrateConvModel(){for(const k of ['model','effort']){if(conv&&conv[k]!
 function effModel(bid){return resolveUp(bid,'model',validModel).v||MODEL_OPTS[0].v;}
 function effEffort(bid){
   const sup=effortsFor(effModel(bid));if(!sup.length)return null;
-  const want=resolveUp(bid,'effort',validEffort).v||'high';
+  const r=resolveUp(bid,'effort',validEffort);const o=MODEL_OPTS.find(x=>x.v===effModel(bid));
+  // どこにも指定が無い GPT モデルは、ChatGPT と同じモデル既定の思考量にする（high を強制すると倍近く遅くなる）
+  const want=(r.src==='global'&&o&&o.engine==='codex'&&o.defEffort&&sup.includes(o.defEffort))?o.defEffort:(r.v||'high');
   if(sup.includes(want))return want;
   // 対応していない段階は、その段階以下で最も高いものへ丸める
   const order=ALL_EFFORTS.map(e=>e.v);const lower=sup.filter(e=>order.indexOf(e)<=order.indexOf(want));

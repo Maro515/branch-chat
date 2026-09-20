@@ -210,6 +210,7 @@ class H(SimpleHTTPRequestHandler):
             self.wfile.write(("data: " + json.dumps(obj, ensure_ascii=False) + "\n\n").encode())
             self.wfile.flush()
 
+        finished_early = False
         env = dict(os.environ)
         env.pop("CLAUDECODE", None)  # ネスト検出を回避
         # 起動の固定費を省く: 更新確認・テレメトリ等の通信を止め(約2秒短縮)、利用者の settings/フックを読まない(さらに約0.2秒)。認証には影響しない
@@ -242,6 +243,11 @@ class H(SimpleHTTPRequestHandler):
                         send({"usage": {"input_tokens": max(0, (u.get("input_tokens", 0) or 0) - cached),
                                         "cache_read_input_tokens": cached,
                                         "output_tokens": u.get("output_tokens", 0) or 0}})
+                        # 回答は出そろっているので、codex の終了処理(数秒)を待たずに完了にする
+                        send({"done": True}); finished_early = True
+                        try: p.kill()
+                        except Exception: pass
+                        break
                     elif t in ("error", "turn.failed"):
                         msg = ev.get("message") or (ev.get("error") or {}).get("message") or json.dumps(ev, ensure_ascii=False)[:500]
                         send({"error": f"codex: {msg}"})
@@ -275,7 +281,7 @@ class H(SimpleHTTPRequestHandler):
                 elif t == "rate_limit_event":
                     send({"rate_limit": ev.get("rate_limit_info")})
             p.wait()
-            if p.returncode != 0:
+            if p.returncode != 0 and not finished_early:
                 err = p.stderr.read()[-2000:]
                 send({"error": f"{engine} 終了コード {p.returncode}: {err}"})
         except (BrokenPipeError, ConnectionResetError):
@@ -284,8 +290,9 @@ class H(SimpleHTTPRequestHandler):
             for fp in tmp_imgs:
                 try: os.remove(fp)
                 except Exception: pass
-            try: send({"done": True})
-            except Exception: pass
+            if not finished_early:
+                try: send({"done": True})
+                except Exception: pass
 
 
 if __name__ == "__main__":

@@ -195,7 +195,7 @@ function chatInner(req, onEvent, mcpCfg) {
       // codex は1文字ずつではなく、発言のまとまり単位で届く
       if (t === 'item.completed' && ev.item && ev.item.type === 'web_search') onEvent({ tool: { name: 'web_search', q: ev.item.query || '' } });
       else if (t === 'item.completed' && ev.item && ev.item.type === 'agent_message' && ev.item.text) { onEvent({ text: (first ? '' : '\n\n') + ev.item.text }); first = false; }
-      else if (t === 'turn.completed') { const u = ev.usage || {}; const cached = u.cached_input_tokens || 0; onEvent({ usage: { input_tokens: Math.max(0, (u.input_tokens || 0) - cached), cache_read_input_tokens: cached, output_tokens: u.output_tokens || 0 } }); }
+      else if (t === 'turn.completed') { const u = ev.usage || {}; const cached = u.cached_input_tokens || 0; onEvent({ usage: { input_tokens: Math.max(0, (u.input_tokens || 0) - cached), cache_read_input_tokens: cached, output_tokens: u.output_tokens || 0 } }); finish(); try { child.kill(); } catch (e) { /* 既に終了 */ } } // 回答は出そろっているので、codex の終了処理（数秒）を待たずに完了にする
       else if (t === 'error' || t === 'turn.failed') onEvent({ error: 'codex: ' + (ev.message || (ev.error && ev.error.message) || JSON.stringify(ev).slice(0, 500)) });
       return;
     }
