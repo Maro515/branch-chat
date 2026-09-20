@@ -320,7 +320,6 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 .reveal{animation:reveal .55s cubic-bezier(.2,.6,.3,1) both}
 @keyframes reveal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.reveal{animation:none}}
-#exportBar{max-width:860px;margin:0 auto 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;border:1.5px solid var(--c3);border-radius:10px;background:#eefaf3;color:var(--indigo);font-size:13px}
 </style>
 </head>
 <body>
@@ -347,7 +346,6 @@ table.md tr:nth-child(even) td{background:#f8fafd}
     <div id="crumb"></div>
     <div id="msgs"></div>
     <div id="composer">
-      <div id="exportBar" class="ui" hidden></div>
       <div id="imgStrip"></div>
       <div class="row">
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
@@ -1302,12 +1300,10 @@ async function exportDoc(kind,opts={}){
   }
   toast(kind==='pptx'?'スライドを作成中…':'文書を作成中…');
   try{const r=await(await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,title,sections})})).json();
-    if(r.ok){lastExportPath=r.path;toast(`保存しました: ${r.path.split('/').pop()}`);showExportBar(r.path);}else if(!r.canceled)toast('作成できませんでした: '+(r.error||''));}
+    if(r.ok){lastExportPath=r.path;toast(`保存しました: ${r.path.split('/').pop()}`);}else if(!r.canceled)toast('作成できませんでした: '+(r.error||''));}
   catch(e){toast('作成できませんでした');}
 }
 let lastExportPath=null;
-function showExportBar(fp){const bar=$('#exportBar');if(!bar)return;bar.hidden=false;bar.innerHTML=`<span class="ui">保存しました:</span> <span class="var">${esc(fp.split('/').pop())}</span><button class="small" id="exOpen">開く</button><button class="small" id="exReveal">フォルダを表示</button><button class="small" id="exClose">✕</button>`;
-  $('#exOpen').onclick=()=>fetch('/api/open',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:fp})});$('#exReveal').onclick=()=>fetch('/api/open',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:fp,reveal:true})});$('#exClose').onclick=()=>{bar.hidden=true;};}
 
 /* ========== ＋メニュー・画像添付 ========== */
 let pendingImgs=[];
