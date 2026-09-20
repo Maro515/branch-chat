@@ -169,14 +169,15 @@ function chatInner(req, onEvent, mcpCfg) {
     args = ['-p', '--model', model, '--system-prompt', system, '--tools', ...(web ? ['WebSearch', 'WebFetch'] : [''])];
     if (Object.keys(mcpCfg).length) { args.push('--mcp-config', JSON.stringify({ mcpServers: mcpCfg })); allowed.push(...Object.keys(mcpCfg).map((k) => 'mcp__' + k)); } // 選んだサーバーのツールだけ自動許可
     if (allowed.length) args.push('--allowedTools', ...allowed);
-    args.push('--no-session-persistence', '--strict-mcp-config', '--output-format', 'stream-json', '--include-partial-messages', '--verbose');
+    args.push('--no-session-persistence', '--strict-mcp-config', '--setting-sources', '', '--output-format', 'stream-json', '--include-partial-messages', '--verbose');
     if (images.length) { // 画像は content blocks で渡す（--input-format stream-json）
       args.push('--input-format', 'stream-json');
       prompt = JSON.stringify({ type: 'user', message: { role: 'user', content: [...images.map((im) => ({ type: 'image', source: { type: 'base64', media_type: im.media_type || 'image/jpeg', data: im.data } })), { type: 'text', text: prompt }] } }) + '\n';
     }
     if (effort && effort !== 'ultra') args.push('--effort', effort);
   }
-  const env = { ...process.env, PATH: PATH_EXT };
+  // 起動の固定費を省く: 更新確認・テレメトリ等の通信を止め（約2秒短縮）、利用者の settings/フックを読まない（さらに約0.2秒）。認証には影響しない
+  const env = { ...process.env, PATH: PATH_EXT, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1', DISABLE_AUTOUPDATER: '1' };
   delete env.CLAUDECODE; // ネスト検出を回避
   delete env.ELECTRON_RUN_AS_NODE;
   let child;

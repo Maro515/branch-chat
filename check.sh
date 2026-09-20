@@ -38,7 +38,7 @@ for f in desktop/main.js desktop/engines.js; do
   if node --check "$f" 2>/dev/null; then echo "OK   $f 構文"; else echo "FAIL $f 構文"; fail=1; fi
 done
 # bridge.py と engines.js の安全側フラグが揃っているか
-for flag in -- '--strict-mcp-config' '--no-session-persistence' '--ephemeral' '--ignore-user-config' '--ignore-rules' 'read-only'; do
+for flag in -- '--strict-mcp-config' '--no-session-persistence' '--setting-sources' 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC' '--ephemeral' '--ignore-user-config' '--ignore-rules' 'read-only'; do
   [ "$flag" = "--" ] && continue
   if grep -q -- "$flag" bridge.py && grep -q -- "$flag" desktop/engines.js; then echo "OK   安全フラグ $flag が両方にある"; else echo "FAIL 安全フラグ $flag が bridge.py か engines.js に無い"; fail=1; fi
 done

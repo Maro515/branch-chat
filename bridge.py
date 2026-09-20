@@ -192,7 +192,7 @@ class H(SimpleHTTPRequestHandler):
                 allowed += ["mcp__" + k for k in mcp_cfg]  # 選んだサーバーのツールだけ自動許可
             if allowed:
                 cmd += ["--allowedTools"] + allowed
-            cmd += ["--no-session-persistence", "--strict-mcp-config",
+            cmd += ["--no-session-persistence", "--strict-mcp-config", "--setting-sources", "",
                     "--output-format", "stream-json", "--include-partial-messages", "--verbose"]
             if images:  # 画像は content blocks で渡す（--input-format stream-json）
                 cmd += ["--input-format", "stream-json"]
@@ -212,6 +212,8 @@ class H(SimpleHTTPRequestHandler):
 
         env = dict(os.environ)
         env.pop("CLAUDECODE", None)  # ネスト検出を回避
+        # 起動の固定費を省く: 更新確認・テレメトリ等の通信を止め(約2秒短縮)、利用者の settings/フックを読まない(さらに約0.2秒)。認証には影響しない
+        env["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1"; env["DISABLE_AUTOUPDATER"] = "1"
         try:
             p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE, cwd=HERE, env=env, text=True)
