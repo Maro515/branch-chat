@@ -296,7 +296,9 @@ header{z-index:5}
 .msg .imgs img{max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--line);background:#fff}
 #composer.dragover{outline:2px dashed var(--c1);outline-offset:-4px}
 #status{display:none}
-#composer{padding-bottom:6px}
+#composer{padding-bottom:6px;position:relative}
+#jumpBtn{position:absolute;left:50%;top:-38px;transform:translateX(-50%);display:none;background:#fff;color:var(--indigo);border:1.5px solid var(--indigo);border-radius:999px;padding:4px 14px;box-shadow:0 4px 14px rgba(30,58,110,.22);z-index:6}
+#jumpBtn.show{display:inline-block}
 
 /* ===== Markdown ブロック表示・逐次表示 ===== */
 .msg .body{white-space:normal}
@@ -347,6 +349,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
     <div id="crumb"></div>
     <div id="msgs"></div>
     <div id="composer">
+      <button id="jumpBtn" class="small" title="生成中の末尾へ戻る">↓ 最新へ</button>
       <div id="imgStrip"></div>
       <div class="row">
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
@@ -676,7 +679,7 @@ let busy=false;
 let abortCtl=null;
 function setSendBtn(running){const b=$('#sendBtn');b.textContent=running?'■ 停止':'送信';b.classList.toggle('stop',running);b.title=running?'生成を中断する':'';}
 async function send(text,opts={}){
-  if(busy||!text.trim())return;busy=true;abortCtl=new AbortController();setSendBtn(true);
+  if(busy||!text.trim())return;busy=true;followTail=true;abortCtl=new AbortController();setSendBtn(true);
   let bid=opts.branchId||currentBranchId();
   const parentId=opts.parentId!==undefined?opts.parentId:(conv.activeNodeId);
   if(B(bid)&&B(bid).headNodeId!==parentId){ // 途中の回答から続ける＝その回答からの分岐
@@ -708,14 +711,26 @@ async function send(text,opts={}){
   delete a.streaming;persist();renderAll();
   const u2=a.usage?` / 実トークン in ${a.usage.input_tokens||0}+cache ${a.usage.cache_read_input_tokens||0} out ${a.usage.output_tokens||0}`:'';
   setStatus(`完了 概算 ${ctx.tokens} tok${u2}`);
-  busy=false;abortCtl=null;setSendBtn(false);
+  busy=false;abortCtl=null;setSendBtn(false);updateJumpBtn();
   updateSummary(bid);
   fillShortGists();ensureGists();
 }
 function setStatus(s){$('#status').innerHTML=`<span>${esc(s)}</span>${settings.web?'<span class="ui">🌐 Web検索オン</span>':''}${(settings.mcp||[]).length?`<span class="ui">🔌 MCP ${settings.mcp.length}件</span>`:''}<span><span class="ui">接続:</span> ${settings.provider==='api'?'Claude API':settings.provider==='bridge'?'ブリッジ(定額)':'ダミー'} / ${esc(effLabel(effectiveBranchForSend()))}</span><a href="#" id="ctxLink" class="ui">送信コンテキストを見る</a>`;
   $('#ctxLink').onclick=e=>{e.preventDefault();const c=buildContext(conv.activeNodeId);$('#ctxPre').textContent=c.system+'\n\n===== messages ('+c.messages.length+') =====\n'+c.messages.map(m=>`[${m.role}] ${excerpt(m.content,200)}`).join('\n');$('#ctxDlg').showModal();};
 }
-function autoScroll(){const m=$('#msgs');if(m.scrollHeight-m.scrollTop-m.clientHeight<200)m.scrollTop=m.scrollHeight;}
+/* 生成中の自動スクロール: 利用者が上へ動かしたら追従をやめ、末尾まで戻したら再開する */
+let followTail=true,lastMsgsTop=0;
+function autoScroll(){if(!followTail)return;const m=$('#msgs');m.scrollTop=m.scrollHeight;lastMsgsTop=m.scrollTop;}
+function updateJumpBtn(){const b=$('#jumpBtn');if(b)b.classList.toggle('show',busy&&!followTail);}
+function stopFollow(){if(followTail){followTail=false;updateJumpBtn();}}
+(function(){const m=$('#msgs');
+  m.addEventListener('wheel',e=>{if(e.deltaY<0)stopFollow();},{passive:true});
+  m.addEventListener('touchstart',()=>{if(busy)stopFollow();},{passive:true});
+  m.addEventListener('mousedown',()=>{if(busy)stopFollow();}); // 文字の選択やスクロールバーのドラッグ
+  m.addEventListener('keydown',e=>{if(['PageUp','ArrowUp','Home'].includes(e.key))stopFollow();});
+  m.addEventListener('scroll',()=>{const down=m.scrollTop>lastMsgsTop;lastMsgsTop=m.scrollTop;if(!followTail&&down&&m.scrollHeight-m.scrollTop-m.clientHeight<40){followTail=true;updateJumpBtn();}},{passive:true});
+  $('#jumpBtn').onclick=()=>{followTail=true;updateJumpBtn();m.scrollTo({top:m.scrollHeight,behavior:'smooth'});};
+})();
 
 /* ========== 描画: フォーカス ========== */
 function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderModelBtn();renderWebBtn();renderMcpBtn();if($('#overview').classList.contains('on'))renderOverview();}
@@ -751,7 +766,7 @@ function renderFocus(){
     if(kids.length)html+=`<div class="badges"><span class="ui">→ ここから分岐:</span> ${kids.map(k=>`<span class="chip${k.status==='closed'?' closed':''}" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}${isEmptyBranch(k)?'（未開始）':''}</span>${isEmptyBranch(k)?`<button class="small" data-cancelbr="${k.id}" title="この未開始の分岐を取り消す">✕ 取り消す</button>`:''}`).join('')}</div>`;
   }
   if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答の下にある「⑂ ここから分岐」で話題を分けられます。<div class="editBtns"><span class="hint ui">使い方を試すなら</span><button class="small" id="demoBtn2">デモ会話を読み込む</button></div>${IS_DESKTOP&&!bridgeOk?`<div style="margin-top:10px;padding:10px 12px;border:1.5px solid var(--ystroke);border-radius:10px;background:#fffbe6"><b class="ui">AIに接続する準備が必要です</b><br>Claude か ChatGPT（Codex）のどちらかにログインすると使えます。手順は画面の案内に沿って進められます。<div class="editBtns"><button class="small primary" id="tutConnectBtn">接続の手順を見る</button></div></div>`:''}</div></div>`;
-  const m=$('#msgs');const stick=m.scrollHeight-m.scrollTop-m.clientHeight<200;
+  const m=$('#msgs');const stick=busy?followTail:(m.scrollHeight-m.scrollTop-m.clientHeight<200);const keepTop=m.scrollTop;
   m.innerHTML=html+'<div id="tailSpace"></div>';
   updateTailSpace();
   m.querySelectorAll('[data-fork]').forEach(el=>el.onclick=()=>openFork(el.dataset.fork));
@@ -764,7 +779,7 @@ function renderFocus(){
   const d2=document.getElementById('demoBtn2');if(d2)d2.onclick=loadDemo;
   const tcb=document.getElementById('tutConnectBtn');if(tcb)tcb.onclick=()=>openTut(1);
   m.querySelectorAll('.badges .chip').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.b));
-  if(stick)m.scrollTop=m.scrollHeight;
+  if(stick)m.scrollTop=m.scrollHeight;else if(busy)m.scrollTop=keepTop; // 途中を読んでいるときは位置を保つ
   if(!busy)setStatus(`概算 ${buildContext(conv.activeNodeId).tokens} tok を次回送信`);
 }
 
@@ -871,9 +886,10 @@ function updateTailSpace(){
   const m=$('#msgs');const sp=document.getElementById('tailSpace');if(!sp)return;
   const el=conv._anchor?document.getElementById('n-'+conv._anchor):null;
   if(!el){sp.style.height='0px';return;}
-  sp.style.height='0px';
+  const st=m.scrollTop;sp.style.height='0px';
   const below=m.scrollHeight-el.offsetTop; // アンカー上端から内容末尾まで
   sp.style.height=Math.max(0,m.clientHeight-below+8)+'px';
+  if(m.scrollTop!==st)m.scrollTop=st; // 高さ0の瞬間に位置が詰められるのを戻す
 }
 function scrollAnchorToTop(flash){
   const m=$('#msgs');const el=conv._anchor?document.getElementById('n-'+conv._anchor):null;if(!el)return;
