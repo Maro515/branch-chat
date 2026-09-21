@@ -333,6 +333,13 @@ body.sideDragging{cursor:col-resize;user-select:none}
 #sideToggle{padding:2px 8px;font-size:15px;line-height:1.3}
 @media (max-width:760px){#sideGrip{display:none}#side{width:min(86vw,var(--sideW,248px));position:absolute;left:0;top:0;bottom:0;z-index:20;box-shadow:8px 0 30px rgba(0,0,0,.5);background:rgba(6,16,36,.97)}}
 
+/* ===== バックアップ・引継ぎ ===== */
+#bkDlg{width:min(600px,94vw)}
+#bkDlg .bkbody{font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13.5px;line-height:1.75}
+#bkDlg .bkrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
+#bkDlg .bkrow button{min-width:220px;text-align:left}
+#bkDlg ul{margin:12px 0 0;padding-left:1.3em}
+
 /* ===== 整理ダイアログ ===== */
 #tidyDlg{width:min(760px,94vw)}
 #tidyDlg .trow{display:flex;gap:10px;align-items:center;margin-bottom:8px}
@@ -414,8 +421,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <button class="ui" data-view="know"><i></i>知識マップ<small>全会話の関連</small></button>
     </div>
   </div>
-  <button class="small" id="exportBtn">書き出し</button>
-  <button class="small" id="importBtn">読み込み</button>
+  <button class="small" id="bkBtn" title="すべての会話をファイルに書き出す・別の端末から読み込む">バックアップ・引継ぎ</button>
   <button class="small" id="helpBtn" title="チュートリアルを開く">？ 使い方</button>
   <button class="small" id="settingsBtn">⚙ 設定</button>
 </header>
@@ -437,7 +443,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div id="imgStrip"></div>
       <div class="row">
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
-          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="exportDocxBtn" class="prow"><span class="ui">📄 このブランチを Word 文書に</span><span class="st ui">.docx</span></button><button id="exportPptxBtn" class="prow"><span class="ui">📊 このブランチをスライドに</span><span class="st ui">.pptx</span></button><button id="ctxBtn" class="prow"><span class="ui">📋 送信コンテキストを見る</span><span class="st ui">AIに渡る内容</span></button></div></div>
+          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden></div></div>
         <textarea id="input" rows="1" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）"></textarea>
         <div class="sendCol"><div id="modelPop"></div><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
@@ -496,6 +502,22 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   <div class="trow"><span class="ui">よく似たブランチ</span><span class="seg" id="tidyThr"><button class="ui" data-t="80">80%以上</button><button class="ui" data-t="90">90%以上</button></span></div>
   <div id="tidyBody"></div>
   <div class="btns"><button id="tidyClose">閉じる</button></div>
+</dialog>
+<dialog id="bkDlg">
+  <h2>バックアップ・引継ぎ</h2>
+  <div class="bkbody">
+    <p>会話をファイルにまとめて、別のパソコンや別の版の BranCHAT へ移せます。</p>
+    <div class="bkrow"><button class="primary" id="bkAll">すべての会話を書き出す</button><span class="hint var" id="bkCount"></span></div>
+    <div class="bkrow"><button id="bkOne">今の会話だけ書き出す</button><span class="hint ui">人に渡すときなど</span></div>
+    <div class="bkrow"><button id="bkImport">ファイルから読み込む</button><span class="hint ui">上のどちらのファイルも読み込めます</span></div>
+    <input type="file" id="bkFile" accept=".json,application/json" hidden>
+    <ul class="hint">
+      <li>ファイルに入るもの: すべての会話（全ブランチ・要約・分岐予定・モデル設定）と、知識マップの関連度。</li>
+      <li>入らないもの: 設定と各種のキー。移した先で入れ直してください。添付画像は表示用の縮小版だけです。</li>
+      <li>読み込みは<b>足し合わせ</b>です。今ある会話は消えません。同じ会話が両方にあるときは、最後の発言が新しい方を残します。</li>
+    </ul>
+  </div>
+  <div class="btns"><button id="bkClose">閉じる</button></div>
 </dialog>
 <dialog id="qDlg">
   <h2 id="qTitle">確認</h2>
@@ -906,7 +928,6 @@ function renderFocus(){
   m.querySelectorAll('[data-plan]').forEach(el=>el.onclick=()=>togglePlan(el.dataset.plan));
   m.querySelectorAll('[data-cancelbr]').forEach(el=>el.onclick=e=>{e.stopPropagation();const id=el.dataset.cancelbr;if(conv._pendingBranch===id)cancelBranch(id);else{const b=B(id);if(b&&isEmptyBranch(b)){const name=b.name;delete conv.branches[id];persist();renderAll();toast(`分岐「${name}」を取り消しました`);}}});
   m.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>openEdit(el.dataset.edit));
-  m.querySelectorAll('[data-export]').forEach(el=>el.onclick=()=>{const [kind,id]=el.dataset.export.split(':');exportDoc(kind,{node:id});});
   const d2=document.getElementById('demoBtn2');if(d2)d2.onclick=loadDemo;
   m.querySelectorAll('.badges .chip').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.b));
   if(stick)m.scrollTop=m.scrollHeight;else if(busy)m.scrollTop=keepTop; // 途中を読んでいるときは位置を保つ
@@ -1408,6 +1429,44 @@ $('#knowTidy').onclick=()=>{renderTidy();$('#tidyDlg').showModal();};
 $('#tidyClose').onclick=()=>$('#tidyDlg').close();
 $('#tidyThr').querySelectorAll('button').forEach(b=>b.onclick=()=>{tidyThr=+b.dataset.t;renderTidy();});
 
+/* ========== バックアップ・引継ぎ ========== */
+function bkStamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;}
+function bkUsed(){return Object.values(convs).filter(c=>c.order&&c.order.length);}
+async function exportAllConvs(){
+  const list=bkUsed();if(!list.length){toast('書き出す会話がまだありません');return;}
+  const cs={};for(const c of list)cs[c.id]=c;
+  const alive=new Set();for(const c of list)for(const b of Object.keys(c.branches))alive.add(c.id+'/'+b);
+  const lk={};for(const [k,v] of Object.entries(links)){const [a,b]=k.split('|');if(alive.has(a)&&alive.has(b))lk[k]=v;}
+  await saveTextFile(`BranCHAT-backup_${bkStamp()}.json`,JSON.stringify({app:'BranCHAT',kind:'backup',format:1,exportedAt:Date.now(),active:conv.id,convs:cs,links:lk}));
+}
+async function exportOneConv(){if(!conv.order.length){toast('今の会話はまだ空です');return;}await saveTextFile(`BranCHAT_${conv.title.replace(/[\\/:*?"<>|]/g,'_')}.json`,JSON.stringify(conv,null,1));}
+async function importBackupText(text){
+  let j;try{j=JSON.parse(text);}catch(e){toast('読み込めませんでした（BranCHAT のファイルではありません）');return;}
+  const okConv=c=>c&&typeof c==='object'&&c.nodes&&c.branches&&c.branches.main&&Array.isArray(c.order);
+  let incoming=[],inLinks=null;
+  if(j&&j.kind==='backup'&&j.convs&&typeof j.convs==='object'){incoming=Object.values(j.convs).filter(okConv);inLinks=j.links&&typeof j.links==='object'?j.links:null;}
+  else if(okConv(j)){if(!j.id)j.id=uid();incoming=[j];}
+  if(!incoming.length){toast('読み込めませんでした（会話が入っていません）');return;}
+  if(busy){toast('生成中は読み込めません。完了か停止のあとで行ってください');return;}
+  const add=[],upd=[],keep=[];
+  for(const c of incoming){const cur=convs[c.id];if(!cur||!(cur.order&&cur.order.length))add.push(c);else if(convLastTs(c)>convLastTs(cur)||(convLastTs(c)===convLastTs(cur)&&c.order.length>cur.order.length))upd.push(c);else keep.push(c);}
+  if(!add.length&&!upd.length){toast(`読み込む必要のある会話はありませんでした（${keep.length}件はこちらが同じか新しい内容です）`);return;}
+  const msg=`ファイルの会話 ${incoming.length} 件を読み込みます。\n・新しく加わる会話: ${add.length} 件\n・ファイルの方が新しいので置き換える会話: ${upd.length} 件\n・こちらが同じか新しいのでそのままの会話: ${keep.length} 件\n今ある会話は消えません。続けますか？`;
+  if(!(await askConfirm(msg,'読み込む')))return;
+  for(const c of add.concat(upd)){delete c._pendingBranch;delete c._anchor;convs[c.id]=c;storeDirty.add(c.id);}
+  if(inLinks){for(const [k,v] of Object.entries(inLinks))if(v&&typeof v.s==='number'&&(!links[k]||(v.ts||0)>(links[k].ts||0)))links[k]=v;saveLinks();}
+  if(!conv.order.length||incoming.length===1){const first=(add.concat(upd)).sort((a,b)=>convLastTs(b)-convLastTs(a))[0];if(first)conv=convs[first.id];}
+  persist();scheduleStore();pruneLinks();$('#bkDlg').close();showFocus();toast(`読み込みました（追加 ${add.length} 件・置き換え ${upd.length} 件）`);
+}
+$('#bkBtn').onclick=()=>{const n=bkUsed().length;$('#bkCount').textContent=`${n} 件の会話`;$('#bkDlg').showModal();};
+$('#bkClose').onclick=()=>$('#bkDlg').close();
+$('#bkAll').onclick=exportAllConvs;$('#bkOne').onclick=exportOneConv;
+$('#bkImport').onclick=()=>$('#bkFile').click();
+$('#bkFile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const r=new FileReader();r.onload=()=>importBackupText(String(r.result||''));r.onerror=()=>toast('ファイルを読めませんでした');r.readAsText(f);};
+
+async function saveTextFile(fn,data){let dl=null;try{dl=(window.claude&&window.claude.use)?await window.claude.use('downloads'):null;}catch(e){}
+  if(dl){try{await dl.save({filename:fn,data});toast('保存しました');}catch(e){if(e&&e.code!=='declined')toast('保存できませんでした: '+(e.code||''));}}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=fn;a.click();}}
 /* ========== イベント ========== */
 $('#sendBtn').onclick=()=>{if(busy){if(abortCtl)abortCtl.abort();return;}const t=$('#input').value;if(!t.trim()&&!pendingImgs.length)return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';fitInput();const imgs=pendingImgs;pendingImgs=[];renderPlus();send(t.trim()||'（画像を添付）',{branchId:bid,parentId:conv.activeNodeId,images:imgs});};
 $('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!busy)$('#sendBtn').click();}});
@@ -1436,10 +1495,6 @@ applySideW(settings.sideW||SIDE_DEF);
   g.addEventListener('dblclick',()=>{settings.sideW=SIDE_DEF;saveSettings();applySideW(SIDE_DEF);});
 })();
 document.body.classList.toggle('sideHidden',settings.sideHidden===undefined?innerWidth<=760:!!settings.sideHidden);
-$('#exportBtn').onclick=async()=>{const data=JSON.stringify(conv,null,1);const fn=`branch-chat_${conv.title}.json`;let dl=null;try{dl=(window.claude&&window.claude.use)?await window.claude.use('downloads'):null;}catch(e){}
-  if(dl){try{await dl.save({filename:fn,data});toast('保存しました');}catch(e){if(e&&e.code!=='declined')toast('保存できませんでした: '+(e.code||''));}}
-  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=fn;a.click();}};
-$('#importBtn').onclick=()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const f=i.files[0];const r=new FileReader();r.onload=()=>{try{const c=JSON.parse(r.result);if(!c.nodes||!c.branches)throw 0;c.id=c.id||uid();convs[c.id]=c;conv=c;persist();showFocus();toast('読み込みました');}catch(e){toast('読み込み失敗');}};r.readAsText(f);};i.click();};
 $('#settingsBtn').onclick=async()=>{await probeClaude();$('#sProvider').value=settings.provider;$('#sTier').value=settings.tier;$('#sBudget').value=settings.budget;$('#sExtra').value=settings.extra;$('#settings').showModal();};
 $('#sCancel').onclick=()=>{$('#settings').close();refreshModelCatalog();};
 $('#sSave').onclick=()=>{settings.provider=$('#sProvider').value;settings.tier=$('#sTier').value;settings.budget=+$('#sBudget').value||40000;settings.extra=$('#sExtra').value.trim();
@@ -1666,7 +1721,7 @@ const TUT_PAGES=[
     <li>指定していない枝は<b>本線の設定</b>（さらに分岐した枝は分岐元の設定）を引き継ぎます。本線に設定すれば会話全体に効きます。</li>
     ${IS_ARTIFACT?'':'<li>Claude と GPT を枝ごとに使い分けても、どちらも他の枝の結論を把握して答えます。GPT（Codex）の回答は1文字ずつではなく、まとまって表示されます。</li>'}</ul>`}),
   ()=>({t:'データの扱い',h:`<ul><li>会話は<b>この${IS_DESKTOP?'アプリ':'ブラウザ'}の中</b>に保存されます。${IS_DESKTOP?'さらに、すべての会話をこの端末の中にファイル（JSON と、そのまま読める Markdown）として自動で記録します。保存先は「⚙ 設定」の「保存フォルダを開く」で確認できます。':''}</li>
-    <li>ヘッダーの「書き出し / 読み込み」で、会話をファイルとして持ち運べます（別の版のBranCHATへ移すときもこれを使います）。</li>
+    <li>ヘッダーの<b>「バックアップ・引継ぎ」</b>で、すべての会話を1つのファイルに書き出し、別のパソコンや別の版の BranCHAT で読み込めます。読み込みは足し合わせなので、今ある会話は消えません。</li>
     <li>会話は<b>左の一覧</b>で切り替えます。「＋ 新しい会話」で作成、各行の ✎ と 🗑 で名前の変更と削除ができます。</li>
     <li>View の<b>「知識マップ」</b>では、すべての会話の枝が点で並び、内容が近いもの同士が線で結ばれます。線が太いほど関連が強く、「整理」でよく似た枝を片付けられます。</li></ul>
     <h3 class="ui">まず試すなら</h3><p>見本の会話を読み込むと、分岐・分岐予定・要約・俯瞰図をすぐ確認できます（架空の薬剤を使った例です）。</p>
@@ -1695,22 +1750,6 @@ $('#tutNext').onclick=()=>{if(tutPage<TUT_PAGES.length-1){tutPage++;renderTut();
 $('#helpBtn').onclick=()=>openTut(0);
 
 
-/* ========== DOCX / PPTX 書き出し（デスクトップ版） ========== */
-async function exportDoc(kind,opts={}){
-  if(!IS_DESKTOP){toast('ファイルの書き出しはデスクトップ版で使えます');return;}
-  let title,sections;
-  if(opts.node){const n=N(opts.node);const q=n.parentId&&N(n.parentId)&&N(n.parentId).role==='user'?N(n.parentId).content:'';title=excerpt(gistOf(n)||q||conv.title,40);sections=[{heading:'',markdown:n.content}];}
-  else{ // ブランチ全体: 質問を見出し、回答を本文に
-    const bid=opts.branch||currentBranchId();const b=B(bid);title=`${conv.title}${bid==='main'?'':' / '+b.name}`;
-    const path=b.headNodeId?ancestors(b.headNodeId):[];sections=[];let q='';
-    for(const n of path){if(n.role==='user'){q=n.content;}else if(n.role==='assistant'&&!isDeadNode(n)){sections.push({heading:excerpt(q,60),markdown:n.content});}}
-    if(!sections.length){toast('書き出す回答がありません');return;}
-  }
-  toast(kind==='pptx'?'スライドを作成中…':'文書を作成中…');
-  try{const r=await(await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,title,sections})})).json();
-    if(r.ok){lastExportPath=r.path;toast(`保存しました: ${r.path.split('/').pop()}`);}else if(!r.canceled)toast('作成できませんでした: '+(r.error||''));}
-  catch(e){toast('作成できませんでした');}
-}
 let lastExportPath=null;
 
 /* ========== ＋メニュー・画像添付 ========== */
@@ -1720,7 +1759,6 @@ probeClaude().then(async fn=>{if(!fn)return;try{const l=await fn.limits();images
 function renderPlus(){const web=!!settings.web&&!IS_ARTIFACT;const n=(settings.mcp||[]).length;const wb=$('#webBtn'),mb=$('#mcpBtn');
   if(wb){wb.hidden=IS_ARTIFACT;wb.className='prow'+(web?' on':'');wb.innerHTML=`<span class="ui">🌐 Web検索</span><span class="st ui">${web?'オン':'オフ'}</span>`;}
   if(mb){const show=!IS_ARTIFACT&&settings.provider==='bridge';mb.hidden=!show;mb.className='prow'+(n?' on':'');mb.innerHTML=`<span class="ui">🔌 連携ツール（MCP）</span><span class="st ui">${n?n+'件を使用':'選ぶ'}</span>`;}
-  const ed=$('#exportDocxBtn'),ep=$('#exportPptxBtn');if(ed)ed.hidden=!IS_DESKTOP;if(ep)ep.hidden=!IS_DESKTOP;
   const ib=$('#imgBtn');if(ib){ib.hidden=!imagesSupported;ib.className='prow';ib.innerHTML=`<span class="ui">🖼 画像を添付</span><span class="st ui">${pendingImgs.length?pendingImgs.length+'枚':'ファイル / 貼り付け / ドロップ'}</span>`;}
   renderImgStrip();
 }
@@ -1732,9 +1770,6 @@ async function addImages(files){if(!imagesSupported){toast('この接続方式�
 function imgsHTML(n){return (n.images&&n.images.length)?`<div class="imgs">${n.images.map(t=>`<img src="${t}" alt="添付画像">`).join('')}</div>`:'';}
 $('#plusBtn').onclick=e=>{e.stopPropagation();$('#modelPop').classList.remove('on');renderPlus();$('#plusPop').classList.toggle('on');};
 document.addEventListener('click',e=>{if(!e.target.closest('#plusPop')&&!e.target.closest('#plusBtn')){$('#plusPop').classList.remove('on');}});
-$('#exportDocxBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');exportDoc('docx',{});};
-$('#exportPptxBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');exportDoc('pptx',{});};
-$('#ctxBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');const l=document.getElementById('ctxLink');if(l)l.click();};
 $('#imgBtn').onclick=e=>{e.stopPropagation();$('#imgFile').click();};
 $('#imgFile').onchange=async()=>{await addImages($('#imgFile').files);$('#imgFile').value='';};
 $('#input').addEventListener('paste',e=>{const fs=[...(e.clipboardData&&e.clipboardData.files||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();addImages(fs);}});

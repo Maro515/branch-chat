@@ -8,7 +8,6 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const engines = require('./engines');
-const exporter = require('./export');
 
 const APP_DIR = path.join(__dirname, 'app');
 const ORIGIN = 'app://branchat';
@@ -30,21 +29,6 @@ async function handle(request) {
 
   if (url.pathname === '/api/mcp') return Response.json({ servers: await engines.mcpServers(url.searchParams.get('force') === '1') });
 
-  if (url.pathname === '/api/export') { // 回答やブランチを DOCX / PPTX に。保存先は利用者が選ぶ
-    if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
-    let b; try { b = await request.json(); } catch (e) { return new Response('bad request', { status: 400 }); }
-    const kind = b.kind === 'pptx' ? 'pptx' : 'docx';
-    const title = String(b.title || 'BranCHAT').slice(0, 80);
-    const safe = title.replace(/[\\/:*?"<>|]/g, '_').trim() || 'BranCHAT';
-    try {
-      const buf = kind === 'pptx' ? await exporter.toPptx({ title, sections: b.sections || [] }) : await exporter.toDocx({ title, sections: b.sections || [] });
-      const win = BrowserWindow.getAllWindows()[0];
-      const r = await dialog.showSaveDialog(win, { title: kind === 'pptx' ? 'スライドを保存' : '文書を保存', defaultPath: path.join(app.getPath('documents'), `${safe}.${kind}`), filters: [{ name: kind.toUpperCase(), extensions: [kind] }] });
-      if (r.canceled || !r.filePath) return Response.json({ ok: false, canceled: true });
-      fs.writeFileSync(r.filePath, buf);
-      return Response.json({ ok: true, path: r.filePath });
-    } catch (e) { return Response.json({ ok: false, error: String(e && e.message || e) }); }
-  }
   if (url.pathname === '/api/open') { // 保存したファイルやフォルダを開く（このアプリが作ったパスだけ）
     if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
     let b = {}; try { b = await request.json(); } catch (e) { /* 空でよい */ }
@@ -239,6 +223,15 @@ async function runSmoke(win) {
         ev('pointerdown',380);ev('pointermove',60);ev('pointerup',60);r.layout.hiddenByDrag=document.body.classList.contains('sideHidden');
         document.querySelector('#sideToggle').click();r.layout.reopened=!document.body.classList.contains('sideHidden');r.layout.widthKept=Math.round(document.querySelector('#side').getBoundingClientRect().width);
         document.querySelector('#sideHide').click();r.layout.hiddenByButton=document.body.classList.contains('sideHidden');document.querySelector('#sideToggle').click();
+      }
+      if(${process.env.SMOKE_BK === '1'}){ // バックアップ・引継ぎ: 全会話の書き出し→消す→読み込みで戻る
+        let saved=null;const orig=saveTextFile;window.saveTextFile=async(fn,data)=>{saved={fn,data};};
+        const mk=async(t,q)=>{conv=newConversation(t);persist();await send(q);};await mk('引継ぎテスト','別の端末へ移す会話');
+        const before=bkUsed().length;await exportAllConvs();const j=JSON.parse(saved.data);
+        const victim=Object.values(convs).find(c=>c.title==='引継ぎテスト').id;delete convs[victim];conv=Object.values(convs)[0];persist();
+        const pr=importBackupText(saved.data);await new Promise(x=>setTimeout(x,300));const msg=document.querySelector('#qMsg').textContent;document.querySelector('#qOk').click();await pr;
+        r.bk={file:saved.fn,kind:j.kind,convsInFile:Object.keys(j.convs).length,hasSettings:'settings' in j||/jevKey|apiKey/.test(saved.data),before,afterDelete:before-1,afterImport:bkUsed().length,restored:!!convs[victim],confirm:msg.split(String.fromCharCode(10)).join(' / '),plusItems:[...document.querySelectorAll('#plusPop > button')].map(b=>b.id),headerHasOld:!!document.querySelector('#exportBtn,#importBtn')};
+        await new Promise(x=>setTimeout(x,400));document.querySelector('#bkBtn').click();await new Promise(x=>setTimeout(x,300));r.bk.openDialogs=[...document.querySelectorAll('dialog[open]')].map(d=>d.id);
       }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);

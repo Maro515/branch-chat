@@ -1,7 +1,7 @@
 {
   "name": "branchat-desktop",
   "productName": "BranCHAT",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "分岐型AIチャット BranCHAT のデスクトップ版（Claude CLI / Codex CLI のログインで動作）",
   "main": "main.js",
   "private": true,
@@ -35,7 +35,6 @@
       "engines.js",
       "codex-server.js",
       "claude-session.js",
-      "export.js",
       "app/**/*",
       "package.json"
     ],
@@ -61,8 +60,5 @@
       ]
     }
   },
-  "dependencies": {
-    "docx": "^9.7.1",
-    "pptxgenjs": "^3.12.0"
-  }
+  "dependencies": {}
 }
