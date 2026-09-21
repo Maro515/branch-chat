@@ -192,13 +192,15 @@ header{z-index:5}
 @media (prefers-reduced-motion:reduce){.msg.anchorFlash{animation:none}}
 
 /* ===== 通常のチャット配置: 自分=右 / AI=左 ===== */
-#msgs{display:flex;flex-direction:column;--gut:max(16px,calc((100% - 860px)/2))}
-.msg{width:fit-content;min-width:min(240px,80%);max-width:min(78%,680px);margin:0 auto 12px var(--gut)}
-.msg.user{margin:0 var(--gut) 12px auto;border-left:1.5px solid var(--line);border-right:6px solid var(--bc);border-radius:14px 14px 4px 14px;background:var(--user)}
+/* 右の余白はミニ俯瞰図のぶん（最大170px）を確保し、残りの幅の中で本文（最大860px）を中央に置く＝全体として少し左寄り。狭い画面では左右16pxに戻る */
+#focus{--gutR:clamp(16px,calc(100% - 720px),170px);--gutL:max(16px,calc((100% - 860px - var(--gutR))/2))}
+#msgs{display:flex;flex-direction:column}
+.msg{width:fit-content;min-width:min(240px,80%);max-width:min(78%,680px);margin:0 auto 12px var(--gutL)}
+.msg.user{margin:0 var(--gutR) 12px auto;border-left:1.5px solid var(--line);border-right:6px solid var(--bc);border-radius:14px 14px 4px 14px;background:var(--user)}
 .msg:not(.user){border-radius:14px 14px 14px 4px}
 .msg.user .meta{justify-content:flex-end}
 .msg.editing{width:min(78%,680px)}
-.badges,.divider{max-width:none;margin-left:var(--gut);margin-right:var(--gut)}
+.badges,.divider{max-width:none;margin-left:var(--gutL);margin-right:var(--gutR)}
 .badges{padding-left:6px}
 #msgs>.msg:only-of-type{max-width:min(92%,680px)}
 @media (max-width:600px){.msg{max-width:92%}.msg.editing{width:92%}}
@@ -219,7 +221,7 @@ header{z-index:5}
 #modelPop .res b{font-family:"Noto Sans JP",sans-serif}
 
 /* ===== AIの回答は枠なし・列幅いっぱい（自分の発言は右の吹き出しのまま） ===== */
-.msg:not(.user){width:auto;min-width:0;max-width:none;margin:0 var(--gut) 16px var(--gut);padding:4px 2px;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none}
+.msg:not(.user){width:auto;min-width:0;max-width:none;margin:0 var(--gutR) 16px var(--gutL);padding:4px 2px;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none}
 .msg:not(.user) .tools{justify-content:flex-start;border-top:0;padding-top:0;margin-top:10px}
 .msg:not(.user).planned{background:#fffbe6;border-radius:12px;padding:10px 14px;box-shadow:0 0 0 2px rgba(245,196,0,.5)}
 .msg:not(.user).anchorFlash{border-radius:12px}
@@ -293,6 +295,7 @@ header{z-index:5}
 #composer.dragover{outline:2px dashed var(--c1);outline-offset:-4px}
 #status{display:none}
 #composer{padding-bottom:6px;position:relative}
+#composer .row{max-width:none;margin:0 calc(var(--gutR) - 14px) 0 calc(var(--gutL) - 14px)} /* 入力欄も本文と同じ位置にそろえる */
 #jumpBtn{position:absolute;left:50%;top:-38px;transform:translateX(-50%);display:none;background:#fff;color:var(--indigo);border:1.5px solid var(--indigo);border-radius:999px;padding:4px 14px;box-shadow:0 4px 14px rgba(30,58,110,.22);z-index:6}
 #jumpBtn.show{display:inline-block}
 #focus{position:relative}
@@ -302,10 +305,16 @@ header{z-index:5}
 @media (max-width:1060px){#miniMap{opacity:.75;transform:scale(.85);transform-origin:top right}#miniMap:hover{opacity:1}} /* 狭い画面では右の吹き出しに重なるので控えめに */
 /* ===== 左の会話一覧（サイドバー） ===== */
 main{position:relative}
-#side{width:248px;flex:none;display:flex;flex-direction:column;border-right:1px solid var(--line);background:rgba(6,16,36,.72);backdrop-filter:blur(8px);min-height:0}
-body.sideHidden #side{display:none}
+#side{width:var(--sideW,248px);flex:none;display:flex;flex-direction:column;border-right:1px solid var(--line);background:rgba(6,16,36,.72);backdrop-filter:blur(8px);min-height:0}
+body.sideHidden #side,body.sideHidden #sideGrip{display:none}
+#sideGrip{flex:none;width:7px;margin:0 -3px;cursor:col-resize;position:relative;z-index:6;touch-action:none}
+#sideGrip::after{content:"";position:absolute;left:3px;top:0;bottom:0;width:1px;background:transparent;transition:.12s}
+#sideGrip:hover::after,#sideGrip.drag::after{left:2px;width:3px;background:var(--glow);box-shadow:0 0 10px rgba(76,201,255,.6)}
+body.sideDragging{cursor:col-resize;user-select:none}
+#side .sideHead{display:flex;gap:6px}
+#side .sideHead #sideHide{flex:none;width:auto;padding:7px 10px}
 #side .sideHead{padding:8px 10px;border-bottom:1px solid var(--line)}
-#side .sideHead button{width:100%;text-align:left;padding:7px 12px}
+#side .sideHead button{flex:1;text-align:left;padding:7px 12px}
 #convList{flex:1;overflow-y:auto;padding:6px}
 .citem{display:flex;align-items:center;gap:6px;padding:7px 8px 7px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;color:var(--ink);font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13px;line-height:1.35}
 .citem:hover{background:rgba(76,201,255,.1);border-color:var(--line)}
@@ -322,7 +331,7 @@ body.sideHidden #side{display:none}
 #stageBody{flex:1;min-height:0;display:flex}
 #stage.know #branchBar{display:none}
 #sideToggle{padding:2px 8px;font-size:15px;line-height:1.3}
-@media (max-width:760px){#side{position:absolute;left:0;top:0;bottom:0;z-index:20;box-shadow:8px 0 30px rgba(0,0,0,.5);background:rgba(6,16,36,.97)}}
+@media (max-width:760px){#sideGrip{display:none}#side{width:min(86vw,var(--sideW,248px));position:absolute;left:0;top:0;bottom:0;z-index:20;box-shadow:8px 0 30px rgba(0,0,0,.5);background:rgba(6,16,36,.97)}}
 
 /* ===== 整理ダイアログ ===== */
 #tidyDlg{width:min(760px,94vw)}
@@ -412,9 +421,10 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 </header>
 <main>
   <aside id="side">
-    <div class="sideHead"><button class="ui" id="newConv" title="新しい会話を作成">＋ 新しい会話</button></div>
+    <div class="sideHead"><button class="ui" id="newConv" title="新しい会話を作成">＋ 新しい会話</button><button id="sideHide" title="会話一覧を隠す（左上の ☰ で戻せます）" aria-label="会話一覧を隠す">«</button></div>
     <div id="convList"></div>
   </aside>
+  <div id="sideGrip" title="ドラッグで幅を変更。ダブルクリックで元の幅" role="separator" aria-orientation="vertical"></div>
   <div id="stage">
   <div id="branchBar"></div>
   <div id="stageBody">
@@ -1411,6 +1421,20 @@ $('#newConv').onclick=async()=>{
   conv=newConversation();persist();showFocus();$('#input').focus();
 };
 $('#sideToggle').onclick=()=>setSide(document.body.classList.contains('sideHidden'));
+$('#sideHide').onclick=()=>setSide(false);
+// 会話一覧の幅: 境目をドラッグして変える。細くしすぎたら隠す。ダブルクリックで元の幅
+const SIDE_MIN=180,SIDE_MAX=520,SIDE_DEF=248;
+function applySideW(w){document.body.style.setProperty('--sideW',Math.max(SIDE_MIN,Math.min(SIDE_MAX,Math.round(w)))+'px');}
+applySideW(settings.sideW||SIDE_DEF);
+(function(){const g=$('#sideGrip');let drag=false,hide=false;
+  g.addEventListener('pointerdown',e=>{drag=true;hide=false;g.setPointerCapture(e.pointerId);g.classList.add('drag');document.body.classList.add('sideDragging');e.preventDefault();});
+  g.addEventListener('pointermove',e=>{if(!drag)return;const x=e.clientX-$('main').getBoundingClientRect().left;hide=x<SIDE_MIN-70;$('#side').style.opacity=hide?'.35':'';applySideW(x);});
+  const end=()=>{if(!drag)return;drag=false;g.classList.remove('drag');document.body.classList.remove('sideDragging');$('#side').style.opacity='';
+    if(hide){setSide(false);applySideW(settings.sideW||SIDE_DEF);}else{settings.sideW=parseInt(getComputedStyle(document.body).getPropertyValue('--sideW'))||SIDE_DEF;saveSettings();}
+    renderMini();if($('#know').classList.contains('on'))renderKnow();};
+  g.addEventListener('pointerup',end);g.addEventListener('pointercancel',end);
+  g.addEventListener('dblclick',()=>{settings.sideW=SIDE_DEF;saveSettings();applySideW(SIDE_DEF);});
+})();
 document.body.classList.toggle('sideHidden',settings.sideHidden===undefined?innerWidth<=760:!!settings.sideHidden);
 $('#exportBtn').onclick=async()=>{const data=JSON.stringify(conv,null,1);const fn=`branch-chat_${conv.title}.json`;let dl=null;try{dl=(window.claude&&window.claude.use)?await window.claude.use('downloads'):null;}catch(e){}
   if(dl){try{await dl.save({filename:fn,data});toast('保存しました');}catch(e){if(e&&e.code!=='declined')toast('保存できませんでした: '+(e.code||''));}}

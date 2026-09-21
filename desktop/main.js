@@ -229,6 +229,17 @@ async function runSmoke(win) {
         await flushStore();const st=await (await fetch('/api/store')).json();const one=Object.values(st.convs).find(c=>c.title==='生存時間解析の相談');
         r.store={dir:st.dir,files:Object.keys(st.convs).length,inApp:Object.keys(convs).length,hasNodes:!!(one&&one.order.length===2)};
       }
+      if(${process.env.SMOKE_LAYOUT === '1'}){ // 左寄せとサイドバーの幅
+        gotoBranch('main');await new Promise(x=>setTimeout(x,300));
+        const rc=e=>{const b=e.getBoundingClientRect();return [Math.round(b.left),Math.round(b.right)];};const fo=rc(document.querySelector('#focus'));
+        const ai=rc(document.querySelector('.msg:not(.user)')),us=rc(document.querySelector('.msg.user')),mm=rc(document.querySelector('#miniMap')),row=rc(document.querySelector('#composer .row'));
+        r.layout={focus:fo,ai,user:us,mini:mm,composerRow:row,overlapUserMini:us[1]>mm[0],side0:Math.round(document.querySelector('#side').getBoundingClientRect().width)};
+        const g=document.querySelector('#sideGrip');const gx=g.getBoundingClientRect().left+3;const ev=(t,x)=>g.dispatchEvent(new PointerEvent(t,{clientX:x,clientY:300,pointerId:1,bubbles:true}));
+        g.setPointerCapture=()=>{};ev('pointerdown',gx);ev('pointermove',380);ev('pointerup',380);r.layout.sideAfterDrag=Math.round(document.querySelector('#side').getBoundingClientRect().width);r.layout.saved=settings.sideW;
+        ev('pointerdown',380);ev('pointermove',60);ev('pointerup',60);r.layout.hiddenByDrag=document.body.classList.contains('sideHidden');
+        document.querySelector('#sideToggle').click();r.layout.reopened=!document.body.classList.contains('sideHidden');r.layout.widthKept=Math.round(document.querySelector('#side').getBoundingClientRect().width);
+        document.querySelector('#sideHide').click();r.layout.hiddenByButton=document.body.classList.contains('sideHidden');document.querySelector('#sideToggle').click();
+      }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     const img = await win.webContents.capturePage();
