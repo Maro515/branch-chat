@@ -344,6 +344,19 @@ body.sideDragging{cursor:col-resize;user-select:none}
 #bkDlg .bkrow button{min-width:220px;text-align:left}
 #bkDlg ul{margin:12px 0 0;padding-left:1.3em}
 
+/* ===== 俯瞰図の右欄: 何の一覧かを明示する ===== */
+.cardsHead{position:sticky;top:-10px;z-index:3;margin:-10px -10px 10px;padding:10px 12px 8px;background:#f5f8fe;border-bottom:1.5px solid var(--line)}
+.cardsHead h2{margin:0;font-size:15px;color:var(--indigo);letter-spacing:.06em;font-weight:700}
+.cardsHead p{margin:3px 0 0;font-size:11.5px;line-height:1.6;color:var(--indigo2);font-family:"Noto Sans JP","Hiragino Sans",sans-serif}
+.cardsSec{margin:12px 2px 6px;font-size:11.5px;letter-spacing:.1em;color:var(--indigo2);display:flex;align-items:center;gap:8px}
+.cardsSec::after{content:"";flex:1;border-top:1px dashed var(--line)}
+.card .lbl{font-size:10.5px;color:var(--indigo2);letter-spacing:.06em;margin-top:6px}
+details.cardsHelp{margin-top:4px;font-size:11.5px;color:var(--indigo2);font-family:"Noto Sans JP","Hiragino Sans",sans-serif}
+details.cardsHelp summary{cursor:pointer}
+details.cardsHelp dl{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:3px 8px;line-height:1.55}
+details.cardsHelp dt{font-family:"DotGothic16","Noto Sans JP",sans-serif;color:var(--indigo);white-space:nowrap}
+details.cardsHelp dd{margin:0}
+
 /* ===== 整理ダイアログ ===== */
 #tidyDlg{width:min(760px,94vw)}
 #tidyDlg .trow{display:flex;gap:10px;align-items:center;margin-bottom:8px}
@@ -1251,20 +1264,22 @@ function renderOverview(){
   const cur=currentBranchId();
   const plans=plannedNodes();
   const planCard=plans.length?`<div class="card plans"><h3 class="ui">★ 分岐予定 <span class="hint">${plans.length}件</span></h3>${plans.map(n=>`<div class="item"><span>${esc(label(n))}「${esc(excerpt(n.content,18))}」</span><span><button class="small plan" data-forkp="${n.id}">分岐する</button><button class="small" data-unplan="${n.id}">解除</button></span></div>`).join('')}</div>`:'';
-  $('#cards').innerHTML=planCard+bs.map(b=>{
+  const cardsHead=`<div class="cardsHead"><h2 class="ui">各ブランチの要約</h2><p>左の図の枝を、1本ずつ文章でまとめた一覧です。<b>AI には質問のたびにこの要約が渡されます</b>（回答のあとに自動で更新）。枝の色は左の図と同じです。</p>
+    <details class="cardsHelp"><summary class="ui">ボタンの説明</summary><dl><dt>移動</dt><dd>その枝のチャットを開く</dd><dt>📌 全文を参照</dt><dd>要約では足りないとき、その枝の全文も AI に渡す</dd><dt>終了</dt><dd>済んだ枝として薄く表示する（内容は残り、再開できる）</dd><dt>現在ブランチに合流</dt><dd>その枝の結論を、今いる枝へ取り込む</dd><dt>名前</dt><dd>枝の名前を変える</dd><dt>要約更新</dt><dd>要約を今すぐ作り直す</dd></dl></details></div>`;
+  $('#cards').innerHTML=cardsHead+(planCard?`<div class="cardsSec ui">あとで分岐する予定の回答</div>`+planCard:'')+`<div class="cardsSec ui">ブランチごとの要約（${bs.length}本）</div>`+bs.map(b=>{
     const from=b.forkFromNodeId?`${esc(label(N(b.forkFromNodeId)))}「${esc(excerpt(N(b.forkFromNodeId).content,24))}」から`:'ルート';
     const toks=branchNodes(b.id).reduce((a,n)=>a+tokensOf(n),0);
-    const sum=b.summary?`<div class="sum"><b>話題</b>${esc(b.summary.topic)}<b>結論</b>${esc(b.summary.conclusions)}<b>未解決</b>${esc(b.summary.open)}</div>`:`<div class="sum hint ui">要約未作成（AIの回答後に自動生成）</div>`;
+    const sum=b.summary?`<div class="sum"><b>話題 <span class="var" style="font-weight:400">— 何を話したか</span></b>${esc(b.summary.topic)}<b>結論 <span class="var" style="font-weight:400">— 決まったこと</span></b>${esc(b.summary.conclusions)}<b>未解決 <span class="var" style="font-weight:400">— 残っている問い</span></b>${esc(b.summary.open)}</div>`:`<div class="sum hint ui">要約未作成（AIの回答後に自動生成）</div>`;
     return `<div class="card${b.pinned?' pinned':''}" style="--bc:${b.color}"><h3>${esc(b.name)}${b.id===cur?' <span class="hint">現在</span>':''}${b.status==='closed'?' <span class="hint">終了</span>':''}</h3>
       <div class="from">${from} / ${branchNodes(b.id).length} <span class="ui">発言</span> / ${toks} tok${(validModel(b.model)||validEffort(b.effort))?` / <span title="このブランチ専用のモデル設定">⚙ ${esc(effLabel(b.id))}</span>`:''}</div>${sum}
       <div class="act">
-        <button class="small" data-go="${b.id}">移動</button>
-        <button class="small" data-pin="${b.id}">${b.pinned?'📌 参照解除':'📌 全文を参照'}</button>
-        <button class="small" data-close="${b.id}">${b.status==='closed'?'再開':'終了'}</button>
-        ${b.id!==cur&&B(cur).status!=='closed'?`<button class="small" data-merge="${b.id}">現在ブランチに合流</button>`:''}
-        <button class="small" data-rename="${b.id}">名前</button>
+        <button class="small" title="その枝のチャットを開く" data-go="${b.id}">移動</button>
+        <button class="small" title="要約では足りないとき、その枝の全文も AI に渡す" data-pin="${b.id}">${b.pinned?'📌 参照解除':'📌 全文を参照'}</button>
+        <button class="small" title="済んだ枝として薄く表示する（再開できます）" data-close="${b.id}">${b.status==='closed'?'再開':'終了'}</button>
+        ${b.id!==cur&&B(cur).status!=='closed'?`<button class="small" title="その枝の結論を、今いる枝へ取り込む" data-merge="${b.id}">現在ブランチに合流</button>`:''}
+        <button class="small" title="枝の名前を変える" data-rename="${b.id}">名前</button>
         ${isEmptyBranch(b)?`<button class="small" data-delbr="${b.id}">✕ 分岐を取り消す</button>`:''}
-        <button class="small" data-resum="${b.id}">要約更新</button>
+        <button class="small" title="要約を今すぐ作り直す" data-resum="${b.id}">要約更新</button>
       </div></div>`;}).join('');
   const c=$('#cards');
   c.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.go));

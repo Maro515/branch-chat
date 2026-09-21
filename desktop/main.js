@@ -233,6 +233,7 @@ async function runSmoke(win) {
         r.bk={file:saved.fn,kind:j.kind,convsInFile:Object.keys(j.convs).length,hasSettings:'settings' in j||/jevKey|apiKey/.test(saved.data),before,afterDelete:before-1,afterImport:bkUsed().length,restored:!!convs[victim],confirm:msg.split(String.fromCharCode(10)).join(' / '),plusItems:[...document.querySelectorAll('#plusPop > button')].map(b=>b.id),headerHasOld:!!document.querySelector('#exportBtn,#importBtn')};
         await new Promise(x=>setTimeout(x,400));document.querySelector('#bkBtn').click();await new Promise(x=>setTimeout(x,300));r.bk.openDialogs=[...document.querySelectorAll('dialog[open]')].map(d=>d.id);
       }
+      if(${process.env.SMOKE_OVER === '1'}){gotoBranch('main');showOverview();await new Promise(x=>setTimeout(x,500));r.over={head:document.querySelector('.cardsHead h2').textContent,secs:[...document.querySelectorAll('.cardsSec')].map(e=>e.textContent)};}
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     const img = await win.webContents.capturePage();
