@@ -108,6 +108,10 @@ async function handle(request) {
           if (!okId(id)) continue; const trash = path.join(dir, 'trash'); fs.mkdirSync(trash, { recursive: true });
           for (const ext of ['.json', '.md']) { const src = path.join(dir, id + ext); if (fs.existsSync(src)) fs.renameSync(src, path.join(trash, `${id}-${Date.now()}${ext}`)); }
         }
+        for (const it of (Array.isArray(b.trashCopy) ? b.trashCopy : [])) { // ブランチを消す前の会話の写し
+          if (!it || !okId(it.id) || !it.conv) continue; const trash = path.join(dir, 'trash'); fs.mkdirSync(trash, { recursive: true });
+          atomic(path.join(trash, `${it.id}-before-delete-${Date.now()}.json`), JSON.stringify(it.conv, null, 1));
+        }
         if (b.links && typeof b.links === 'object') atomic(path.join(dir, '_links.json'), JSON.stringify(b.links));
         return Response.json({ ok: true, saved, dir });
       } catch (e) { return new Response('store failed', { status: 500 }); }
@@ -213,6 +217,15 @@ async function runSmoke(win) {
         if(${process.env.SMOKE_KNOW_LIVE === '1'}){settings.provider='bridge';await probeBridge();const t=kbCache.nodes.find(n=>n.title==='ゾルミンの副作用マニュアル');const t0=performance.now();const ok=await updateLinks(t.convId,t.bid,true);settings.provider='dummy';
           r.knowLive={ok,ms:Math.round(performance.now()-t0),scores:Object.entries(links).map(([k,v])=>v.s+' '+k.split('|').map(x=>(kbCache.nodes.find(n=>n.key===x)||{}).title).join(' ↔ ')).sort((a,b)=>parseInt(b)-parseInt(a))};renderKnow();await new Promise(x=>setTimeout(x,300));}
         r.know={sideItems:document.querySelectorAll('.citem').length,nodes:kbCache.nodes.length,edges:document.querySelectorAll('#knowSvg .ke').length};
+        if(${process.env.SMOKE_TIDY === '1'}){ // 整理: よく似た組の検出と、先の枝ごとのブランチ削除
+          await mk('ゾルミンの副作用マニュアル（写し）','ゾルミンの発疹と下痢への対処を病棟マニュアルにまとめたい。ステロイド外用薬と休薬基準を整理して。');
+          const pairs=tidyPairs().map(p=>p.s+' '+p.a.title+' ↔ '+p.b.title);
+          const demo=Object.values(convs).find(c=>c.title.startsWith('【デモ】'));const fx=Object.values(demo.branches).find(x=>x.name==='副作用');
+          const before={branches:Object.keys(demo.branches).length,nodes:demo.order.length,sub:branchSubtree(demo,fx.id).length};
+          conv=demo;gotoBranch(fx.id);const pr=deleteBranchDeep(demo.id,fx.id);await new Promise(x=>setTimeout(x,300));const msg=document.querySelector('#qMsg').textContent;document.querySelector('#qOk').click();const okDel=await pr;
+          r.tidy={pairs,before,confirmMsg:msg,okDel,after:{branches:Object.keys(demo.branches).length,nodes:demo.order.length,activeOk:!!demo.nodes[demo.activeNodeId],orphans:demo.order.filter(id=>demo.nodes[id].parentId&&!demo.nodes[demo.nodes[id].parentId]).length,badBranches:Object.values(demo.branches).filter(x=>x.forkFromNodeId&&!demo.nodes[x.forkFromNodeId]).length}};
+          document.querySelector('#knowTidy').click();await new Promise(x=>setTimeout(x,300));r.tidy.dialogPairs=document.querySelectorAll('#tidyBody .tpair').length;
+        }
         await flushStore();const st=await (await fetch('/api/store')).json();const one=Object.values(st.convs).find(c=>c.title==='生存時間解析の相談');
         r.store={dir:st.dir,files:Object.keys(st.convs).length,inApp:Object.keys(convs).length,hasNodes:!!(one&&one.order.length===2)};
       }

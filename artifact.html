@@ -324,6 +324,17 @@ body.sideHidden #side{display:none}
 #sideToggle{padding:2px 8px;font-size:15px;line-height:1.3}
 @media (max-width:760px){#side{position:absolute;left:0;top:0;bottom:0;z-index:20;box-shadow:8px 0 30px rgba(0,0,0,.5);background:rgba(6,16,36,.97)}}
 
+/* ===== 整理ダイアログ ===== */
+#tidyDlg{width:min(760px,94vw)}
+#tidyDlg .trow{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+#tidyBody{max-height:60vh;overflow:auto;font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13px;line-height:1.6}
+.tpair{display:grid;grid-template-columns:64px 1fr 1fr;gap:8px;align-items:stretch;border:1px solid var(--line);border-radius:10px;padding:8px;margin-top:8px}
+.tpair .tsc{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}.tpair .tsc b{font-size:17px}.tpair .tsc span{font-size:10.5px;color:var(--muted)}
+.tside{min-width:0;border-left:1px solid var(--line);padding-left:8px}.tside .tt{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tside .tm{font-size:11.5px;color:var(--muted)}.tside .tb{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+.tnone{padding:14px 4px;color:var(--muted)}
+.tempty{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+@media (max-width:640px){.tpair{grid-template-columns:1fr}.tside{border-left:0;border-top:1px solid var(--line);padding:6px 0 0}}
+
 /* ===== 知識マップ（全会話のブランチを関連度でつなぐ） ===== */
 #know{flex:1;display:none;min-width:0;flex-direction:column;--panel:#fff;--ink:var(--indigo);--muted:var(--indigo2);--line:#b7c6e6;--glow:#3b5aa8;background:#fff;color:var(--indigo)}
 #know.on{display:flex}
@@ -430,9 +441,10 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <section id="know">
         <div id="knowBar">
           <span class="ui">関連度</span>
-          <span class="seg" id="knowThr"><button class="ui" data-thr="30">30%以上</button><button class="ui" data-thr="50">50%以上</button><button class="ui" data-thr="65">65%以上</button><button class="ui" data-thr="80">80%以上</button></span>
+          <span class="seg" id="knowThr"><button class="ui" data-thr="30">30%以上</button><button class="ui" data-thr="50">50%以上</button><button class="ui" data-thr="65">65%以上</button><button class="ui" data-thr="80">80%以上</button><button class="ui" data-thr="90">90%以上</button></span>
           <span class="seg" id="knowScope"><button class="ui" data-scope="all">すべての会話</button><button class="ui" data-scope="conv">この会話だけ</button></span>
           <button class="small ui" id="knowShuffle" title="点の並びを作り直す">配置し直す</button>
+          <button class="small ui" id="knowTidy" title="よく似たブランチや空の会話を片付ける">整理</button>
           <button class="small ui" id="knowAi" title="要約用のモデルで関連度を判定し直す">AIで関連度を判定</button>
           <span id="knowInfo"></span>
           <span class="spacer"></span>
@@ -469,6 +481,12 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 </dialog>
 
 
+<dialog id="tidyDlg">
+  <h2>整理</h2>
+  <div class="trow"><span class="ui">よく似たブランチ</span><span class="seg" id="tidyThr"><button class="ui" data-t="80">80%以上</button><button class="ui" data-t="90">90%以上</button></span></div>
+  <div id="tidyBody"></div>
+  <div class="btns"><button id="tidyClose">閉じる</button></div>
+</dialog>
 <dialog id="qDlg">
   <h2 id="qTitle">確認</h2>
   <div id="qMsg" style="white-space:pre-wrap;margin-bottom:6px"></div>
@@ -1288,7 +1306,7 @@ function kbLayout(nodes,edges,W,H){
   const cx=(x0+x1)/2,cy=(y0+y1)/2;for(const p of P){p.x=W/2+(p.x-cx)*sx;p.y=(padT+(H-padB))/2+(p.y-cy)*sy;}
   return P;
 }
-function knowThr(){return [30,50,65,80].includes(settings.knowThr)?settings.knowThr:50;}
+function knowThr(){return [30,50,65,80,90].includes(settings.knowThr)?settings.knowThr:50;}
 function renderKnow(){
   const d=kbData();const thr=knowThr();const scope=settings.knowScope==='conv'?'conv':'all';
   const nodes=scope==='conv'?d.nodes.filter(n=>n.convId===conv.id):d.nodes;
@@ -1341,6 +1359,44 @@ $('#knowThr').querySelectorAll('button').forEach(b=>b.onclick=()=>{settings.know
 $('#knowScope').querySelectorAll('button').forEach(b=>b.onclick=()=>{settings.knowScope=b.dataset.scope;saveSettings();renderKnow();});
 $('#knowShuffle').onclick=()=>{knowSeed=(knowSeed+1)|0;renderKnow();};
 $('#knowAi').onclick=updateAllLinks;
+
+/* ========== 整理（よく似たブランチ・空の会話を片付ける） ========== */
+// あるブランチと、そこから先に分かれた枝すべて（そのブランチを消すと一緒に消えるもの）
+function branchSubtree(c,bid){const out=[bid];for(let i=0;i<out.length;i++){const ids=new Set((c.order||[]).filter(id=>c.nodes[id]&&c.nodes[id].branchId===out[i]));for(const b of Object.values(c.branches))if(b.forkFromNodeId&&ids.has(b.forkFromNodeId)&&!out.includes(b.id))out.push(b.id);}return out;}
+async function deleteBranchDeep(cid,bid){
+  const c=convs[cid];if(!c||!c.branches[bid])return false;
+  if(busy){toast('生成中は削除できません。完了か停止のあとで行ってください');return false;}
+  if(bid==='main'){await deleteConvById(cid);return !convs[cid];} // 本線を消す＝会話を消す
+  const sub=branchSubtree(c,bid);const b=c.branches[bid];
+  const nMsg=(c.order||[]).filter(id=>sub.includes(c.nodes[id].branchId)).length;
+  if(!(await askConfirm(`会話「${c.title}」のブランチ「${b.name}」（${nMsg}件の発言${sub.length>1?`、ここから分かれた枝 ${sub.length-1} 本を含む`:''}）を削除しますか？\nこの操作は元に戻せません。`,'削除する')))return false;
+  if(IS_DESKTOP){try{await fetch('/api/store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({trashCopy:[{id:cid,conv:c}]})});}catch(e){}} // 念のため、消す前の会話を trash に写す
+  const forkNode=b.forkFromNodeId;
+  c.order=(c.order||[]).filter(id=>{if(sub.includes(c.nodes[id].branchId)){delete c.nodes[id];return false;}return true;});
+  for(const id of sub)delete c.branches[id];
+  if(!c.nodes[c.activeNodeId])c.activeNodeId=(forkNode&&c.nodes[forkNode])?forkNode:(c.branches.main.headNodeId||null);
+  if(sub.includes(c._pendingBranch))delete c._pendingBranch;if(c._anchor&&!c.nodes[c._anchor])delete c._anchor;
+  persist();scheduleStore(cid);pruneLinks();renderAll();toast(`ブランチ「${b.name}」を削除しました`);return true;
+}
+let tidyThr=90;
+function tidyPairs(){const d=kbData();const out=[];for(let i=0;i<d.nodes.length;i++)for(let j=i+1;j<d.nodes.length;j++){const r=kbScore(d.nodes[i].key,d.nodes[j].key);if(r.s>=tidyThr)out.push({a:d.nodes[i],b:d.nodes[j],s:r.s,by:r.by});}return out.sort((x,y)=>y.s-x.s);}
+function renderTidy(){
+  const pairs=tidyPairs();const fmt=ts=>ts?new Date(ts).toLocaleDateString('ja-JP'):'';
+  const side=n=>{const c=convs[n.convId];const sub=n.isMain?0:branchSubtree(c,n.bid).length-1;
+    return `<div class="tside"><div class="tt">${esc(n.title)}</div><div class="tm">${n.isMain?'<span class="ui">会話の本線</span>':`<span class="ui">会話</span>「${esc(n.convTitle)}」`} ・ ${n.count} <span class="ui">発言</span> ・ ${n.tokens} tok ・ ${fmt(convLastTs(c))}${sub?` ・ <span class="ui">先の枝</span> ${sub}`:''}</div>
+      <div class="tb"><button class="small" data-topen="${esc(n.key)}">開く</button><button class="small" data-tdel="${esc(n.key)}">${n.isMain?'この会話を削除':'このブランチを削除'}</button></div></div>`;};
+  const empties=Object.values(convs).filter(c=>c.id!==conv.id&&!(c.order&&c.order.length));
+  $('#tidyThr').querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.t===tidyThr));
+  $('#tidyBody').innerHTML=`<div class="hint">関連度が ${tidyThr}% 以上の組です。中身がほぼ重なっているなら、片方を消すと知識マップが見やすくなります。判定が「簡易」の組は目安なので、開いて確かめてから消してください。</div>`
+    +(pairs.length?pairs.map(p=>`<div class="tpair"><div class="tsc"><b>${p.s}%</b><span class="ui">${p.by==='jev'?'Jev':p.by==='ai'?'AI':'簡易'}</span></div>${side(p.a)}${side(p.b)}</div>`).join(''):`<div class="tnone ui">関連度 ${tidyThr}% 以上の組はありません</div>`)
+    +`<div class="tempty"><span><span class="ui">空の会話</span>（発言が1件も無い会話）: ${empties.length} <span class="ui">件</span></span>${empties.length?'<button class="small" id="tidyEmpty">まとめて削除</button>':''}</div>`;
+  $('#tidyBody').querySelectorAll('[data-topen]').forEach(el=>el.onclick=()=>{$('#tidyDlg').close();openKnowNode(el.dataset.topen);});
+  $('#tidyBody').querySelectorAll('[data-tdel]').forEach(el=>el.onclick=async()=>{const k=el.dataset.tdel;const i=k.indexOf('/');if(await deleteBranchDeep(k.slice(0,i),k.slice(i+1)))renderTidy();});
+  const te=$('#tidyEmpty');if(te)te.onclick=async()=>{if(!(await askConfirm(`空の会話 ${empties.length} 件を削除しますか？`,'削除する')))return;for(const c of empties){delete convs[c.id];storeRemoved.add(c.id);}persist();scheduleStore();renderAll();renderTidy();toast('空の会話を削除しました');};
+}
+$('#knowTidy').onclick=()=>{renderTidy();$('#tidyDlg').showModal();};
+$('#tidyClose').onclick=()=>$('#tidyDlg').close();
+$('#tidyThr').querySelectorAll('button').forEach(b=>b.onclick=()=>{tidyThr=+b.dataset.t;renderTidy();});
 
 /* ========== イベント ========== */
 $('#sendBtn').onclick=()=>{if(busy){if(abortCtl)abortCtl.abort();return;}const t=$('#input').value;if(!t.trim()&&!pendingImgs.length)return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';fitInput();const imgs=pendingImgs;pendingImgs=[];renderPlus();send(t.trim()||'（画像を添付）',{branchId:bid,parentId:conv.activeNodeId,images:imgs});};
