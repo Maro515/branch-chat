@@ -115,7 +115,7 @@ body{font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:14px}
 /* 固定のUI文言（全員に共通して表示される部分）だけドットフォント */
 .ui,button,.seg button,header h1,dialog h2,dialog label,dialog select,dialog option,#legend,.card .sum b,.card h3 .hint,#bridgeHint,#ctxDlg .hint,textarea::placeholder,dialog input::placeholder{font-family:"DotGothic16","Noto Sans JP",sans-serif}
 .var{font-family:"Noto Sans JP","Hiragino Sans",sans-serif}
-.msg .body,textarea,input,#convSel,dialog input{font-family:"Noto Sans JP","Hiragino Sans",sans-serif}
+.msg .body,textarea,input,dialog input{font-family:"Noto Sans JP","Hiragino Sans",sans-serif}
 #focus,#overview{--panel:#fff;--panel2:#fff;--ink:var(--indigo);--muted:var(--indigo2);--line:#b7c6e6;--user:#eef3fb;--asst:#fff;--glow:#3b5aa8;--dim:.6;
   background:#fff;color:var(--indigo)}
 #crumb{background:#f5f8fe;border-bottom:1.5px solid var(--line);color:var(--indigo2)}
@@ -304,6 +304,70 @@ header{z-index:5}
 #miniMap.show{display:block}
 #miniMap:hover{border-color:var(--indigo);opacity:1}
 @media (max-width:1060px){#miniMap{opacity:.75;transform:scale(.85);transform-origin:top right}#miniMap:hover{opacity:1}} /* 狭い画面では右の吹き出しに重なるので控えめに */
+/* ===== 左の会話一覧（サイドバー） ===== */
+main{position:relative}
+#side{width:248px;flex:none;display:flex;flex-direction:column;border-right:1px solid var(--line);background:rgba(6,16,36,.72);backdrop-filter:blur(8px);min-height:0}
+body.sideHidden #side{display:none}
+#side .sideHead{padding:8px 10px;border-bottom:1px solid var(--line)}
+#side .sideHead button{width:100%;text-align:left;padding:7px 12px}
+#convList{flex:1;overflow-y:auto;padding:6px}
+.citem{display:flex;align-items:center;gap:6px;padding:7px 8px 7px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;color:var(--ink);font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13px;line-height:1.35}
+.citem:hover{background:rgba(76,201,255,.1);border-color:var(--line)}
+.citem.on{background:rgba(47,143,255,.22);border-color:var(--glow);color:#fff}
+.citem .ct{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.citem .cn{flex:none;font-size:10.5px;color:var(--muted);white-space:nowrap}
+.citem .cb{display:none;flex:none;gap:2px}
+.citem:hover .cb,.citem.on .cb{display:inline-flex}
+.citem:hover .cn{display:none}
+.citem .cb button{padding:0 5px;font-size:12px;border-radius:6px;background:transparent;border-color:transparent;line-height:1.6}
+.citem .cb button:hover{border-color:var(--glow);box-shadow:none}
+.cgroup{padding:8px 10px 3px;font-size:10.5px;color:var(--muted);letter-spacing:.1em}
+#stage{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+#stageBody{flex:1;min-height:0;display:flex}
+#stage.know #branchBar{display:none}
+#sideToggle{padding:2px 8px;font-size:15px;line-height:1.3}
+#memBtn.on{border-color:var(--glow);color:#fff}
+@media (max-width:760px){#side{position:absolute;left:0;top:0;bottom:0;z-index:20;box-shadow:8px 0 30px rgba(0,0,0,.5);background:rgba(6,16,36,.97)}}
+
+/* ===== 記憶の引き継ぎ ===== */
+#memDlg{width:min(680px,94vw)}
+#memDlg .mbody{font-family:"Noto Sans JP","Hiragino Sans",sans-serif;line-height:1.75;font-size:13.5px}
+#memDlg .step{margin:12px 0 4px;color:var(--glow);font-size:13px}
+#memDlg .pbox{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:rgba(3,10,26,.6);font-size:12.5px;white-space:pre-wrap;user-select:all}
+#memDlg textarea{width:100%;box-sizing:border-box;min-height:190px;max-height:46vh;resize:vertical;font-size:13px;line-height:1.6}
+#memDlg .mrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+
+/* ===== 知識マップ（全会話のブランチを関連度でつなぐ） ===== */
+#know{flex:1;display:none;min-width:0;flex-direction:column;--panel:#fff;--ink:var(--indigo);--muted:var(--indigo2);--line:#b7c6e6;--glow:#3b5aa8;background:#fff;color:var(--indigo)}
+#know.on{display:flex}
+#knowBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 14px;border-bottom:1.5px solid var(--line);background:#f5f8fe;font-size:12px}
+#know button{background:#f5f8fe;color:var(--indigo);border:1.5px solid #9fb3d9}
+#know button:hover{border-color:var(--indigo);box-shadow:0 0 0 2px rgba(30,58,110,.15);color:var(--indigo)}
+#know .seg{border:1.5px solid #9fb3d9}
+#know .seg button{border:0;background:transparent;padding:3px 10px;font-size:12px}
+#know .seg button.on{background:var(--indigo);color:#fff;font-weight:700}
+#knowInfo{color:var(--indigo2);font-family:"Noto Sans JP",sans-serif}
+#knowMain{flex:1;min-height:0;display:flex}
+#knowWrap{flex:1;min-width:0;overflow:auto;position:relative;background:#fff;background-image:linear-gradient(rgba(30,58,110,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(30,58,110,.05) 1px,transparent 1px);background-size:42px 42px}
+#knowSvg text{font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:11.5px;fill:var(--indigo);paint-order:stroke;stroke:#fff;stroke-width:3.5px;stroke-linejoin:round;pointer-events:none}
+#knowSvg .kn{cursor:pointer;transition:opacity .15s}
+#knowSvg .ke{transition:opacity .15s,stroke .15s}
+#knowSvg.hov .kn:not(.hl){opacity:.22}
+#knowSvg.hov .ke:not(.hl){opacity:.06}
+#knowSvg.hov .ke.hl{stroke:#5b3fd6;opacity:.95}
+#knowCard{width:340px;flex:none;border-left:2px solid var(--line);overflow-y:auto;padding:12px;background:#f5f8fe;font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13px;line-height:1.7}
+#knowCard h3{margin:0 0 2px;font-size:15px}
+#knowCard .from{font-size:11.5px;color:var(--indigo2);margin-bottom:8px}
+#knowCard .sum b{display:block;font-size:11px;color:var(--indigo2);margin-top:6px;font-family:"DotGothic16","Noto Sans JP",sans-serif;letter-spacing:.06em}
+#knowCard .rel{display:flex;align-items:center;gap:8px;padding:5px 8px;border:1.5px solid var(--line);border-radius:8px;margin-top:5px;background:#fff;cursor:pointer}
+#knowCard .rel:hover{border-color:var(--indigo)}
+#knowCard .rel .pc{flex:none;width:44px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+#knowCard .rel .bar{flex:none;width:46px;height:6px;border-radius:3px;background:#e3eaf7;overflow:hidden}
+#knowCard .rel .bar i{display:block;height:100%;background:var(--indigo)}
+#knowCard .rel .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#knowCard .rel .by{flex:none;font-size:10px;color:var(--indigo2)}
+@media (max-width:900px){#knowCard{width:260px}}
+@media (max-width:760px){#knowMain{flex-direction:column}#knowCard{width:auto;border-left:0;border-top:2px solid var(--line);max-height:42%}}
 #miniMap .cap{text-align:center;font-size:10px;line-height:1.4;color:var(--indigo2);letter-spacing:.04em}
 
 /* ===== Markdown ブロック表示・逐次表示 ===== */
@@ -333,24 +397,32 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 </head>
 <body>
 <header>
+  <button class="small" id="sideToggle" title="会話一覧を開く・閉じる">☰</button>
   <h1>⑂ BranCHAT</h1>
-  <select id="convSel" title="会話"></select>
-  <button class="small" id="newConv" title="新しい会話を作成">＋会話</button><button class="small" id="renameConv" title="この会話の名前を変更">✎ 名前</button><button class="small" id="delConv" title="この会話を削除">🗑 削除</button><button class="small" id="demoBtn" title="分岐・分岐予定・要約が入った見本の会話を作る">デモ会話</button>
+  <button class="small" id="demoBtn" title="分岐・分岐予定・要約が入った見本の会話を作る">デモ会話</button>
   <span class="spacer"></span>
   <div class="vmenu" id="viewMenu">
     <button class="ui" id="viewBtn" title="表示を切り替え"><span class="vk">View</span><span class="vsep">/</span><span id="viewCur">チャット</span><span class="vcaret">▾</span></button>
     <div class="vpop" id="viewPop">
       <button class="ui on" data-view="focus"><i></i>チャット<small>会話を読む・書く</small></button>
       <button class="ui" data-view="over"><i></i>俯瞰図<small>分岐の全体像</small></button>
+      <button class="ui" data-view="know"><i></i>知識マップ<small>全会話の関連</small></button>
     </div>
   </div>
   <button class="small" id="exportBtn">書き出し</button>
   <button class="small" id="importBtn">読み込み</button>
+  <button class="small" id="memBtn" title="ほかのAIが覚えているあなたの情報を引き継ぐ">🧠 記憶</button>
   <button class="small" id="helpBtn" title="チュートリアルを開く">？ 使い方</button>
   <button class="small" id="settingsBtn">⚙ 設定</button>
 </header>
-<div id="branchBar"></div>
 <main>
+  <aside id="side">
+    <div class="sideHead"><button class="ui" id="newConv" title="新しい会話を作成">＋ 新しい会話</button></div>
+    <div id="convList"></div>
+  </aside>
+  <div id="stage">
+  <div id="branchBar"></div>
+  <div id="stageBody">
   <section id="focus">
     <div id="crumb"></div>
     <div id="miniMap"></div>
@@ -371,6 +443,21 @@ table.md tr:nth-child(even) td{background:#f8fafd}
     <div id="graphWrap"><div id="legend"></div><div id="graphSvg"></div></div>
     <div id="cards"></div>
   </section>
+      <section id="know">
+        <div id="knowBar">
+          <span class="ui">関連度</span>
+          <span class="seg" id="knowThr"><button class="ui" data-thr="30">30%以上</button><button class="ui" data-thr="50">50%以上</button><button class="ui" data-thr="65">65%以上</button><button class="ui" data-thr="80">80%以上</button></span>
+          <span class="seg" id="knowScope"><button class="ui" data-scope="all">すべての会話</button><button class="ui" data-scope="conv">この会話だけ</button></span>
+          <button class="small ui" id="knowShuffle" title="点の並びを作り直す">配置し直す</button>
+          <button class="small ui" id="knowAi" title="要約用のモデルで関連度を判定し直す">AIで関連度を判定</button>
+          <span id="knowInfo"></span>
+          <span class="spacer"></span>
+          <span class="ui" style="color:var(--indigo2)">線の太さ＝関連度 / 塗り＝本線・中抜き＝分岐 / 色＝会話</span>
+        </div>
+        <div id="knowMain"><div id="knowWrap"><div id="knowSvg"></div></div><div id="knowCard"></div></div>
+      </section>
+  </div>
+  </div>
 </main>
 <div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button></div>
 <div id="toast"></div>
@@ -406,6 +493,20 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 </dialog>
 
 
+<dialog id="memDlg">
+  <h2>🧠 記憶の引き継ぎ</h2>
+  <div class="mbody">
+    <div>ChatGPT や Claude などが覚えている<b>あなたについての情報</b>を BranCHAT に登録します。登録した内容は、すべての会話・すべてのブランチで、AI への前提として毎回渡されます。</div>
+    <div class="step ui">1. いつも使っている AI に、次の文を送る</div>
+    <div class="pbox" id="memPrompt"></div>
+    <div class="mrow"><button class="small" id="memCopy">依頼文をコピー</button><span class="hint ui">ChatGPT は「設定 → パーソナライズ → メモリを管理」、Claude は「設定 → 機能 → メモリ」からも確認できます</span></div>
+    <div class="step ui">2. 返ってきた内容を貼り付ける（自分で書き足しても構いません）</div>
+    <textarea id="memText" placeholder="例:&#10;- 腫瘍内科の臨床医。化学療法が専門&#10;- 回答は結論を先に、専門用語はそのまま使ってよい&#10;- 単一HTMLのWebアプリを自作している"></textarea>
+    <div class="mrow"><button class="small" id="memLoad">ファイルから追加（.txt / .md）</button><input type="file" id="memFile" accept=".txt,.md,.markdown,text/plain" multiple hidden><button class="small" id="memClear">すべて消去</button><span class="spacer"></span><span class="hint var" id="memTok"></span></div>
+    <label class="mrow" style="cursor:pointer"><input type="checkbox" id="memOn"> <span>この記憶を AI に渡す（オフにすると保存したまま一時的に使わない）</span></label>
+  </div>
+  <div class="row" style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button id="memCancel">キャンセル</button><button class="primary" id="memSave">保存</button></div>
+</dialog>
 <dialog id="qDlg">
   <h2 id="qTitle">確認</h2>
   <div id="qMsg" style="white-space:pre-wrap;margin-bottom:6px"></div>
@@ -515,7 +616,7 @@ function persist(){
 let backupTimer=null;
 function scheduleBackup(){
   if(!IS_DESKTOP)return;clearTimeout(backupTimer);
-  backupTimer=setTimeout(()=>{fetch('/api/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({convs,active:conv&&conv.id,savedAt:Date.now()})}).catch(()=>{});},3000);
+  backupTimer=setTimeout(()=>{fetch('/api/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({convs,active:conv&&conv.id,savedAt:Date.now(),links,memory:settings.memory||''})}).catch(()=>{});},3000);
 }
 async function restoreFromBackup(){
   // 保存データが空（初回起動・データ消失）のときだけ、バックアップからの復元を提案する
@@ -524,7 +625,7 @@ async function restoreFromBackup(){
   try{const r=await fetch('/api/backup',{cache:'no-store'});if(!r.ok)return;const j=await r.json();
     const n=j&&j.convs?Object.values(j.convs).filter(c=>c.order&&c.order.length).length:0;if(!n)return;
     const when=j.savedAt?new Date(j.savedAt).toLocaleString('ja-JP'):'';
-    if(await askConfirm(`バックアップ（${when}）に ${n} 件の会話があります。復元しますか？`,'復元する')){convs=j.convs;conv=convs[j.active]||Object.values(convs)[0];persist();showFocus();toast('バックアップから復元しました');}
+    if(await askConfirm(`バックアップ（${when}）に ${n} 件の会話があります。復元しますか？`,'復元する')){convs=j.convs;conv=convs[j.active]||Object.values(convs)[0];if(j.links&&typeof j.links==='object'){links=j.links;lsSetSafe(LINKS_KEY,JSON.stringify(links));}if(j.memory&&!(settings.memory||'').trim()){settings.memory=String(j.memory);saveSettings();}persist();showFocus();toast('バックアップから復元しました');}
   }catch(e){}
 }
 function loadActive(){
@@ -583,7 +684,7 @@ function buildContext(targetNodeId,opts={}){
 - ユーザーが別ブランチの内容に言及したら、そのブランチの結論を踏まえて答えてください。
 - 他ブランチの内容を持ち出すときは「（ブランチ「B」で決めた通り）」のように出典を示してください。
 - 現在ブランチに関係ない他ブランチの話題を、聞かれてもいないのに混ぜないでください。
-${settings.extra?'\n追加指示: '+settings.extra+'\n':''}
+${settings.extra?'\n追加指示: '+settings.extra+'\n':''}${memoryBlock()}
 ## 会話マップ
 現在位置: ${chain}
 ${cards}`;
@@ -662,7 +763,7 @@ const SUM_SYS=`あなたは会話ブランチの要約係です。与えられ�
 {"title":"10字以内の話題名","topic":"何を話したか（80字以内）","conclusions":"得られた結論・決定事項（120字以内、無ければ「なし」）","open":"未解決の問い（80字以内、無ければ「なし」）"}`;
 const summarizing=new Set();
 async function updateSummary(bid){
-  if(summarizing.has(bid))return;const b=B(bid);const ns=branchNodes(bid);if(!ns.length)return;
+  if(summarizing.has(bid))return;const b=B(bid);const ns=branchNodes(bid);if(!ns.length)return;const cid=conv.id;
   summarizing.add(bid);
   try{
     let out='';
@@ -677,6 +778,7 @@ async function updateSummary(bid){
     b.summary={topic:j.topic,conclusions:j.conclusions,open:j.open,updatedAt:Date.now()};
     if(bid==='main'&&conv.title==='新しい会話'&&j.title)conv.title=j.title;
     persist();renderAll();
+    updateLinks(cid,bid); // 関連度の AI 判定（3往復ごと・裏で）
   }catch(e){console.warn('summary failed',bid,e);}
   finally{summarizing.delete(bid);}
 }
@@ -740,8 +842,38 @@ function stopFollow(){if(followTail){followTail=false;updateJumpBtn();}}
 })();
 
 /* ========== 描画: フォーカス ========== */
-function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderMini();renderModelBtn();renderWebBtn();renderMcpBtn();if($('#overview').classList.contains('on'))renderOverview();}
-function renderConvSel(){const s=$('#convSel');s.innerHTML=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt).map(c=>`<option value="${c.id}"${c.id===conv.id?' selected':''}>${esc(c.title)}${c.order.length?` (${c.order.length})`:'（空）'}</option>`).join('');}
+function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderMini();renderModelBtn();renderWebBtn();renderMcpBtn();renderMemBtn();if($('#overview').classList.contains('on'))renderOverview();if($('#know').classList.contains('on'))renderKnow();}
+function convLastTs(c){const id=c.order&&c.order[c.order.length-1];return (id&&c.nodes[id]&&c.nodes[id].ts)||c.createdAt||0;}
+function renderConvSel(){ // 左の会話一覧（名前は以前のプルダウンのまま）
+  const list=Object.values(convs).sort((a,b)=>convLastTs(b)-convLastTs(a));
+  const d0=new Date();d0.setHours(0,0,0,0);const t0=d0.getTime();
+  const grp=ts=>ts>=t0?'今日':ts>=t0-864e5?'昨日':ts>=t0-7*864e5?'過去7日間':'それ以前';
+  let html='',last='';
+  for(const c of list){const g=grp(convLastTs(c));if(g!==last){html+=`<div class="cgroup ui">${g}</div>`;last=g;}
+    const nb=Object.values(c.branches||{}).filter(b=>b.id!=='main'&&b.headNodeId!==b.forkFromNodeId).length;
+    html+=`<div class="citem${c.id===conv.id?' on':''}" data-c="${esc(c.id)}" title="${esc(c.title)}"><span class="ct">${esc(c.title)}</span><span class="cn">${c.order.length?(nb?`⑂${nb}`:''):'空'}</span><span class="cb"><button data-ren="${esc(c.id)}" title="名前を変更">✎</button><button data-del="${esc(c.id)}" title="この会話を削除">🗑</button></span></div>`;}
+  const box=$('#convList');box.innerHTML=html;
+  box.querySelectorAll('.citem').forEach(el=>el.onclick=()=>switchConv(el.dataset.c));
+  box.querySelectorAll('[data-ren]').forEach(el=>el.onclick=e=>{e.stopPropagation();renameConvById(el.dataset.ren);});
+  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=e=>{e.stopPropagation();deleteConvById(el.dataset.del);});
+}
+function switchConv(id){
+  if(!convs[id])return;
+  if(id===conv.id){if(!$('#focus').classList.contains('off'))return;showFocus();return;}
+  if(busy){toast('生成中は会話を切り替えられません。完了か停止のあとで切り替えてください');return;}
+  conv=convs[id];delete conv._pendingBranch;delete conv._anchor;persist();showFocus();
+  if(innerWidth<=760)setSide(false);
+}
+async function renameConvById(id){const c=convs[id];if(!c)return;const v=await askPrompt('会話の名前を変更',c.title);if(v&&v.trim()){c.title=v.trim().slice(0,40);persist();renderAll();}}
+async function deleteConvById(id){
+  const c=convs[id];if(!c)return;
+  if(busy&&id===conv.id){toast('生成中の会話は削除できません');return;}
+  if(!(await askConfirm(`会話「${c.title}」（${c.order.length}件の発言）を削除しますか？\nこの操作は元に戻せません。`,'削除する')))return;
+  delete convs[id];
+  if(id===conv.id){const rest=Object.values(convs).sort((a,b)=>convLastTs(b)-convLastTs(a));conv=rest[0]||newConversation();}
+  persist();pruneLinks();if($('#know').classList.contains('on'))renderAll();else showFocus();toast('会話を削除しました');
+}
+function setSide(open){document.body.classList.toggle('sideHidden',!open);settings.sideHidden=!open;saveSettings();}
 function renderBranchBar(){
   const cur=currentBranchId();
   $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}${b.status==='closed'?' closed':''}" style="--bc:${b.color}" data-b="${b.id}" title="${b.id===cur?'クリックで名前を変更':'このブランチへ移動'}"><span class="dot"></span>${esc(b.name)}${isEmptyBranch(b)?'（未開始）':''}${b.pinned?' 📌':''}</span>`).join('');
@@ -982,13 +1114,13 @@ function renderMini(){
   box.classList.add('show');
 }
 /* ========== 俯瞰図 ========== */
-function showFocus(){$('#overview').classList.remove('on');$('#focus').classList.remove('off');setViewUI('focus');renderAll();}
-function showOverview(){$('#overview').classList.add('on');$('#focus').classList.add('off');setViewUI('over');fillShortGists();renderAll();ensureGists();}
-function setViewUI(v){$('#viewCur').textContent=v==='over'?'俯瞰図':'チャット';$('#viewPop').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.view===v));}
+function showFocus(){$('#overview').classList.remove('on');$('#know').classList.remove('on');$('#stage').classList.remove('know');$('#focus').classList.remove('off');setViewUI('focus');renderAll();}
+function showOverview(){$('#know').classList.remove('on');$('#stage').classList.remove('know');$('#overview').classList.add('on');$('#focus').classList.add('off');setViewUI('over');fillShortGists();renderAll();ensureGists();}
+function setViewUI(v){$('#viewCur').textContent=v==='over'?'俯瞰図':v==='know'?'知識マップ':'チャット';$('#viewPop').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.view===v));}
 $('#viewBtn').onclick=e=>{e.stopPropagation();const m=$('#viewMenu'),pop=$('#viewPop');m.classList.toggle('open');
   // 画面右端からはみ出す場合は右寄せにする
   pop.style.left='0';pop.style.right='auto';const r=pop.getBoundingClientRect();if(r.right>innerWidth-8){pop.style.left='auto';pop.style.right='0';}};
-$('#viewPop').querySelectorAll('button').forEach(b=>b.onclick=e=>{e.stopPropagation();$('#viewMenu').classList.remove('open');if(b.dataset.view==='over')showOverview();else showFocus();});
+$('#viewPop').querySelectorAll('button').forEach(b=>b.onclick=e=>{e.stopPropagation();$('#viewMenu').classList.remove('open');if(b.dataset.view==='over')showOverview();else if(b.dataset.view==='know')showKnow();else showFocus();});
 $('#miniMap').onclick=showOverview;
 document.addEventListener('click',e=>{if(!e.target.closest('#viewMenu'))$('#viewMenu').classList.remove('open');});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#viewMenu').classList.remove('open');});
@@ -1071,26 +1203,186 @@ function mergeBranch(srcId){
   send(`ブランチ「${src.name}」で話した内容と結論を、この「${B(cur).name}」の文脈に合流させてください。取り込むべき結論・決定事項を簡潔にまとめ、この後の議論にどう影響するかを述べてください。`,{branchId:cur,parentId:conv.activeNodeId,pinIds:[srcId],mergedFrom:srcId});
 }
 
+/* ========== 知識マップ（全会話のブランチ要点と関連度） ========== */
+/* 各ブランチの要点（要約）を点、関連度を直線で示す。関連度は AI 判定（保存）を優先し、無ければ文字の重なりによる簡易判定 */
+const LINKS_KEY='bc.links.v1';
+let links={};try{links=JSON.parse(lsGetSafe(LINKS_KEY)||'{}')||{};}catch(e){links={};}
+function bkSoon(){if(typeof scheduleBackup==='function')scheduleBackup();} // バックアップはデスクトップ版だけ
+function saveLinks(){lsSetSafe(LINKS_KEY,JSON.stringify(links));bkSoon();}
+const kKey=(cid,bid)=>cid+'/'+bid;
+const pairKey=(a,b)=>a<b?a+'|'+b:b+'|'+a;
+function kbNodes(){
+  const out=[];const cs=Object.values(convs).sort((a,b)=>a.createdAt-b.createdAt);
+  cs.forEach((c,ci)=>{for(const b of Object.values(c.branches||{})){
+    const ns=(c.order||[]).map(id=>c.nodes[id]).filter(n=>n&&n.branchId===b.id);if(!ns.length)continue;
+    const s=b.summary||null;const ttl=b.id==='main'?c.title:b.name;
+    const isDummy=t=>/^（ダミー/.test(t||''); // ダミー接続の定型文は話題の判定から除く
+    const body=ns.filter(n=>!isDummy(n.content)).map(n=>(n.gist||'')+' '+(n.role==='user'?(n.content||'').slice(0,600)+' '+(n.content||'').slice(0,600):(n.content||'').slice(0,400))).join(' ').slice(0,3000);
+    const sumTxt=s?[s.topic,s.conclusions,s.open].filter(x=>x&&x!=='なし'&&!isDummy(x)).join(' '):'';
+    out.push({key:kKey(c.id,b.id),convId:c.id,bid:b.id,ci,title:b.id==='main'?c.title:b.name,convTitle:c.title,isMain:b.id==='main',summary:s,
+      text:[ttl,ttl,ttl,sumTxt,sumTxt,body].join(' '),tokens:ns.reduce((a,n)=>a+estTok(n.content||''),0),count:ns.length,color:COLORS[ci%COLORS.length]});
+  }});
+  return out;
+}
+// 簡易判定: 文字2連（bigram）の TF-IDF コサイン類似度。日本語でも分かち書き不要
+function kbLocalScores(nodes){
+  const grams=t=>{const s=(t||'').toLowerCase().replace(/[\s　、。，．,.!?！？「」『』（）()\[\]【】:：;；・\-—_*#`>|\/\\'"]+/g,'');const m=new Map();for(let i=0;i<s.length-1;i++){const g=s.slice(i,i+2);m.set(g,(m.get(g)||0)+1);}return m;};
+  const tfs=nodes.map(n=>grams(n.text));const df=new Map();
+  for(const m of tfs)for(const g of m.keys())df.set(g,(df.get(g)||0)+1);
+  const N=nodes.length;
+  const vecs=tfs.map(m=>{const v=new Map();let nn=0;for(const [g,c] of m){const w=(1+Math.log(c))*(0.12+Math.log((N+1)/((df.get(g)||1)+0.5)));v.set(g,w);nn+=w*w;}return {v,norm:Math.sqrt(nn)||1};});
+  const sc={};
+  for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const a=vecs[i],b=vecs[j];const [sm,lg]=a.v.size<b.v.size?[a.v,b.v]:[b.v,a.v];let dot=0;for(const [g,w] of sm){const w2=lg.get(g);if(w2)dot+=w*w2;}
+    const cos=dot/(a.norm*b.norm);sc[pairKey(nodes[i].key,nodes[j].key)]=Math.max(0,Math.min(100,Math.round(100*Math.pow(Math.min(1,cos/0.26),0.7))));}
+  return sc;
+}
+let kbCache=null; // {nodes, local}
+function kbData(){const nodes=kbNodes();kbCache={nodes,local:kbLocalScores(nodes)};return kbCache;}
+function kbScore(a,b){const k=pairKey(a,b);const L=links[k];if(L&&typeof L.s==='number')return {s:L.s,by:'ai'};return {s:(kbCache&&kbCache.local[k])||0,by:'local'};}
+// 会話やブランチが消えたら、その関連度も捨てる
+function pruneLinks(){const alive=new Set(kbNodes().map(n=>n.key));let ch=false;for(const k of Object.keys(links)){const [a,b]=k.split('|');if(!alive.has(a)||!alive.has(b)){delete links[k];ch=true;}}if(ch)saveLinks();}
+
+// AI 判定: 1本のブランチについて、ほかのブランチ（簡易判定の上位30本）との関連度を1回の呼び出しで採点させる
+const LINK_SYS=`あなたは知識メモ同士の関連度を採点する係です。「対象」のメモと、番号付きの「候補」メモそれぞれとの関連度を 0〜100 の整数で採点し、次のJSONだけを出力してください（前後に説明を付けない）:
+{"scores":{"1":85,"2":10}}
+採点基準: 90〜100=ほぼ同じ話題・直接の続き / 70〜89=同じ主題で強く関連 / 50〜69=共通の要素があり、一緒に読むと役立つ / 30〜49=弱い関連 / 0〜29=無関係。
+話題の中身で判断し、文体や長さ、同じ会話に属するかどうかだけで高くしないでください。`;
+const linking=new Set();
+async function updateLinks(cid,bid,force){
+  if(settings.provider==='dummy')return false;
+  const me=kKey(cid,bid);if(linking.has(me))return false;
+  const d=kbData();const t=d.nodes.find(n=>n.key===me);if(!t||d.nodes.length<2)return false;
+  const br=convs[cid]&&convs[cid].branches[bid];if(!br)return false;
+  if(!force&&br.linkN&&t.count-br.linkN<6)return false; // 3往復ぶん増えるまでは採点し直さない（定額枠の節約）
+  linking.add(me);
+  try{
+    const cands=d.nodes.filter(n=>n.key!==me).map(n=>({n,l:d.local[pairKey(me,n.key)]||0})).sort((a,b)=>b.l-a.l).slice(0,30).map(x=>x.n);
+    const card=n=>`「${n.title}」${n.isMain?'':`（会話「${n.convTitle}」の分岐）`} ${n.summary?`話題: ${n.summary.topic} / 結論: ${n.summary.conclusions}`:excerpt(n.text,160)}`;
+    const user=`対象:\n${card(t)}\n\n候補:\n${cands.map((n,i)=>`${i+1}. ${card(n)}`).join('\n')}\n\n上の候補すべてについて、対象との関連度を指定のJSON形式だけで出力してください。`;
+    let out='';for await(const ev of provider()(LINK_SYS,[{role:'user',content:user}],settings.sumModel,{raw:true}))if(ev.text)out+=ev.text;
+    const m=out.match(/\{[\s\S]*\}/);if(!m)throw new Error('関連度JSONなし');
+    const sc=JSON.parse(m[0]).scores||{};let n=0;
+    cands.forEach((c,i)=>{const v=Number(sc[String(i+1)]);if(Number.isFinite(v)){links[pairKey(me,c.key)]={s:Math.max(0,Math.min(100,Math.round(v))),by:'ai',ts:Date.now()};n++;}});
+    br.linkN=t.count;saveLinks();persist();
+    if($('#know').classList.contains('on'))renderKnow();
+    return n>0;
+  }catch(e){console.warn('links failed',me,e);return false;}
+  finally{linking.delete(me);}
+}
+let linkAllRunning=false;
+async function updateAllLinks(){
+  if(linkAllRunning)return;
+  if(settings.provider==='dummy'){toast('ダミー接続では AI 判定は使えません（簡易判定で表示しています）');return;}
+  const d=kbData();if(d.nodes.length<2){toast('ブランチが2本以上になると関連度を判定できます');return;}
+  if(!(await askConfirm(`${d.nodes.length} 本のブランチについて、要約用のモデルで関連度を判定します（呼び出し ${d.nodes.length} 回）。続けますか？`,'判定する')))return;
+  linkAllRunning=true;let ok=0;
+  for(let i=0;i<d.nodes.length;i++){const n=d.nodes[i];$('#knowInfo').textContent=`AI が判定中… ${i+1} / ${d.nodes.length}`;if(await updateLinks(n.convId,n.bid,true))ok++;}
+  linkAllRunning=false;renderKnow();toast(`関連度を判定しました（${ok} / ${d.nodes.length} 本）`);
+}
+
+// 配置: ばねモデル。関連が強いほど近く、無関係な点は互いに離れる。初期位置は id から決めるので毎回同じ形になる
+let knowSel=null,knowSeed=0;
+function kbLayout(nodes,edges,W,H){
+  const hash=s=>{let h=2166136261^knowSeed;for(const ch of s){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return (h>>>0)/4294967296;};
+  const P=nodes.map((n,i)=>{const a=hash(n.key)*Math.PI*2,r=(0.25+0.7*hash(n.key+'r'))*Math.min(W,H)/2;return {x:W/2+Math.cos(a)*r,y:H/2+Math.sin(a)*r,vx:0,vy:0};});
+  const idx=new Map(nodes.map((n,i)=>[n.key,i]));
+  const E=edges.map(e=>({a:idx.get(e.a),b:idx.get(e.b),s:e.s}));
+  const IT=nodes.length>120?220:380;
+  for(let it=0;it<IT;it++){const cool=1-it/IT;
+    for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++){let dx=P[i].x-P[j].x,dy=P[i].y-P[j].y;let d2=dx*dx+dy*dy;if(d2<1){dx=hash(i+'x'+j)-.5;dy=hash(i+'y'+j)-.5;d2=1;}
+      const f=Math.min(14,5200/d2),d=Math.sqrt(d2);const fx=dx/d*f,fy=dy/d*f;P[i].vx+=fx;P[i].vy+=fy;P[j].vx-=fx;P[j].vy-=fy;}
+    for(const e of E){const p=P[e.a],q=P[e.b];const dx=q.x-p.x,dy=q.y-p.y,d=Math.sqrt(dx*dx+dy*dy)||1;const L=70+(100-e.s)*2.1;const k=0.012+0.05*(e.s/100);const f=(d-L)*k;const fx=dx/d*f,fy=dy/d*f;p.vx+=fx;p.vy+=fy;q.vx-=fx;q.vy-=fy;}
+    for(const p of P){p.vx+=(W/2-p.x)*0.012;p.vy+=(H/2-p.y)*0.012;p.x+=Math.max(-30,Math.min(30,p.vx))*cool;p.y+=Math.max(-30,Math.min(30,p.vy))*cool;p.vx*=.55;p.vy*=.55;}
+  }
+  // 枠に収める（はみ出すときだけ縮める。右と下はラベルの分を空ける）
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;for(const p of P){x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);y0=Math.min(y0,p.y);y1=Math.max(y1,p.y);}
+  const padX=90,padT=30,padB=44;const sx=Math.min(1.25,(W-padX*2)/Math.max(1,x1-x0)),sy=Math.min(1.25,(H-padT-padB)/Math.max(1,y1-y0));
+  const cx=(x0+x1)/2,cy=(y0+y1)/2;for(const p of P){p.x=W/2+(p.x-cx)*sx;p.y=(padT+(H-padB))/2+(p.y-cy)*sy;}
+  return P;
+}
+function knowThr(){return [30,50,65,80].includes(settings.knowThr)?settings.knowThr:50;}
+function renderKnow(){
+  const d=kbData();const thr=knowThr();const scope=settings.knowScope==='conv'?'conv':'all';
+  const nodes=scope==='conv'?d.nodes.filter(n=>n.convId===conv.id):d.nodes;
+  const edges=[];for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){const r=kbScore(nodes[i].key,nodes[j].key);if(r.s>=thr)edges.push({a:nodes[i].key,b:nodes[j].key,s:r.s,by:r.by});}
+  $('#knowThr').querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.thr===thr));
+  $('#knowScope').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.scope===scope));
+  const aiN=edges.filter(e=>e.by==='ai').length;
+  if(!linkAllRunning)$('#knowInfo').textContent=`ブランチ ${nodes.length} 本 / 関連度 ${thr}% 以上の線 ${edges.length} 本${edges.length?`（AI 判定 ${aiN}・簡易判定 ${edges.length-aiN}）`:''}`;
+  $('#knowAi').style.display=settings.provider==='dummy'?'none':'';
+  const wrap=$('#knowWrap');const W=Math.max(640,wrap.clientWidth-4,Math.sqrt(nodes.length)*210),H=Math.max(420,wrap.clientHeight-4,Math.sqrt(nodes.length)*150);
+  if(!nodes.length){$('#knowSvg').innerHTML=`<div style="padding:40px;color:var(--indigo2);font-family:'Noto Sans JP',sans-serif">まだブランチがありません。会話を始めると、ブランチごとの要点がここに点として並び、関連するもの同士が線で結ばれます。</div>`;$('#knowCard').innerHTML='';return;}
+  const P=kbLayout(nodes,edges,W,H);const pos=new Map(nodes.map((n,i)=>[n.key,P[i]]));
+  const curKey=kKey(conv.id,currentBranchId());
+  if(!knowSel||!pos.has(knowSel))knowSel=pos.has(curKey)?curKey:nodes[0].key;
+  const R=n=>Math.max(6,Math.min(20,5+Math.sqrt(n.tokens)/5));
+  let s=`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block">`;
+  for(const e of edges.sort((a,b)=>a.s-b.s)){const p=pos.get(e.a),q=pos.get(e.b);const t=e.s/100;
+    s+=`<line class="ke" data-a="${esc(e.a)}" data-b="${esc(e.b)}" x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${q.x.toFixed(1)}" y2="${q.y.toFixed(1)}" stroke="#3b5aa8" stroke-width="${(0.8+Math.pow(t,2.2)*8).toFixed(2)}" stroke-linecap="round" opacity="${(0.18+t*0.55).toFixed(2)}"${e.by==='local'?' stroke-dasharray="1 0"':''}><title>関連度 ${e.s}%（${e.by==='ai'?'AI 判定':'簡易判定'}）</title></line>`;}
+  for(const n of nodes){const p=pos.get(n.key);const r=R(n);const cur=n.key===curKey,sel=n.key===knowSel;
+    s+=`<g class="kn" data-k="${esc(n.key)}"><title>${esc(n.title)}${n.isMain?'':' ／ 会話「'+esc(n.convTitle)+'」'}\n${n.count} 発言・${n.tokens} tok</title>`;
+    if(sel)s+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r+6}" fill="none" stroke="#5b3fd6" stroke-width="2.5"/>`;
+    if(cur)s+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r+3}" fill="none" stroke="var(--indigo)" stroke-width="2" stroke-dasharray="3 2"/>`;
+    s+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${n.isMain?n.color:'#fff'}" stroke="${n.color}" stroke-width="3"/>`;
+    s+=`<text x="${p.x.toFixed(1)}" y="${(p.y+r+14).toFixed(1)}" text-anchor="middle"${sel||cur?' style="font-weight:700"':''}>${esc(excerpt(n.title,14))}</text></g>`;}
+  s+='</svg>';
+  const box=$('#knowSvg');box.innerHTML=s;const svg=box.querySelector('svg');
+  const hl=k=>{svg.classList.add('hov');svg.querySelectorAll('.ke').forEach(l=>{const on=l.dataset.a===k||l.dataset.b===k;l.classList.toggle('hl',on);if(on){const o=l.dataset.a===k?l.dataset.b:l.dataset.a;const g=svg.querySelector(`.kn[data-k="${CSS.escape(o)}"]`);if(g)g.classList.add('hl');}});const me=svg.querySelector(`.kn[data-k="${CSS.escape(k)}"]`);if(me)me.classList.add('hl');};
+  const un=()=>{svg.classList.remove('hov');svg.querySelectorAll('.hl').forEach(x=>x.classList.remove('hl'));};
+  svg.querySelectorAll('.kn').forEach(g=>{g.onmouseenter=()=>{un();hl(g.dataset.k);};g.onmouseleave=un;g.onclick=()=>{knowSel=g.dataset.k;renderKnow();};g.ondblclick=()=>openKnowNode(g.dataset.k);});
+  renderKnowCard(nodes,thr);
+}
+function renderKnowCard(nodes,thr){
+  const n=nodes.find(x=>x.key===knowSel);if(!n){$('#knowCard').innerHTML='';return;}
+  const rel=nodes.filter(x=>x.key!==n.key).map(x=>({x,r:kbScore(n.key,x.key)})).filter(o=>o.r.s>=Math.min(thr,30)).sort((a,b)=>b.r.s-a.r.s).slice(0,12);
+  const sm=n.summary?`<div class="sum"><b>話題</b>${esc(n.summary.topic)}<b>結論</b>${esc(n.summary.conclusions)}<b>未解決</b>${esc(n.summary.open)}</div>`:`<div class="sum" style="color:var(--indigo2)"><span class="ui">要点は未作成です（AIの回答後に自動で作られます）</span></div>`;
+  $('#knowCard').innerHTML=`<h3>${esc(n.title)}</h3><div class="from">${n.isMain?'<span class="ui">本線</span>':`<span class="ui">会話</span>「${esc(n.convTitle)}」<span class="ui">の分岐</span>`} / ${n.count} <span class="ui">発言</span> / ${n.tokens} tok</div>
+    <button class="small primary ui" id="knowOpen" style="background:var(--indigo);color:#fff;border-color:var(--indigo)">このブランチを開く</button>${sm}
+    <div class="sum"><b>関連するブランチ</b></div>${rel.length?rel.map(o=>`<div class="rel" data-k="${esc(o.x.key)}" style="${o.r.s<thr?'opacity:.55':''}"><span class="pc">${o.r.s}%</span><span class="bar"><i style="width:${o.r.s}%"></i></span><span class="nm">${esc(o.x.title)}</span><span class="by ui">${o.r.by==='ai'?'AI':'簡易'}</span></div>`).join(''):'<div style="color:var(--indigo2);margin-top:4px" class="ui">関連するブランチはまだありません</div>'}`;
+  $('#knowOpen').onclick=()=>openKnowNode(n.key);
+  $('#knowCard').querySelectorAll('.rel').forEach(el=>el.onclick=()=>{knowSel=el.dataset.k;renderKnow();});
+}
+function openKnowNode(key){
+  if(busy){toast('生成中は移動できません。完了か停止のあとで開いてください');return;}
+  const i=key.indexOf('/');const cid=key.slice(0,i),bid=key.slice(i+1);if(!convs[cid]||!convs[cid].branches[bid])return;
+  conv=convs[cid];delete conv._pendingBranch;gotoBranch(bid);
+}
+function showKnow(){$('#overview').classList.remove('on');$('#focus').classList.add('off');$('#know').classList.add('on');$('#stage').classList.add('know');setViewUI('know');pruneLinks();renderAll();}
+$('#knowThr').querySelectorAll('button').forEach(b=>b.onclick=()=>{settings.knowThr=+b.dataset.thr;saveSettings();renderKnow();});
+$('#knowScope').querySelectorAll('button').forEach(b=>b.onclick=()=>{settings.knowScope=b.dataset.scope;saveSettings();renderKnow();});
+$('#knowShuffle').onclick=()=>{knowSeed=(knowSeed+1)|0;renderKnow();};
+$('#knowAi').onclick=updateAllLinks;
+
+/* ========== 記憶の引き継ぎ ========== */
+/* ChatGPT や Claude が覚えている利用者の情報を貼り付けて保存し、すべての会話・ブランチで前提として渡す */
+const MEM_PROMPT='あなたが私について記憶していること（保存済みのメモリ、カスタム指示、これまでの会話から把握している職業・専門分野・進行中のプロジェクト・好み・文体の希望など）を、漏れなく箇条書きで出力してください。推測は含めず、記憶している事実だけを、1項目1行で書いてください。';
+function memoryBlock(){const m=(settings.memory||'').trim();if(!m||settings.memoryOn===false)return '';
+  return `\n## 利用者についての記憶（他のAIアシスタントから引き継いだ情報）\n以下は利用者本人が登録した前提情報です。回答の前提として自然に使い、「記憶によれば」などと断る必要はありません。現在の発言と食い違う場合は現在の発言を優先してください。\n${m}\n`;}
+function renderMemBtn(){const on=!!(settings.memory||'').trim()&&settings.memoryOn!==false;const b=$('#memBtn');b.classList.toggle('on',on);b.textContent=on?'🧠 記憶 ●':'🧠 記憶';}
+function memCount(){const t=$('#memText').value;$('#memTok').textContent=t.trim()?`約 ${estTok(t)} tok（毎回の送信に含まれます）`:'未登録';}
+$('#memBtn').onclick=()=>{$('#memPrompt').textContent=MEM_PROMPT;$('#memText').value=settings.memory||'';$('#memOn').checked=settings.memoryOn!==false;memCount();$('#memDlg').showModal();};
+$('#memText').addEventListener('input',memCount);
+$('#memCopy').onclick=async()=>{try{await navigator.clipboard.writeText(MEM_PROMPT);toast('依頼文をコピーしました。ChatGPT や Claude に貼り付けてください');}catch(e){toast('コピーできませんでした。枠内の文を選択してコピーしてください');}};
+$('#memFile').onchange=e=>{const fs=[...e.target.files];e.target.value='';fs.forEach(f=>{const r=new FileReader();r.onload=()=>{const t=$('#memText');t.value=(t.value.trim()?t.value.trim()+'\n\n':'')+String(r.result||'').slice(0,40000);memCount();};r.readAsText(f);});};
+$('#memLoad').onclick=()=>$('#memFile').click();
+$('#memClear').onclick=async()=>{if(await askConfirm('登録した記憶をすべて消しますか？','消去する')){$('#memText').value='';memCount();}};
+$('#memCancel').onclick=()=>$('#memDlg').close();
+$('#memSave').onclick=()=>{settings.memory=$('#memText').value.trim().slice(0,60000);settings.memoryOn=$('#memOn').checked;saveSettings();bkSoon();renderMemBtn();$('#memDlg').close();toast(settings.memory?'記憶を保存しました。次の送信から反映されます':'記憶を空にしました');};
+
 /* ========== イベント ========== */
 $('#sendBtn').onclick=()=>{if(busy){if(abortCtl)abortCtl.abort();return;}const t=$('#input').value;if(!t.trim()&&!pendingImgs.length)return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';fitInput();const imgs=pendingImgs;pendingImgs=[];renderPlus();send(t.trim()||'（画像を添付）',{branchId:bid,parentId:conv.activeNodeId,images:imgs});};
 $('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!busy)$('#sendBtn').click();}});
 // 入力欄は1行から内容に合わせて伸びる（上限は CSS の max-height）
 function fitInput(){const t=$('#input');t.style.height='auto';t.style.height=Math.max(44,Math.min(240,t.scrollHeight+2))+'px';}
 $('#input').addEventListener('input',fitInput);$('#input').addEventListener('focus',fitInput);
-$('#convSel').onchange=e=>{conv=convs[e.target.value];delete conv._pendingBranch;persist();showFocus();};
 $('#newConv').onclick=async()=>{
-  if(!conv.order.length){toast('今の会話はまだ空です。そのまま使えます');$('#input').focus();return;}
+  if(busy){toast('生成中は新しい会話を作れません');return;}
+  if(!conv.order.length){if($('#focus').classList.contains('off'))showFocus();toast('今の会話はまだ空です。そのまま使えます');$('#input').focus();return;}
   if(!(await askConfirm('新規のチャットを作成しますか？','作成する')))return;
-  conv=newConversation();persist();showFocus();
+  conv=newConversation();persist();showFocus();$('#input').focus();
 };
-$('#renameConv').onclick=async()=>{const v=await askPrompt('会話の名前を変更',conv.title);if(v&&v.trim()){conv.title=v.trim().slice(0,40);persist();renderAll();}};
-$('#delConv').onclick=async()=>{
-  const n=conv.order.length;
-  if(!(await askConfirm(`会話「${conv.title}」（${n}件の発言）を削除しますか？\nこの操作は元に戻せません。`,'削除する')))return;
-  delete convs[conv.id];
-  const rest=Object.values(convs).sort((a,b)=>b.createdAt-a.createdAt);
-  conv=rest[0]||newConversation();persist();showFocus();toast('会話を削除しました');
-};
+$('#sideToggle').onclick=()=>setSide(document.body.classList.contains('sideHidden'));
+document.body.classList.toggle('sideHidden',settings.sideHidden===undefined?innerWidth<=760:!!settings.sideHidden);
 $('#exportBtn').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(conv,null,1)],{type:'application/json'}));a.download=`branch-chat_${conv.title}.json`;a.click();};
 $('#importBtn').onclick=()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const f=i.files[0];const r=new FileReader();r.onload=()=>{try{const c=JSON.parse(r.result);if(!c.nodes||!c.branches)throw 0;c.id=c.id||uid();convs[c.id]=c;conv=c;persist();showFocus();toast('読み込みました');}catch(e){toast('読み込み失敗');}};r.readAsText(f);};i.click();};
 $('#settingsBtn').onclick=async()=>{await probeBridge();$('#sProvider').value=settings.provider;$('#sProvider').onchange=e=>{const keep=settings.provider;settings.provider=e.target.value;refreshModelCatalog();$('#sModel').innerHTML=MODEL_OPTS.map(o=>`<option value="${esc(o.v)}">${esc(o.l)}${modelEngine(o.v)==='codex'?'（Codex）':''}</option>`).join('');settings.provider=keep;};$('#sKey').value=settings.apiKey;$('#sModel').innerHTML=MODEL_OPTS.map(o=>`<option value="${esc(o.v)}">${esc(o.l)}${modelEngine(o.v)==='codex'?'（Codex）':''}</option>`).join('');$('#sModel').value=validModel(settings.model)||MODEL_OPTS[0].v;$('#sSumModel').value=settings.sumModel;$('#sBudget').value=settings.budget;$('#sExtra').value=settings.extra;$('#settings').showModal();};

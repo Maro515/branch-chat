@@ -63,7 +63,7 @@ branch-chat/
 - 追加API（デスクトップのみ）: `/api/backup`（POST で会話を `userData/backups/` に保存、GET で最新を返す）。画面側は `persist()` から `scheduleBackup()`、起動時に `restoreFromBackup()`。ブラウザ版では `IS_DESKTOP` が偽なので何もしない。
 - フォントは `npm run vendor` で `desktop/vendor/fonts/`（git管理外）に取得し、`sync-app.mjs` が同梱して読み込み先を差し替える。`index.html` のフォント `<link>` の書式を変えたら `sync-app.mjs` の置換も直す（合わないと sync がエラーで止まる）。アイコンは `npm run icon` で `build/icon.png` を再生成。
 - スモークテストは `userData` を一時フォルダに分けている。利用者の実データ（`~/Library/Application Support/BranCHAT`）をテストで汚さない。
-- 確認は `cd desktop && npm run smoke`（画面表示・エンジン検出・ダミー送信・スクリーンショット）。実モデルも1回試すときだけ `SMOKE_LIVE=1 npm run smoke`。
+- 確認は `cd desktop && npm run smoke`（画面表示・エンジン検出・ダミー送信・スクリーンショット）。`SMOKE_KNOW=1` で会話一覧・記憶・知識マップも通す（`SMOKE_KNOW_LIVE=1` を足すと関連度の AI 判定を Haiku で1回だけ実行）。実モデルも1回試すときだけ `SMOKE_LIVE=1 npm run smoke`。
 - 計画とフェーズ（D0〜D3）は `PLAN.md` 末尾。
 
 ### スクリプトの区画（両ファイル共通、`/* ========== 名前 ========== */` で区切る）
@@ -85,8 +85,15 @@ conv = { id, title, createdAt, order:[nodeId...], activeNodeId,
 - **チャット画面は現在のブランチを末尾まで描く**（`ancestors(B(cur).headNodeId)`）。`activeNodeId` が末尾より前なら、それより後ろの発言を薄く表示し、区切り線で「ここから送信すると新しい枝になる」と示す。`send()` は `parentId` がその枝の末尾でなければ自動で新しい枝を作る（枝の途中で二股にしない）。俯瞰図や「ここから続ける」で発言を選ぶと、その枝全体を表示して当該発言へスクロールする。
 - 未開始の分岐 = `headNodeId === forkFromNodeId`（`isEmptyBranch`）。同じ回答からの未開始分岐は1つまで。
 - **モデルと思考量はブランチの系譜で継承する:** 自分のブランチの `model`/`effort` → 分岐元のブランチ → … → 本線 → 全体の既定（`settings`）。`resolveUp` が解決する。本線の指定が会話全体の指定として働くので、会話単位の指定は廃止（旧データの `conv.model`/`conv.effort` は `migrateConvModel` が本線へ移す）。UIの「従う先」の表示は、本線なら「全体の既定」、本線から分かれたブランチなら「本線の設定」、それより深ければ「分岐元「X」の設定」。選択肢は版ごとの `MODEL_OPTS` / `EFFORT_OPTS`。index.html はモデルID＋思考量5段階、artifact.html は階層3種で思考量の指定なし。別の版の値が入った会話を読み込んでも `validModel` が無視して上位に従うので壊れない。モデルが対応しない思考量は `effEffort` がその段階以下の最大へ丸める（例: GPT-5.5 で max → xhigh）。対応段階が空のモデル（Haiku）には思考量を送らない。ブリッジへはモデルから引いた `engine` を一緒に送るので、**ブランチごとに Claude と GPT を混在**できる。会話マップはただの文章なのでどのモデルにも同じものを渡す。
-- 保存キー: `bc.convs.v1`（全会話）、`bc.active.v1`、`bc.settings.v1`。
+- 保存キー: `bc.convs.v1`（全会話）、`bc.active.v1`、`bc.settings.v1`（`memory` `memoryOn` `knowThr` `knowScope` `sideHidden` もここ）、`bc.links.v1`（AI が判定したブランチ間の関連度 `{"会話id/枝id|会話id/枝id":{s,by:'ai',ts}}`）。デスクトップ版のバックアップには会話に加えて `links` と `memory` も入る。
 - 状態を変えたら `persist()`、画面は `renderAll()`。
+
+### 記憶の引き継ぎ・会話一覧・知識マップ
+
+- **記憶の引き継ぎ**（ヘッダー「🧠 記憶」、`#memDlg`、`memoryBlock()`）: ChatGPT や Claude のメモリを API で取り出す手段は無いので、「依頼文をコピー → 相手の AI に送る → 返答を貼り付け」で登録する。`settings.memory` を `buildContext` が **会話マップの手前**に入れる（＝`systemStatic` に含まれる。Claude の常駐セッションは `systemStatic` も同一性に含めるので、記憶を変えると作り直される）。
+- **会話一覧は左のサイドバー**（`#side`、`renderConvSel()` が描く。関数名は以前のプルダウンのまま）。最終発言の新しい順、「今日／昨日／過去7日間／それ以前」で区切る。名前変更と削除は各行のボタン。生成中（`busy`）は会話の切り替え・削除・新規作成をしない（`send()` が途中で別の会話に書き込むのを防ぐ）。ヘッダーの ☰ で開閉、幅760px以下は重ねて表示。
+- **知識マップ**（View の3つ目、`#know`、`renderKnow()`）: 全会話の「発言のあるブランチ」を点、関連度を**直線**で結ぶ（Obsidian のグラフ風）。線の太さと濃さ＝関連度。しきい値（30/50/65/80%以上）を変えると線を選び直し、ばねモデルで**配置からやり直す**。関連度は `kbScore()` が「AI 判定（`bc.links.v1`）→ 無ければ簡易判定（文字2連の TF-IDF コサイン、`kbLocalScores`）」の順で返す。AI 判定は `updateLinks()`: 要約の更新後に裏で1回、**そのブランチの発言が6件増えるまでは再判定しない**（`branch.linkN`。定額枠の節約）。候補は簡易判定の上位30本に絞り、要約用モデルへ1回で採点させる。「AIで関連度を判定」ボタンは全ブランチを順に判定（確認あり）。ダミー接続では簡易判定のみ。点の色＝会話、塗り＝本線、中抜き＝分岐。クリックで要点と関連一覧、ダブルクリックか「このブランチを開く」で移動。
+- 要点（`branch.summary`）は会話データの中にあるものが唯一の正本。知識マップ用に写しを別保存しない。「利用者のアカウントに紐づく保存」は、デスクトップ版では OS ユーザーごとのデータフォルダ（localStorage＋`backups/`）、Artifact 版では閲覧者のブラウザ保存。サーバー側のアカウント保存は無い。
 
 ### コンテキスト組み立て（`buildContext`）
 
@@ -152,7 +159,7 @@ claude.ai にサインインしていないブラウザでは Claude 呼び出�
 - 俯瞰図: ドットの大きさ＝トークン数、ラベルは `node.gist`（20字以内の要約）を白帯つきで表示、レーン幅300px、見出しは17px太字に白帯。
 - **ミニ俯瞰図**（`#miniMap`、`renderMini()`）: チャット右上に常時表示。文字は出さず、枝の線と現在位置（藍の二重丸）、下に枝の本数だけ。今いる道筋は濃く、ほかの枝は淡く。縦130px・横120px以内に収まるよう間隔を自動で詰める。クリックで俯瞰図へ。
 - **生成中のスクロール**: `followTail` が真のときだけ末尾へ追従。利用者が上へ動かしたら止め、末尾まで戻すか「↓ 最新へ」（`#jumpBtn`）で再開。距離で判定して引き戻す方式には戻さない。
-- View の項目名は「チャット」「俯瞰図」。ブラウザ標準の `<select>` ではなく自前メニュー。
+- View の項目名は「チャット」「俯瞰図」「知識マップ」。ブラウザ標準の `<select>` ではなく自前メニュー。
 
 ## 5. 変更してはいけないもの
 

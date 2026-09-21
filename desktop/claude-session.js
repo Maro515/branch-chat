@@ -14,7 +14,7 @@ class ClaudeSessions {
   constructor(claudePath, env, log) { this.claude = claudePath; this.env = env; this.log = log || (() => {}); this.sessions = new Map(); }
 
   // セッションの同一性: ブランチ + プロセス起動時に固定される条件（モデル、思考量、Web検索、MCP）
-  identity(req, mcpCfg) { return JSON.stringify([req.model, req.effort || '', !!req.web, mcpCfg || {}]); }
+  identity(req, mcpCfg) { return JSON.stringify([req.model, req.effort || '', !!req.web, mcpCfg || {}, String(req.systemStatic || '')]); } // 固定の指示（記憶の引き継ぎを含む）が変わったら作り直す
 
   spawnProcess(req, mcpCfg, systemText) {
     const model = String(req.model || 'claude-opus-5');
