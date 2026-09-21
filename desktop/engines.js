@@ -245,5 +245,31 @@ function chatInner(req, onEvent, mcpCfg) {
   return () => { try { child.kill(); } catch (e) { /* 既に終了 */ } };
 }
 
+// ---- 関連度の判定（Jev: TypeSafe AI の判定専用モデル）----
+// 画面から受け取った要点（state）と質問（questions）を中継するだけ。キーは保存しない・ログに出さない。宛先は固定。
+const JEV_URL = process.env.BRANCHAT_JEV_URL || 'https://api.typesafe.ai/v1/systemone'; // 環境変数はテスト用
+async function judge(req) {
+  const via = req && req.via === 'cloudflare' ? 'cloudflare' : 'typesafe';
+  const key = String((req && req.key) || '').trim();
+  if (!key) return { error: 'Jev の接続が設定されていません' };
+  const questions = req.questions; const n = questions && typeof questions === 'object' ? Object.keys(questions).length : 0;
+  if (!n || n > 40) return { error: '質問の数が正しくありません' };
+  if (JSON.stringify(req.state || '').length > 60000) return { error: '送信内容が大きすぎます' };
+  let url; let body;
+  if (via === 'cloudflare') {
+    const acc = String(req.accountId || '').trim();
+    if (!/^[0-9a-f]{32}$/i.test(acc)) return { error: 'Cloudflare のアカウントIDは32桁の英数字です' };
+    url = `https://api.cloudflare.com/client/v4/accounts/${acc}/ai/run/typesafe/jev`; body = { state: req.state, questions };
+  } else { url = JEV_URL; body = { model: 'jev-latest', state: req.state, questions }; }
+  try {
+    const r = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(45000) });
+    const j = await r.json().catch(() => null);
+    if (!r.ok) return { error: `Jev の応答 ${r.status}${r.status === 401 || r.status === 403 ? '（キーか権限を確認してください）' : ''}` };
+    const answers = j && (j.answers || (j.result && j.result.answers));
+    if (!answers) return { error: 'Jev の判定結果を読み取れませんでした' };
+    return { answers, usage: (j.usage || (j.result && j.result.usage)) || null, via };
+  } catch (e) { return { error: 'Jev に接続できませんでした' }; }
+}
+
 function shutdown() { if (codexServer) codexServer.stop(); if (claudeSessions) claudeSessions.shutdown(); }
-module.exports = { status, chat, mcpServers, openLoginTerminal, loginCommand, shutdown, EFFORTS };
+module.exports = { status, chat, judge, mcpServers, openLoginTerminal, loginCommand, shutdown, EFFORTS };

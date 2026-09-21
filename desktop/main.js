@@ -59,6 +59,13 @@ async function handle(request) {
     return Response.json(engines.openLoginTerminal(b.engine === 'codex' ? 'codex' : 'claude'));
   }
 
+  if (url.pathname === '/api/judge') { // 知識マップの関連度を Jev に判定させる（中継のみ）
+    if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
+    let body; try { body = await request.json(); } catch (e) { return new Response('bad request', { status: 400 }); }
+    const out = await engines.judge(body);
+    return Response.json(out, { status: out.error ? 502 : 200 });
+  }
+
   if (url.pathname === '/api/chat') {
     if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
     let body; try { body = await request.json(); } catch (e) { return new Response('bad request', { status: 400 }); }
@@ -75,6 +82,38 @@ async function handle(request) {
     return new Response(stream, { headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache' } });
   }
 
+  if (url.pathname === '/api/store' || url.pathname === '/api/store/open') { // 会話記録をこの端末のファイルとして保存する（会話ごとに JSON と、読める形の Markdown）
+    const dir = path.join(app.getPath('userData'), 'conversations');
+    const okId = (id) => typeof id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(id);
+    const atomic = (file, text) => { const tmp = file + '.tmp'; fs.writeFileSync(tmp, text); fs.renameSync(tmp, file); }; // 途中で落ちても壊れないよう置き換え
+    if (url.pathname === '/api/store/open') { fs.mkdirSync(dir, { recursive: true }); await shell.openPath(dir); return Response.json({ ok: true, dir }); }
+    if (request.method === 'GET') {
+      const convs = {}; let links = null;
+      if (fs.existsSync(dir)) for (const f of fs.readdirSync(dir)) {
+        if (!f.endsWith('.json')) continue;
+        try { const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); if (f === '_links.json') links = j; else if (j && j.id && j.nodes && j.branches) convs[j.id] = j; } catch (e) { /* 壊れたファイルは読み飛ばす */ }
+      }
+      return Response.json({ dir, convs, links });
+    }
+    if (request.method === 'POST') {
+      try {
+        const b = await request.json(); fs.mkdirSync(dir, { recursive: true }); let saved = 0;
+        for (const it of (Array.isArray(b.files) ? b.files : [])) {
+          if (!it || !okId(it.id) || !it.conv || it.conv.id !== it.id) continue;
+          atomic(path.join(dir, it.id + '.json'), JSON.stringify(it.conv, null, 1));
+          if (typeof it.md === 'string') atomic(path.join(dir, it.id + '.md'), it.md);
+          saved++;
+        }
+        for (const id of (Array.isArray(b.removed) ? b.removed : [])) { // 画面で削除した会話は、消さずに trash へ移す
+          if (!okId(id)) continue; const trash = path.join(dir, 'trash'); fs.mkdirSync(trash, { recursive: true });
+          for (const ext of ['.json', '.md']) { const src = path.join(dir, id + ext); if (fs.existsSync(src)) fs.renameSync(src, path.join(trash, `${id}-${Date.now()}${ext}`)); }
+        }
+        if (b.links && typeof b.links === 'object') atomic(path.join(dir, '_links.json'), JSON.stringify(b.links));
+        return Response.json({ ok: true, saved, dir });
+      } catch (e) { return new Response('store failed', { status: 500 }); }
+    }
+    return new Response('method not allowed', { status: 405 });
+  }
   if (url.pathname === '/api/backup') {
     const dir = path.join(app.getPath('userData'), 'backups');
     const latest = path.join(dir, 'convs-latest.json');
@@ -163,13 +202,19 @@ async function runSmoke(win) {
         await mk('ゾルミンの副作用マニュアル','ゾルミンの発疹と下痢への対処を病棟マニュアルにまとめたい。ステロイド外用薬と休薬基準を整理して。');
         await mk('生存時間解析の相談','カプランマイヤー曲線とログランク検定、Cox比例ハザードモデルの使い分けを教えて。');
         await mk('学会スライドの配色','学会発表のスライドで、藍色を基調にした配色とフォントの選び方を相談したい。');
-        settings.memory='- 腫瘍内科の臨床医';settings.memoryOn=true;settings.knowThr=50;saveSettings();
-        const sys=buildContext(conv.activeNodeId).system;
+        settings.knowThr=50;saveSettings();
         showKnow();await new Promise(x=>setTimeout(x,500));
         const k=kbCache.nodes.find(n=>n.title==='副作用');if(k){knowSel=k.key;renderKnow();}
+        if(${process.env.SMOKE_JEV === '1'}){ // Jev 連携（BRANCHAT_JEV_URL で模擬サーバーへ向けて確認する）
+          settings.judge='jev';settings.jevVia='typesafe';settings.jevKey='smoke-test-key';saveSettings();
+          const t=kbCache.nodes.find(n=>n.title==='ゾルミンの副作用マニュアル');const ok=await updateLinks(t.convId,t.bid,true);
+          r.jev={mode:judgeMode(),ready:jevReady(),ok,err:jevLastError,scores:Object.entries(links).filter(([k,v])=>v.by==='jev').map(([k,v])=>v.s+' '+k.split('|').map(x=>(kbCache.nodes.find(n=>n.key===x)||{}).title).join(' ↔ '))};
+          settings.jevKey='';saveSettings();renderKnow();await new Promise(x=>setTimeout(x,300));r.jev.unsetInfo=document.querySelector('#knowInfo').textContent;r.jev.btn=document.querySelector('#knowAi').textContent;}
         if(${process.env.SMOKE_KNOW_LIVE === '1'}){settings.provider='bridge';await probeBridge();const t=kbCache.nodes.find(n=>n.title==='ゾルミンの副作用マニュアル');const t0=performance.now();const ok=await updateLinks(t.convId,t.bid,true);settings.provider='dummy';
           r.knowLive={ok,ms:Math.round(performance.now()-t0),scores:Object.entries(links).map(([k,v])=>v.s+' '+k.split('|').map(x=>(kbCache.nodes.find(n=>n.key===x)||{}).title).join(' ↔ ')).sort((a,b)=>parseInt(b)-parseInt(a))};renderKnow();await new Promise(x=>setTimeout(x,300));}
-        r.know={sideItems:document.querySelectorAll('.citem').length,nodes:kbCache.nodes.length,edges:document.querySelectorAll('#knowSvg .ke').length,memInContext:sys.includes('腫瘍内科の臨床医')&&sys.indexOf('腫瘍内科の臨床医')<sys.indexOf('## 会話マップ')};
+        r.know={sideItems:document.querySelectorAll('.citem').length,nodes:kbCache.nodes.length,edges:document.querySelectorAll('#knowSvg .ke').length};
+        await flushStore();const st=await (await fetch('/api/store')).json();const one=Object.values(st.convs).find(c=>c.title==='生存時間解析の相談');
+        r.store={dir:st.dir,files:Object.keys(st.convs).length,inApp:Object.keys(convs).length,hasNodes:!!(one&&one.order.length===2)};
       }
       if(${process.env.SMOKE_TUT === '1'}){openTut(1);await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
