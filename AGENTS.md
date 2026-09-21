@@ -38,7 +38,7 @@ branch-chat/
 | 箇所 | index.html | artifact.html |
 |---|---|---|
 | 骨格 | `<!DOCTYPE>`〜`<body>` あり | 無し（Artifact側が付与）。先頭は `<meta charset>` と `<title>` |
-| 接続方式 | `streamAPI` `streamBridge` `streamDummy`、`probeBridge` | `streamClaude`（`claude.use('sample')`）`streamDummy`、`probeClaude`、`ERR_JA`/`errCopy` |
+| 接続方式 | `streamAPI` `streamBridge` `streamOpenAI` `streamDummy`、`probeBridge` | `streamClaude`（`claude.use('sample')`）`streamDummy`、`probeClaude`、`ERR_JA`/`errCopy` |
 | 設定ダイアログ | APIキー、モデル名、要約モデル | モデル階層（標準/高度/速い）のみ |
 | 既定値 | provider `dummy`、予算 60000 | provider `claude`、予算 40000（入力上限64KBのため） |
 | 書き出し（`saveTextFile`） | `<a download>` | `downloads` capability（無ければ `<a download>`） |
@@ -65,6 +65,10 @@ branch-chat/
 - スモークテストは `userData` を一時フォルダに分けている。利用者の実データ（`~/Library/Application Support/BranCHAT`）をテストで汚さない。
 - 確認は `cd desktop && npm run smoke`（画面表示・エンジン検出・ダミー送信・スクリーンショット）。`SMOKE_KNOW=1` で会話一覧・知識マップ・会話記録のファイル保存も通す（`SMOKE_JEV=1` と `BRANCHAT_JEV_URL=模擬サーバー` で Jev 連携の配線も確認）（`SMOKE_KNOW_LIVE=1` を足すと関連度の AI 判定を Haiku で1回だけ実行）。実モデルも1回試すときだけ `SMOKE_LIVE=1 npm run smoke`。
 - 計画とフェーズ（D0〜D3）は `PLAN.md` 末尾。
+
+### ほかの LLM の API（`settings.provider==='openai'`、index.html のみ）
+
+Claude 以外の LLM を API で使うための接続。多くの LLM が備える **OpenAI 互換の `/chat/completions`** を画面から直接呼ぶ（`streamOpenAI`）。設定は接続先 URL（`OA_PRESETS`: OpenAI / Gemini / xAI / DeepSeek / Mistral / Groq / OpenRouter / Ollama / LM Studio / その他）、キー、モデル名（カンマ区切り、`/models` から取得もできる）、要約用モデル名。`refreshModelCatalog` がモデル名をそのまま `MODEL_OPTS`（`engine:'openai'`、思考量なし）にするので、枝ごとのモデル切り替えはそのまま働く。要約・関連度判定など `raw` の呼び出しは `oaSum`（無ければ1つ目）を使う。Web検索・MCP・思考量は送らない。`stream_options` を拒否する API には付けずに送り直す。キーは `settings.oaKey`（端末内のみ、バックアップに入らない）。**実物の各社 API では未検証**で、確認は OpenAI 互換の模擬サーバー（`SMOKE_OA=1`）。ブラウザからの直接接続を許可していない API（CORS）は使えない。Artifact 版は外部通信ができないので対象外（`check.sh` の index 専用関数に登録済み）。
 
 ### スクリプトの区画（両ファイル共通、`/* ========== 名前 ========== */` で区切る）
 

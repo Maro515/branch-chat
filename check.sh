@@ -26,7 +26,7 @@ no(r'sk-ant-[A-Za-z0-9]',idx+art,'APIキーらしき文字列が無い')
 no(r'ls(Get|Set)=[^;]*\{try\{(return )?ls(Get|Set)\(',idx+art,'保存ヘルパーが自分自身を呼んでいない（過去に一括置換で壊れた）')
 # 関数の取りこぼし（片方にだけある関数）
 fn=lambda t:set(re.findall(r'(?:async\s+)?function\*?\s+([A-Za-z_$][\w$]*)\s*\(',t))
-only_idx=fn(idx)-fn(art)-{'streamAPI','streamBridge','probeBridge','scheduleBackup','restoreFromBackup'}
+only_idx=fn(idx)-fn(art)-{'streamAPI','streamBridge','probeBridge','scheduleBackup','restoreFromBackup','streamOpenAI','fetchOaModels','syncOaFields'}
 only_art=fn(art)-fn(idx)-{'streamClaude','probeClaude'}
 if only_idx: print('FAIL index.html にだけある関数:',sorted(only_idx)); bad=1
 if only_art: print('FAIL artifact.html にだけある関数:',sorted(only_art)); bad=1

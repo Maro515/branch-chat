@@ -234,6 +234,12 @@ async function runSmoke(win) {
         await new Promise(x=>setTimeout(x,400));document.querySelector('#bkBtn').click();await new Promise(x=>setTimeout(x,300));r.bk.openDialogs=[...document.querySelectorAll('dialog[open]')].map(d=>d.id);
       }
       if(${process.env.SMOKE_OVER === '1'}){gotoBranch('main');showOverview();await new Promise(x=>setTimeout(x,500));r.over={head:document.querySelector('.cardsHead h2').textContent,secs:[...document.querySelectorAll('.cardsSec')].map(e=>e.textContent)};}
+      if(${process.env.SMOKE_OA === '1'}){ // ほかの LLM の API（OpenAI 互換）。模擬サーバー 127.0.0.1:18766 へ
+        settings.provider='openai';settings.oaBase='http://127.0.0.1:18766/v1';settings.oaKey='mock-key';settings.oaModels='mock-large, mock-small';settings.oaSum='mock-small';saveSettings();refreshModelCatalog();
+        const ms=await fetchOaModels(settings.oaBase,settings.oaKey);conv=newConversation('API確認');persist();await send('つながりますか');const n=N(conv.activeNodeId);await new Promise(x=>setTimeout(x,1500));
+        settings.oaKey='wrong';await send('キーが違う場合');const n2=N(conv.activeNodeId);
+        r.oa={models:ms,opts:MODEL_OPTS.map(o=>o.v),reply:n.content,usage:n.usage,model:n.model,summary:B('main').summary&&B('main').summary.topic,badKey:n2.content.slice(0,80)};settings.provider='dummy';
+      }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     const img = await win.webContents.capturePage();

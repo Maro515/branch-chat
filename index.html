@@ -500,8 +500,21 @@ table.md tr:nth-child(even) td{background:#f8fafd}
     <option value="dummy">ダミー応答（APIなしでUI確認）</option>
     <option value="bridge">ブリッジ（Claude CLI / Codex CLI・定額枠）</option>
     <option value="api">Claude API（従量課金・APIキー）</option>
+    <option value="openai">ほかの LLM の API（OpenAI・Gemini・ローカルLLM など／OpenAI互換）</option>
   </select>
   <div class="hint" id="bridgeHint"></div>
+  <div id="sOaBox">
+    <label>接続先（OpenAI互換の API）</label>
+    <select id="sOaPreset"></select>
+    <input type="text" id="sOaBase" placeholder="https://.../v1（/chat/completions の手前まで）">
+    <input type="password" id="sOaKey" placeholder="その API のキー（ローカルLLM は空でよい）">
+    <label>使うモデル名（複数はカンマ区切り。入力欄の横のボタンで枝ごとに切り替えられます）</label>
+    <input type="text" id="sOaModels" placeholder="例: モデル名をカンマ区切りで">
+    <div class="mrow" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px"><button class="small" id="sOaFetch" type="button">この接続先のモデル一覧を取得</button><span class="hint var" id="sOaMsg"></span></div>
+    <label>要約用のモデル名（空なら上の1つ目を使う。安くて速いものが向きます）</label>
+    <input type="text" id="sOaSum" placeholder="任意">
+    <div class="hint">多くの LLM が同じ形式（OpenAI互換）の API を備えているので、接続先とモデル名を入れれば使えます。料金はその API の従量課金です。この接続では Web検索・連携ツール（MCP）・思考量の指定は使えません。キーはこの端末の中にだけ保存され、バックアップのファイルには入りません。</div>
+  </div>
   <label>APIキー（Claude API を使う場合）</label>
   <input type="password" id="sKey" placeholder="sk-ant-...">
   <label>本文モデル</label>
@@ -850,7 +863,31 @@ async function* streamDummy(system,messages,model,opts={}){
   const txt=`（ダミー応答・${model}）\n現在ブランチ「${cur}」で「${excerpt(last,30)}」を受け取りました。${imgNote}\n認知しているブランチ: ${names.join(' / ')}\n祖先パス ${messages.length} 件、system ${estTok(system)} tok 相当を受信。設定でAPIかブリッジを選ぶと本物の応答になります。`;
   for(const ch of txt){if(opts&&opts.signal&&opts.signal.aborted)return;await new Promise(r=>setTimeout(r,8));yield {text:ch};}
 }
-function provider(){return settings.provider==='api'?streamAPI:settings.provider==='bridge'?streamBridge:streamDummy;}
+// ---- ほかの LLM の API（OpenAI 互換の /chat/completions）----
+const OA_PRESETS=[['OpenAI','https://api.openai.com/v1'],['Google Gemini','https://generativelanguage.googleapis.com/v1beta/openai'],['xAI（Grok）','https://api.x.ai/v1'],['DeepSeek','https://api.deepseek.com/v1'],['Mistral','https://api.mistral.ai/v1'],['Groq','https://api.groq.com/openai/v1'],['OpenRouter（多数のモデルをまとめて）','https://openrouter.ai/api/v1'],['Ollama（このパソコンのローカルLLM）','http://localhost:11434/v1'],['LM Studio（このパソコンのローカルLLM）','http://localhost:1234/v1'],['その他（URLを自分で入力）','']];
+const oaBase=()=>String(settings.oaBase||'').trim().replace(/\/+$/,'');
+const oaModels=()=>String(settings.oaModels||'').split(/[,、\s]+/).map(x=>x.trim()).filter(Boolean);
+const oaHeaders=()=>{const h={'Content-Type':'application/json'};if((settings.oaKey||'').trim())h.Authorization='Bearer '+settings.oaKey.trim();return h;};
+async function* streamOpenAI(system,messages,model,opts={}){
+  const base=oaBase();if(!base)throw new Error('設定で接続先の URL を入れてください');
+  const list=oaModels();let m=list.includes(model)?model:(opts.raw?(String(settings.oaSum||'').trim()||list[0]):list[0]);
+  if(!m)throw new Error('設定で使うモデル名を入れてください');
+  const msgs=[{role:'system',content:system},...messages.map(x=>({role:x.role,content:x.content}))];
+  if(opts.images&&opts.images.length){const l=msgs[msgs.length-1];l.content=[...opts.images.map(im=>({type:'image_url',image_url:{url:`data:${im.media_type||'image/jpeg'};base64,${im.data}`}})),{type:'text',text:l.content}];}
+  const call=withUsage=>fetch(base+'/chat/completions',{method:'POST',headers:oaHeaders(),signal:opts.signal,body:JSON.stringify(Object.assign({model:m,messages:msgs,stream:true},withUsage?{stream_options:{include_usage:true}}:{}))});
+  let r;try{r=await call(true);if(r.status===400||r.status===422)r=await call(false);} // 使用量の通知に対応していない API は付けずに送り直す
+  catch(e){if(opts.signal&&opts.signal.aborted)return;throw new Error('API に接続できませんでした。URL が正しいか、その API がアプリからの直接接続を許可しているか確認してください');}
+  if(!r.ok){let t='';try{t=(await r.text()).slice(0,200);}catch(e){}throw new Error(`API の応答 ${r.status}${r.status===401||r.status===403?'（キーを確認してください）':r.status===404?'（URL かモデル名を確認してください）':''} ${t}`);}
+  const rd=r.body.getReader();const dec=new TextDecoder();let buf='';
+  for(;;){const {done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
+    while((i=buf.indexOf('\n'))>=0){const line=buf.slice(0,i).trim();buf=buf.slice(i+1);if(!line.startsWith('data:'))continue;const d=line.slice(5).trim();if(d==='[DONE]')return;
+      let j;try{j=JSON.parse(d);}catch(e){continue;}
+      if(j.error)throw new Error(String((j.error&&j.error.message)||j.error).slice(0,200));
+      const c=j.choices&&j.choices[0]&&j.choices[0].delta&&j.choices[0].delta.content;if(typeof c==='string'&&c)yield {text:c};
+      if(j.usage)yield {usage:{input_tokens:j.usage.prompt_tokens||0,output_tokens:j.usage.completion_tokens||0,cache_read_input_tokens:(j.usage.prompt_tokens_details&&j.usage.prompt_tokens_details.cached_tokens)||0}};}}
+}
+async function fetchOaModels(base,key){const h={};if(key)h.Authorization='Bearer '+key;const r=await fetch(base.replace(/\/+$/,'')+'/models',{headers:h});if(!r.ok)throw new Error('応答 '+r.status);const j=await r.json();return (j.data||j.models||[]).map(x=>String(x.id||x.name||'').replace(/^models\//,'')).filter(Boolean);}
+function provider(){return settings.provider==='api'?streamAPI:settings.provider==='bridge'?streamBridge:settings.provider==='openai'?streamOpenAI:streamDummy;}
 
 /* ========== 要約（Layer2の更新） ========== */
 const SUM_SYS=`あなたは会話ブランチの要約係です。与えられた会話ログを読み、次のJSONだけを出力してください（前後に説明を付けない）:
@@ -893,10 +930,10 @@ async function send(text,opts={}){
   if(opts.images&&opts.images.length)u.images=opts.images.map(p=>p.thumb); // 表示用の縮小版だけ保存（送信用の原寸は保存しない）
   const a=addNode('assistant','',u.id,bid);a.streaming=true;if(opts.mergedFrom)a.mergedFrom=opts.mergedFrom;
   conv.activeNodeId=a.id;persist();renderAll();
-  const web=!!settings.web&&!IS_ARTIFACT;
+  const web=!!settings.web&&!IS_ARTIFACT&&settings.provider!=='openai'; // OpenAI互換の接続では Web検索を使えない
   const ctx=buildContext(u.id,{pinIds:opts.pinIds});
   if(web)ctx.system+='\n\n## Web検索\nWeb検索（必要ならページ取得）が使えます。最新情報・具体的な事実・数値・固有名詞・出典が関わる質問では原則として検索し、回答の末尾に出典のURLを示してください。検索を省いてよいのは、挨拶や言い換え、既に会話に出ている内容の整理など、外部情報がまったく不要な場合だけです。';
-  const mcpSel=(!IS_ARTIFACT&&settings.mcp&&settings.mcp.length)?settings.mcp.filter(n=>mcpList.some(sv=>sv.name===n&&!sv.needsAuth)):[];
+  const mcpSel=(!IS_ARTIFACT&&settings.provider!=='openai'&&settings.mcp&&settings.mcp.length)?settings.mcp.filter(n=>mcpList.some(sv=>sv.name===n&&!sv.needsAuth)):[];
   if(mcpSel.length)ctx.system+=`\n\n## 外部ツール（MCP）\n次の連携ツールが使えます: ${mcpSel.join(' / ')}。参照・検索・取得のために使い、結果を根拠として示してください。作成・送信・削除・更新などデータを変える操作は、ユーザーが明確に指示した場合以外は行わないでください。`;
   setStatus(`送信中… 概算 ${ctx.tokens} tok`);
   try{
@@ -1582,6 +1619,16 @@ $('#settingsBtn').addEventListener('click',()=>{$('#sStoreBox').style.display=IS
 $('#sStoreOpen').onclick=()=>fetch('/api/store/open',{method:'POST'}).catch(()=>{});
 $('#sJudge').onchange=syncJevFields;$('#sJevVia').onchange=syncJevFields;
 $('#sSave').addEventListener('click',()=>{settings.judge=$('#sJudge').value;settings.jevVia=$('#sJevVia').value;settings.jevKey=$('#sJevKey').value.trim();settings.jevCfAccount=$('#sJevCfAcc').value.trim();settings.jevCfToken=$('#sJevCfTok').value.trim();jevLastError='';saveSettings();if($('#know').classList.contains('on'))renderKnow();});
+$('#sOaPreset').innerHTML=OA_PRESETS.map(([l,u],i)=>`<option value="${i}">${esc(l)}</option>`).join('');
+function syncOaFields(){$('#sOaBox').style.display=$('#sProvider').value==='openai'?'':'none';}
+$('#settingsBtn').addEventListener('click',()=>{const b=oaBase();const i=OA_PRESETS.findIndex(p=>p[1]&&p[1]===b);$('#sOaPreset').value=String(i>=0?i:(b?OA_PRESETS.length-1:0));$('#sOaBase').value=b||OA_PRESETS[0][1];$('#sOaKey').value=settings.oaKey||'';$('#sOaModels').value=oaModels().join(', ');$('#sOaSum').value=settings.oaSum||'';$('#sOaMsg').textContent='';syncOaFields();});
+$('#sProvider').addEventListener('change',syncOaFields);
+$('#sOaPreset').onchange=e=>{const u=OA_PRESETS[+e.target.value][1];if(u)$('#sOaBase').value=u;else $('#sOaBase').focus();};
+$('#sOaFetch').onclick=async()=>{const base=$('#sOaBase').value.trim();if(!base){$('#sOaMsg').textContent='先に URL を入れてください';return;}$('#sOaMsg').textContent='取得中…';
+  try{const ms=await fetchOaModels(base,$('#sOaKey').value.trim());if(!ms.length)throw new Error('一覧が空でした');if(!$('#sOaModels').value.trim())$('#sOaModels').value=ms.slice(0,3).join(', ');$('#sOaMsg').textContent=`${ms.length} 個: ${ms.slice(0,40).join(' / ')}${ms.length>40?' …':''}`;}
+  catch(e){$('#sOaMsg').textContent='取得できませんでした（'+String(e.message||e).slice(0,80)+'）。モデル名は手で入力できます';}};
+$('#sSave').addEventListener('click',()=>{settings.oaBase=$('#sOaBase').value.trim().replace(/\/+$/,'');settings.oaKey=$('#sOaKey').value.trim();settings.oaModels=$('#sOaModels').value.trim();settings.oaSum=$('#sOaSum').value.trim();
+  if($('#sProvider').value==='openai'&&(!settings.oaBase||!oaModels().length))toast('接続先の URL とモデル名を入れてください');});
 $('#sCancel').onclick=()=>{$('#settings').close();refreshModelCatalog();};
 $('#sSave').onclick=()=>{settings.provider=$('#sProvider').value;settings.apiKey=$('#sKey').value.trim();settings.model=$('#sModel').value;settings.sumModel=$('#sSumModel').value;settings.budget=+$('#sBudget').value||60000;settings.extra=$('#sExtra').value.trim();
   if(settings.provider==='api'&&!settings.apiKey)toast('APIキーが未入力です');
@@ -1680,7 +1727,8 @@ const ALL_EFFORTS=[{v:'low',l:'low',d:'浅く速く'},{v:'medium',l:'medium'},{v
 const MODEL_OPTS=[...CLAUDE_MODELS];const EFFORT_OPTS=ALL_EFFORTS.slice(0,5);
 // 接続方式と、ブリッジが報告する Codex のモデル一覧から、選べるモデルを組み立てる
 function refreshModelCatalog(){
-  const list=[...CLAUDE_MODELS];
+  let list=[...CLAUDE_MODELS];
+  if(settings.provider==='openai'){const ms=oaModels();const host=(()=>{try{return new URL(oaBase()).host;}catch(e){return 'OpenAI互換 API';}})();list=ms.length?ms.map(id=>({v:id,l:id,d:host,engine:'openai',efforts:[]})):[{v:'',l:'モデル未設定',d:'設定でモデル名を入れてください',engine:'openai',efforts:[]}];}
   if(settings.provider==='bridge'&&codexInfo.ok)for(const m of codexInfo.models)list.push({v:m.id,l:m.name,d:'Codex CLI（ChatGPTの定額枠）',engine:'codex',efforts:m.efforts||[],defEffort:m.default_effort});
   MODEL_OPTS.length=0;MODEL_OPTS.push(...list);
   const anyUltra=list.some(m=>(m.efforts||[]).includes('ultra'));
@@ -1860,7 +1908,7 @@ let lastExportPath=null;
 /* ========== ＋メニュー・画像添付 ========== */
 let pendingImgs=[];
 const imagesSupported=true; // ブリッジ(Claude/Codex)・API とも画像を送れる。ダミーは枚数を表示するだけ
-function renderPlus(){const web=!!settings.web&&!IS_ARTIFACT;const n=(settings.mcp||[]).length;const wb=$('#webBtn'),mb=$('#mcpBtn');
+function renderPlus(){const web=!!settings.web&&!IS_ARTIFACT&&settings.provider!=='openai';const n=(settings.mcp||[]).length;const wb=$('#webBtn'),mb=$('#mcpBtn');
   if(wb){wb.hidden=IS_ARTIFACT;wb.className='prow'+(web?' on':'');wb.innerHTML=`<span class="ui">🌐 Web検索</span><span class="st ui">${web?'オン':'オフ'}</span>`;}
   if(mb){const show=!IS_ARTIFACT&&settings.provider==='bridge';mb.hidden=!show;mb.className='prow'+(n?' on':'');mb.innerHTML=`<span class="ui">🔌 連携ツール（MCP）</span><span class="st ui">${n?n+'件を使用':'選ぶ'}</span>`;}
   const ib=$('#imgBtn');if(ib){ib.hidden=!imagesSupported;ib.className='prow';ib.innerHTML=`<span class="ui">🖼 画像を添付</span><span class="st ui">${pendingImgs.length?pendingImgs.length+'枚':'ファイル / 貼り付け / ドロップ'}</span>`;}
