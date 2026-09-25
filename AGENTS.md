@@ -125,9 +125,6 @@ python3 bridge.py
 
 自動テストは無い。ロジックの確認はブラウザのコンソールからアプリの関数（`send` `createBranch` `openFork` `buildContext` `editQuestion` など、すべてグローバル）を直接呼ぶ。
 
-### Artifact 版の公開
-
-廃止。公開しない。
 ## 4. コーディング規約
 
 - **単一HTML・依存ゼロ・ビルド無し。** フレームワーク、npm、CDNスクリプトを入れない。外部読み込みは Google Fonts の2書体だけ。
