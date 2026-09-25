@@ -157,7 +157,7 @@ class H(SimpleHTTPRequestHandler):
         req = json.loads(self.rfile.read(n) or b"{}")
         system = req.get("system", "")
         prompt = req.get("prompt", "")
-        model = req.get("model", "opus")
+        model = req.get("model", "claude-opus-5-5")
         effort = req.get("effort")
         engine = req.get("engine", "claude")
         web = bool(req.get("web"))  # Web検索を許可するか（検索と取得だけ。ファイルやコマンドは使わせない）

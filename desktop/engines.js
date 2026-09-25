@@ -167,7 +167,7 @@ function chat(req, onEvent) {
 function chatInner(req, onEvent, mcpCfg) {
   const system = String(req.system || '');
   let prompt = String(req.prompt || '');
-  const model = String(req.model || 'opus');
+  const model = String(req.model || 'claude-opus-5-5');
   const engine = req.engine === 'codex' ? 'codex' : 'claude';
   const effort = EFFORTS.includes(req.effort) ? req.effort : null;
   const web = !!req.web; // Web検索を許可するか（検索と取得だけ。ファイルやコマンドは使わせない）

@@ -17,7 +17,7 @@ class ClaudeSessions {
   identity(req, mcpCfg) { return JSON.stringify([req.model, req.effort || '', !!req.web, mcpCfg || {}, String(req.systemStatic || '')]); } // 固定の指示（記憶の引き継ぎを含む）が変わったら作り直す
 
   spawnProcess(req, mcpCfg, systemText) {
-    const model = String(req.model || 'opus');
+    const model = String(req.model || 'claude-opus-5-5');
     const args = ['-p', '--model', model, '--system-prompt', systemText, '--tools', ...(req.web ? ['WebSearch', 'WebFetch'] : [''])];
     const allowed = req.web ? ['WebSearch', 'WebFetch'] : [];
     if (mcpCfg && Object.keys(mcpCfg).length) { args.push('--mcp-config', JSON.stringify({ mcpServers: mcpCfg })); allowed.push(...Object.keys(mcpCfg).map((k) => 'mcp__' + k)); }
