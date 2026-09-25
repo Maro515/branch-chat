@@ -92,7 +92,7 @@ conv = { id, title, createdAt, order:[nodeId...], activeNodeId,
 2. **Layer 2** 全ブランチの要約カード「会話マップ」→ system。要約は回答完了ごとに安いモデルで非同期更新（`updateSummary`）
 3. **Layer 3** ピン留めブランチの全文 → system
 
-予算超過時は古い往復から省略。Artifact版には system が無いので、同じ文字列を先頭の user ターンとして渡す。
+予算超過時は古い往復から省略。
 
 ## 3. 動かし方・テスト方法
 
@@ -133,7 +133,7 @@ python3 bridge.py
 - **単一HTML・依存ゼロ・ビルド無し。** フレームワーク、npm、CDNスクリプトを入れない。外部読み込みは Google Fonts の2書体だけ。
 - 素の JavaScript。関数と状態はグローバル。区画コメントの並びを保ち、新機能は該当区画か「起動」の直前に新区画として足す。
 - **画面に出す可変文字列は必ず `esc()` を通す。** AI本文は `md()`（内部で `esc` 済み）。`md()` は `mdBlocks()`（行・表・コードのブロック配列）を結合したもので、表（GFM）、見出し、箇条書き、番号付き、引用、区切り線、リンクに対応。生成中は `renderStream()` が前回との差分ブロックだけを描き足し、新しい行は `.reveal` で滑らかに現れる（複数行が一度に届いたときは1行ごとに約70msずつ遅らせる）。書きかけの行は要素を作り直さず中身だけ更新する（フェードを途切れさせないため）。
-- **`confirm()` `prompt()` `alert()` は使わない。** Artifact のサンドボックスで黙って無効になる。`askConfirm(msg, okLabel)` と `askPrompt(title, default)` を `await` する。
+- **`confirm()` `prompt()` `alert()` は使わない。** 見た目が揃わず、環境によっては黙って無効になる。`askConfirm(msg, okLabel)` と `askPrompt(title, default)` を `await` する。
 - `localStorage` を直接触らない。`lsGetSafe` / `lsSetSafe`（try/catch 付き）か既存の `persist()` / `saveSettings()` を使う。**一括置換でヘルパー自身の中身まで書き換えないこと**（過去に `lsGet` が自分を呼ぶ形になり、Artifact版で保存が全く効いていなかった。`check.sh` が検出する）。
 - 文言は日本語、利用者目線で具体的に。ボタンは起きることをそのまま書く（「分岐を取り消す」）。
 
@@ -165,7 +165,7 @@ python3 bridge.py
 - **起動の固定費対策（両エンジン層共通）:** Claude 起動時は環境変数 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` `DISABLE_AUTOUPDATER=1` と `--setting-sources ""` を必ず付ける（1回あたり約2.7秒→0.3秒。実測済み）。`--bare` は OAuth を読まなくなるので使えない。
 - **`bridge.py` の安全側の設定:** `127.0.0.1` バインド。Claude 側は `--tools ""`（Web検索オン時だけ `--tools WebSearch WebFetch --allowedTools WebSearch WebFetch`。ファイルやコマンド系のツールは決して足さない）、`--strict-mcp-config`、`--no-session-persistence`。Codex 側は `-s read-only`、`--ephemeral`、`--ignore-user-config`、`--ignore-rules`、空の作業フォルダ。`~/.codex/auth.json` は存在確認だけで中身を読まない。外部公開（`0.0.0.0`）にしない。ツールやMCPを有効にする変更は利用者の明示的な依頼があるときだけ。
 - **秘密情報をリポジトリに入れない。** APIキーはブラウザの localStorage にのみ保存される設計。`check.sh` が `sk-ant-` を検出する。
-- **GitHub Pages を再有効化しない**（利用者の指示で停止済み。公開先は Artifact に一本化）。リポジトリ `Maro515/branch-chat` はソース管理専用。
+- **GitHub Pages を再有効化しない**（利用者の指示で停止済み。配布はデスクトップ版のビルドのみ）。リポジトリ `Maro515/branch-chat` はソース管理専用。
 - 親フォルダの `launch.json` の他プロジェクトの設定、および `branch-chat` の port 8991。
 - デスクトップ版の配信オリジン `app://branchat`、`appId`（`jp.maro515.branchat`）、レンダラの `contextIsolation` / `sandbox` / `nodeIntegration:false`。
 - デモ会話は**架空の薬剤「ゾルミン」**を使う。実在薬の用量など、医学的助言に見える内容をデモやサンプルに入れない。
@@ -176,10 +176,10 @@ python3 bridge.py
 - 変更は小さく。1つの依頼につき1コミット、メッセージは日本語で要点を1行。`main` に直接コミットしてよい（個人リポジトリ）。push まで行う。
 - 流れ: index.html（と必要なら desktop/）に変更 → `./check.sh` → `npm run sync` → `npm run smoke`（必要な SMOKE_* を付けて）→ commit & push → `npm run build:mac` して `dist` を `dist-<version>` に改名 → 何を確認できて何が未確認かを報告。古い `dist-*` は利用者が消してと言ったときだけ削除する。
 - 表示確認ができなかった場合（ブラウザが使えない等）は、その旨を必ず伝える。
-- 既知の制約: Artifact版はモデル名・思考量を指定できない（階層のみ）。トークン数は概算。外部通信不可。
+- 既知の制約: トークン数は概算。
 
 ## 7. 今後の予定（参考）
 
-Artifact版で使用感を固めた後、**デスクトップアプリ化**（ブリッジ同梱、各利用者の Claude Code ログインで定額利用）。そこでモデル名・思考量の選択と、MCP接続（設定で選んだサーバーだけ `--mcp-config` で渡す、読み取り系のみ自動許可、ツール実行をUIに表示）を入れる構想。
+デスクトップ版のみを育てる。未着手: 署名・公証（Apple Developer Program）、Windows ビルド、自動更新、チュートリアルの「インストールを開始」ボタン。Claude の新モデルが出たら `CLAUDE_MODELS` に足してアプリを更新する。
 
 アプリ名「BranCHAT」は同綴りの既存アプリ（branchat.app、GitHub の GzqHerry/branchat）と、旧名に近い BranchChat（branch-chat.com）がある。商標は未調査。一般公開・商用化の前に名称の再検討が必要。
