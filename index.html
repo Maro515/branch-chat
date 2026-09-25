@@ -520,6 +520,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   <input type="password" id="sKey" placeholder="sk-ant-...">
   <label>本文モデル</label>
   <select id="sModel">
+    <option value="claude-opus-5-5">Claude Opus 5.5</option>
     <option value="claude-opus-5">Claude Opus 5</option>
     <option value="claude-sonnet-5">Claude Sonnet 5</option>
     <option value="claude-fable-5-1">Claude Fable 5.1</option>
@@ -658,7 +659,7 @@ function renderStream(body,text){
 const SET_KEY='bc.settings.v1';
 const IS_ARTIFACT=false;
 const IS_DESKTOP=location.protocol==='app:'; // Electron 版は app://branchat/ で配信される
-let settings=Object.assign({provider:IS_DESKTOP?'bridge':'dummy',apiKey:'',model:'claude-opus-5',effort:'high',web:true,mcp:[],sumModel:'claude-haiku-4-5',budget:60000,extra:''},JSON.parse(localStorage.getItem(SET_KEY)||'{}'));
+let settings=Object.assign({provider:IS_DESKTOP?'bridge':'dummy',apiKey:'',model:'opus',effort:'high',web:true,mcp:[],sumModel:'claude-haiku-4-5',budget:60000,extra:''},JSON.parse(localStorage.getItem(SET_KEY)||'{}'));
 if('memory' in settings||'memoryOn' in settings){delete settings.memory;delete settings.memoryOn;lsSetSafe(SET_KEY,JSON.stringify(settings));} // 記憶の引き継ぎは不採用。登録済みの内容は破棄
 function saveSettings(){localStorage.setItem(SET_KEY,JSON.stringify(settings));}
 let bridgeOk=false;
@@ -822,7 +823,7 @@ async function* streamAPI(system,messages,model,opts={}){
   if(opts&&opts.effort&&!/haiku/.test(model))body.output_config={effort:opts.effort};
   if(opts&&opts.web){body.tools=[{type:/opus-5|sonnet-5/.test(model)?'web_search_20260209':'web_search_20250305',name:'web_search',max_uses:5}];}
   const headers={'Content-Type':'application/json','x-api-key':settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
-  if(model==='claude-opus-5'||model==='claude-fable-5-1'){headers['anthropic-beta']='server-side-fallback-2026-07-01';body.fallbacks='default';}
+  if(/^claude-opus-5|^claude-fable-5-1/.test(model)){headers['anthropic-beta']='server-side-fallback-2026-07-01';body.fallbacks='default';}
   const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers,body:JSON.stringify(body),signal:opts.signal});
   if(!r.ok){throw new Error(`API ${r.status}: ${(await r.text()).slice(0,300)}`);}
   const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
@@ -849,6 +850,7 @@ async function* streamBridge(system,messages,model,opts={}){
         if(ev.error)throw new Error(ev.error);
         if(ev.text)yield {text:ev.text};
         if(ev.usage)yield {usage:ev.usage};
+        if(ev.model_used)yield {model_used:ev.model_used};
         if(ev.rate_limit)yield {rate:ev.rate_limit};
         if(ev.tool)yield {tool:ev.tool};
         if(ev.mcp_status)yield {mcp_status:ev.mcp_status};
@@ -944,6 +946,7 @@ async function send(text,opts={}){
       if(ev.tool){(a.tools=a.tools||[]).push(ev.tool);const el=document.getElementById('n-'+a.id);if(el){const tu=el.querySelector('.toolsUsed');if(tu)tu.innerHTML=toolsHTML(a);}}
       if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){renderStream(el.querySelector('.body'),a.content);updateTailSpace();autoScroll();}}
       if(ev.usage)a.usage=ev.usage;
+      if(ev.model_used)a.modelUsed=ev.model_used; // 別名（opus 等）が実際にどのモデルになったか
       if(ev.rate)a.rate=ev.rate;
     }
     if(abortCtl&&abortCtl.signal.aborted)throw {code:'cancelled',message:'中止'};
@@ -1029,7 +1032,7 @@ function renderFocus(){
     const outside=n.branchId!==cur||after;
     if(after&&path.indexOf(n)===actIdx+1)html+=`<div class="divider ui" style="--bc:${b.color}">ここまでを文脈にして続けます。ここから送信すると新しい枝になります（末尾から続けるには <a href="#" data-gohead="${cur}">この枝の最後へ</a>）</div>`;
     html+=`<div class="msg ${n.role}${outside?' outside':''}${n.planned?' planned':''}${n.id===conv.activeNodeId&&after!==undefined&&actIdx>=0&&actIdx<path.length-1?' cursor':''}" id="n-${n.id}" style="--bc:${b.color}">
-      <div class="meta"><span class="tag">${esc(label(n))}</span><span class="ui">${n.role==='user'?'あなた':'AI'}</span><span title="このメッセージのトークン（AIは入力+出力の実測、未計測なら概算）">${tokensOf(n)} tok</span>${n.role==='assistant'&&n.model?`<span title="この回答を生成したモデルと思考量">${esc(modelLabel(n.model))}${n.effort?' · '+esc(n.effort):''}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="spin4 mini"><i></i><i></i><i></i><i></i></span>':''}</div>
+      <div class="meta"><span class="tag">${esc(label(n))}</span><span class="ui">${n.role==='user'?'あなた':'AI'}</span><span title="このメッセージのトークン（AIは入力+出力の実測、未計測なら概算）">${tokensOf(n)} tok</span>${n.role==='assistant'&&n.model?`<span title="この回答を生成したモデルと思考量">${esc(modelLabel(n.model))}${n.modelUsed&&n.modelUsed!==n.model?` <span class="var">(${esc(n.modelUsed)})</span>`:''}${n.effort?' · '+esc(n.effort):''}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="spin4 mini"><i></i><i></i><i></i><i></i></span>':''}</div>
       ${imgsHTML(n)}<div class="toolsUsed">${toolsHTML(n)}</div><div class="body">${n.streaming&&!n.content?`<div class="waiting"><span class="spin4"><i></i><i></i><i></i><i></i></span><span class="ui">${n.role==='assistant'?'回答を生成中…':''}</span></div>`:md(n.content)}</div>
       <div class="tools">${n.role==='assistant'&&!n.streaming&&isDeadNode(n)?`<span class="hint ui">中止した回答からは分岐できません</span>`:''}${n.role==='assistant'&&!n.streaming&&!isDeadNode(n)?`<button class="small" data-fork="${n.id}" title="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">${emptyBranchFrom(n.id)?'⑂ 未開始の分岐へ':'⑂ ここから分岐'}</button><button class="small plan${n.planned?' on':''}" data-plan="${n.id}" title="分岐するか迷っているときの印。俯瞰図で黄色く表示">${n.planned?'★ 予定解除':'☆ 分岐予定'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="small" data-edit="${n.id}" title="この質問を書き直して送り直す">✎ 質問を編集する</button>`:''}${n.role==='assistant'&&!n.streaming&&n.id!==B(n.branchId).headNodeId?`<button class="small" data-go="${n.id}" title="この回答までを文脈にして続ける（送信すると新しい枝になります）">ここから続ける</button>`:''}</div>
     </div>`;
@@ -1723,12 +1726,13 @@ function loadDemo(){
 $('#demoBtn').onclick=async()=>{if(await askConfirm('見本の会話「【デモ】ゾルミン療法の相談」を新しく作成しますか？\n（架空の薬剤を使った例で、医学的助言ではありません）','作成する'))loadDemo();};
 
 /* モデル選択肢（この版で選べるもの） */
-const CLAUDE_MODELS=[{v:'claude-opus-5',l:'Opus 5',d:'高性能・標準',engine:'claude',efforts:['low','medium','high','xhigh','max']},{v:'claude-sonnet-5',l:'Sonnet 5',d:'速くて安い',engine:'claude',efforts:['low','medium','high','xhigh','max']},{v:'claude-fable-5-1',l:'Fable 5.1',d:'最上位・高価',engine:'claude',efforts:['low','medium','high','xhigh','max']},{v:'claude-haiku-4-5',l:'Haiku 4.5',d:'最速・思考量の指定なし',engine:'claude',efforts:[]}];
+// alias: Claude CLI の別名（'opus' 'sonnet'）。CLI がその時点の最新モデルに解決するので、モデルが更新されてもアプリを直さなくてよい。API 接続では使えない
+const CLAUDE_MODELS=[{v:'opus',l:'Opus（最新版を自動で使う）',d:'今は Opus 5.5。更新されると自動で追従',engine:'claude',alias:true,efforts:['low','medium','high','xhigh','max']},{v:'sonnet',l:'Sonnet（最新版を自動で使う）',d:'速くて安い方の最新',engine:'claude',alias:true,efforts:['low','medium','high','xhigh','max']},{v:'claude-opus-5-5',l:'Opus 5.5',d:'高性能・標準（2026年9月）',engine:'claude',efforts:['low','medium','high','xhigh','max']},{v:'claude-opus-5',l:'Opus 5',d:'ひとつ前の Opus',engine:'claude',efforts:['low','medium','high','xhigh','max']},{v:'claude-sonnet-5',l:'Sonnet 5',d:'速くて安い',engine:'claude',efforts:['low','medium','high','xhigh','max']},{v:'claude-fable-5-1',l:'Fable 5.1',d:'最上位・高価',engine:'claude',efforts:['low','medium','high','xhigh','max']},{v:'claude-haiku-4-5',l:'Haiku 4.5',d:'最速・思考量の指定なし',engine:'claude',efforts:[]}];
 const ALL_EFFORTS=[{v:'low',l:'low',d:'浅く速く'},{v:'medium',l:'medium'},{v:'high',l:'high'},{v:'xhigh',l:'xhigh'},{v:'max',l:'max',d:'深く・遅い'},{v:'ultra',l:'ultra',d:'一部のGPTモデルのみ'}];
 const MODEL_OPTS=[...CLAUDE_MODELS];const EFFORT_OPTS=ALL_EFFORTS.slice(0,5);
 // 接続方式と、ブリッジが報告する Codex のモデル一覧から、選べるモデルを組み立てる
 function refreshModelCatalog(){
-  let list=[...CLAUDE_MODELS];
+  let list=CLAUDE_MODELS.filter(m=>!m.alias||settings.provider!=='api'); // API 接続には別名を送れない
   if(settings.provider==='openai'){const ms=oaModels();const host=(()=>{try{return new URL(oaBase()).host;}catch(e){return 'OpenAI互換 API';}})();list=ms.length?ms.map(id=>({v:id,l:id,d:host,engine:'openai',efforts:[]})):[{v:'',l:'モデル未設定',d:'設定でモデル名を入れてください',engine:'openai',efforts:[]}];}
   if(settings.provider==='bridge'&&codexInfo.ok)for(const m of codexInfo.models)list.push({v:m.id,l:m.name,d:'Codex CLI（ChatGPTの定額枠）',engine:'codex',efforts:m.efforts||[],defEffort:m.default_effort});
   MODEL_OPTS.length=0;MODEL_OPTS.push(...list);

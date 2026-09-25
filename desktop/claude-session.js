@@ -17,7 +17,7 @@ class ClaudeSessions {
   identity(req, mcpCfg) { return JSON.stringify([req.model, req.effort || '', !!req.web, mcpCfg || {}, String(req.systemStatic || '')]); } // 固定の指示（記憶の引き継ぎを含む）が変わったら作り直す
 
   spawnProcess(req, mcpCfg, systemText) {
-    const model = String(req.model || 'claude-opus-5');
+    const model = String(req.model || 'opus');
     const args = ['-p', '--model', model, '--system-prompt', systemText, '--tools', ...(req.web ? ['WebSearch', 'WebFetch'] : [''])];
     const allowed = req.web ? ['WebSearch', 'WebFetch'] : [];
     if (mcpCfg && Object.keys(mcpCfg).length) { args.push('--mcp-config', JSON.stringify({ mcpServers: mcpCfg })); allowed.push(...Object.keys(mcpCfg).map((k) => 'mcp__' + k)); }
@@ -68,6 +68,7 @@ class ClaudeSessions {
       } else if (t === 'system' && ev.subtype === 'init' && mcpCfg && Object.keys(mcpCfg).length) {
         onEvent({ mcp_status: (ev.mcp_servers || []).map((m) => ({ name: m.name, status: m.status })) });
       } else if (t === 'assistant') {
+        if (ev.message && ev.message.model) onEvent({ model_used: String(ev.message.model) });
         for (const c of ((ev.message || {}).content || [])) {
           if (c.type !== 'tool_use') continue; const inp = c.input || {};
           if (c.name === 'WebSearch' || c.name === 'WebFetch') onEvent({ tool: { name: c.name === 'WebSearch' ? 'web_search' : 'web_fetch', q: inp.query || inp.url || '' } });

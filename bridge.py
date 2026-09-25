@@ -157,7 +157,7 @@ class H(SimpleHTTPRequestHandler):
         req = json.loads(self.rfile.read(n) or b"{}")
         system = req.get("system", "")
         prompt = req.get("prompt", "")
-        model = req.get("model", "claude-opus-5")
+        model = req.get("model", "opus")
         effort = req.get("effort")
         engine = req.get("engine", "claude")
         web = bool(req.get("web"))  # Web検索を許可するか（検索と取得だけ。ファイルやコマンドは使わせない）
@@ -263,6 +263,8 @@ class H(SimpleHTTPRequestHandler):
                 elif t == "system" and ev.get("subtype") == "init" and mcp:
                     send({"mcp_status": [{"name": m.get("name"), "status": m.get("status")} for m in ev.get("mcp_servers") or []]})
                 elif t == "assistant":
+                    if (ev.get("message") or {}).get("model"):
+                        send({"model_used": str(ev["message"]["model"])})  # 別名（opus 等）が実際にどのモデルになったか
                     for c in (ev.get("message") or {}).get("content") or []:
                         if c.get("type") != "tool_use":
                             continue

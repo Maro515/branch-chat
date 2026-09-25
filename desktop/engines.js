@@ -167,7 +167,7 @@ function chat(req, onEvent) {
 function chatInner(req, onEvent, mcpCfg) {
   const system = String(req.system || '');
   let prompt = String(req.prompt || '');
-  const model = String(req.model || 'claude-opus-5');
+  const model = String(req.model || 'opus');
   const engine = req.engine === 'codex' ? 'codex' : 'claude';
   const effort = EFFORTS.includes(req.effort) ? req.effort : null;
   const web = !!req.web; // Web検索を許可するか（検索と取得だけ。ファイルやコマンドは使わせない）
@@ -233,6 +233,7 @@ function chatInner(req, onEvent, mcpCfg) {
         if (c.name === 'WebSearch' || c.name === 'WebFetch') onEvent({ tool: { name: c.name === 'WebSearch' ? 'web_search' : 'web_fetch', q: inp.query || inp.url || '' } });
         else if (String(c.name).startsWith('mcp__')) { const parts = String(c.name).split('__'); const q = Object.values(inp).find((v) => ['string', 'number'].includes(typeof v) && String(v).trim()); onEvent({ tool: { name: 'mcp', server: parts[1] || '', tool: parts.slice(2).join('__') || c.name, q: q ? String(q).slice(0, 80) : '' } }); }
       }
+    } else if (t === 'assistant' && ev.message && ev.message.model) { onEvent({ model_used: String(ev.message.model) });
     } else if (t === 'result') { if (ev.is_error) onEvent({ error: String(ev.result || 'claude がエラーを返しました').slice(0, 800) }); }
     else if (t === 'rate_limit_event') onEvent({ rate_limit: ev.rate_limit_info });
   };
