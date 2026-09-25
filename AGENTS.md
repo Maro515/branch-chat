@@ -14,8 +14,7 @@ BranCHAT（旧称 Branch Chat）は、AIとの会話を直線ではなく**分�
 
 ```
 branch-chat/
-├── index.html      ローカル版の本体（単一HTML）。接続: ダミー / ローカルブリッジ / Claude API
-├── artifact.html   claude.ai Artifact 版。接続: Claude（閲覧者のアカウント） / ダミー
+├── index.html      画面の本体（単一HTML）。デスクトップ版はこれをそのまま使う。接続: ダミー / ローカルブリッジ / Claude API / OpenAI互換API
 ├── bridge.py       静的配信 + POST /api/chat → `claude -p`（engine=claude）か `codex exec`（engine=codex）を起動してSSEで返す。どちらも各CLIのログイン＝定額枠で動く
 ├── desktop/        デスクトップ版（Electron）。main.js / engines.js / package.json / scripts/sync-app.mjs
 │                   desktop/app/ は index.html の自動コピー（git管理外・手で編集しない）
@@ -28,24 +27,9 @@ branch-chat/
 
 ビルド工程・依存パッケージ・`node_modules` は無い。作らない。
 
-### 2つのHTMLの関係（最重要）
+### Artifact 版は廃止（2026-09-25、利用者の指示）
 
-`artifact.html` は `index.html` から派生した**別ファイル**で、自動生成の仕組みは無い。
-**機能やUIを変えるときは、必ず両方に同じ変更を入れる。** 片方だけ直すと `check.sh` の関数一致チェックで検出される。
-
-意図的に違えてある箇所は次だけ。ここ以外の差分は不具合とみなす。
-
-| 箇所 | index.html | artifact.html |
-|---|---|---|
-| 骨格 | `<!DOCTYPE>`〜`<body>` あり | 無し（Artifact側が付与）。先頭は `<meta charset>` と `<title>` |
-| 接続方式 | `streamAPI` `streamBridge` `streamOpenAI` `streamDummy`、`probeBridge` | `streamClaude`（`claude.use('sample')`）`streamDummy`、`probeClaude`、`ERR_JA`/`errCopy` |
-| 設定ダイアログ | APIキー、モデル名、要約モデル | モデル階層（標準/高度/速い）のみ |
-| 既定値 | provider `dummy`、予算 60000 | provider `claude`、予算 40000（入力上限64KBのため） |
-| 書き出し（`saveTextFile`） | `<a download>` | `downloads` capability（無ければ `<a download>`） |
-| モデル選択肢 | `MODEL_OPTS`=Claude 4種＋（ブリッジ接続かつ Codex CLI がある場合）ブリッジが報告する GPT モデル。`refreshModelCatalog` が組み立てる。各モデルは `engine` と対応する思考量 `efforts` を持つ | `MODEL_OPTS`=階層3種、`EFFORT_OPTS`=空。`refreshModelCatalog` 等は関数の対を保つための空実装 |
-| 応答後の表示 | 実トークン数（usage） | 実際に応答した階層（`modelTierApplied`） |
-
-両方に同じ変更を入れる定石は、Pythonで2ファイルをループし、置換前の文字列を `assert a in s` で確認してから置換すること（過去のコミットはすべてこの方式）。
+`artifact.html`（claude.ai Artifact 版）は削除した。**開発はデスクトップ版のみ。** `index.html` は1ファイルで、`check.sh` の「2ファイルの関数一致」チェックも廃止。コード中の `IS_ARTIFACT` は常に `false` の定数として残してあり、分岐は無害（順次整理してよいが必須ではない）。公開済みの Artifact（https://claude.ai/artifact/HKiAkcZ2stzQDns8J32QpE、Version 46 で停止）は更新しない。`bridge.py`＋ブラウザは開発時のプレビュー用としてのみ残す。
 
 ### デスクトップ版（`desktop/`）
 
@@ -121,11 +105,11 @@ Claude Code では `preview_start {name:"branch-chat"}`。Bash で直接サー�
 python3 bridge.py
 ```
 
-`http://localhost:8991/` が index.html、`/artifact.html` が Artifact 版（ローカルでは `window.claude` が無いのでダミー応答になる）。
+`http://localhost:8991/` が index.html（ブラウザでの開発用プレビュー）。
 
 ### 変更後に必ずやること
 
-1. 静的チェック（構文、Artifact禁止パターン、2ファイルの関数一致、bridge.py構文）
+1. 静的チェック（構文、禁止パターン、bridge.py / desktop の構文、安全フラグの一致）
 
    ```bash
    ./check.sh
@@ -143,10 +127,7 @@ python3 bridge.py
 
 ### Artifact 版の公開
 
-公開先は固定: `https://claude.ai/artifact/HKiAkcZ2stzQDns8J32QpE`（capabilities: `sample`, `downloads`）。
-別セッションから更新するときは Artifact ツールに `url` を渡す。渡さないと別のArtifactが新規に出来てしまう。`favicon` と `capabilities` は渡さない（既存が引き継がれる）。
-claude.ai にサインインしていないブラウザでは Claude 呼び出しを検証できない。未検証ならそう報告する。
-
+廃止。公開しない。
 ## 4. コーディング規約
 
 - **単一HTML・依存ゼロ・ビルド無し。** フレームワーク、npm、CDNスクリプトを入れない。外部読み込みは Google Fonts の2書体だけ。
@@ -175,11 +156,11 @@ claude.ai にサインインしていないブラウザでは Claude 呼び出�
 
 - **localStorage のキー名（`bc.*.v1`）とデータモデルの既存フィールド。** 利用者の会話が消える。どうしても変えるなら読み込み時の移行処理を同時に入れ、書き出しJSONの後方互換を保つ。本線の id `'main'` も固定。
 - **「全ブランチをAIが認知する」仕組み**（`buildContext` の3層と会話マップの注入、`updateSummary`）。軽量化のために要約カードを外す・現在ブランチだけにする、は不可。
-- **Artifact の公開URL・favicon・capabilities。** 新しいArtifactを作らない。`mcp` など共有範囲を狭める capability を勝手に足さない。
+- **Artifact 版を復活させない**（利用者の指示でデスクトップ版に一本化）。
 - **Claude もブランチごとに常駐（デスクトップ版、`desktop/claude-session.js`）:** `claude -p --input-format stream-json` は1プロセスで複数ターンを保持できる。セッションの同一性はブランチ＋（モデル・思考量・Web検索・MCP）。直前の返答の続きなら「会話マップ＋新しい発言」だけを送り（2ターン目 約3秒）、続きでなければプロセスを作り直して会話全体を送る。固定の指示は起動時の `--system-prompt`（`systemStatic`＝会話マップの手前まで）、会話マップは毎ターン発言に添える。停止はプロセス終了。同時4本まで、10分放置で終了。失敗時は単発起動に切り替え。
 - **Codex は app-server 経由（デスクトップ版）:** `desktop/codex-server.js` が `codex app-server --stdio` を常駐させ JSON-RPC で会話する（`initialize`→`thread/start`→`turn/start`、`item/agentMessage/delta` で逐次配信、`turn/interrupt` で停止、`thread/tokenUsage/updated` で使用量）。**ブランチごとにスレッドを保ち**、直前の返答（`lastMessageId`）の続き（`parentId`）なら会話マップ＋新しい発言だけを送る（2回目以降は約2秒、前の内容はキャッシュ）。続きでなければ新スレッドを作って会話全体を送る。Web検索は `thread/start` の `config:{web_search:'live'}`、画像は `input` の `{type:'image',url:'data:...'}`。サーバーからの承認要求は常に拒否。失敗時は従来の `codex exec` に自動で切り替える。`bridge.py`（ブラウザ版）は exec のまま。
 - **DOCX / PPTX 書き出しと「送信コンテキストを見る」は利用者の指示で廃止**（`desktop/export.js`、`/api/export`、`docx`/`pptxgenjs` の依存も削除）。再導入しない。
-- **バックアップ・引継ぎ**（ヘッダーの1ボタン、`#bkDlg`）: 旧「書き出し／読み込み」を統合。`exportAllConvs()` が全会話＋関連度を `{app:'BranCHAT',kind:'backup',format:1,convs,links}` の1ファイルに書き出す（設定とキーは入れない）。`importBackupText()` はこの形式と旧来の会話1件のファイルの両方を受け、**足し合わせ**で読み込む（同じ id は最終発言が新しい方を残す。適用前に件数を確認）。保存は `saveTextFile()`（index は `<a download>`、artifact は `downloads` capability）。
+- **バックアップ・引継ぎ**（ヘッダーの1ボタン、`#bkDlg`）: 旧「書き出し／読み込み」を統合。`exportAllConvs()` が全会話＋関連度を `{app:'BranCHAT',kind:'backup',format:1,convs,links}` の1ファイルに書き出す（設定とキーは入れない）。`importBackupText()` はこの形式と旧来の会話1件のファイルの両方を受け、**足し合わせ**で読み込む（同じ id は最終発言が新しい方を残す。適用前に件数を確認）。保存は `saveTextFile()`（`<a download>`）。
 - **Codex の完了判定:** `turn.completed` を受けたら即 `done` にしてプロセスを kill する（終了処理に約6秒かかり、その間「生成中」に見えていた）。GPT モデルの思考量は、どこにも指定が無ければモデル既定（`defEffort`、ChatGPT と同じ）を使う。`high` を強制しない。
 - **起動の固定費対策（両エンジン層共通）:** Claude 起動時は環境変数 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` `DISABLE_AUTOUPDATER=1` と `--setting-sources ""` を必ず付ける（1回あたり約2.7秒→0.3秒。実測済み）。`--bare` は OAuth を読まなくなるので使えない。
 - **`bridge.py` の安全側の設定:** `127.0.0.1` バインド。Claude 側は `--tools ""`（Web検索オン時だけ `--tools WebSearch WebFetch --allowedTools WebSearch WebFetch`。ファイルやコマンド系のツールは決して足さない）、`--strict-mcp-config`、`--no-session-persistence`。Codex 側は `-s read-only`、`--ephemeral`、`--ignore-user-config`、`--ignore-rules`、空の作業フォルダ。`~/.codex/auth.json` は存在確認だけで中身を読まない。外部公開（`0.0.0.0`）にしない。ツールやMCPを有効にする変更は利用者の明示的な依頼があるときだけ。
@@ -193,7 +174,7 @@ claude.ai にサインインしていないブラウザでは Claude 呼び出�
 ## 6. 作業の進め方
 
 - 変更は小さく。1つの依頼につき1コミット、メッセージは日本語で要点を1行。`main` に直接コミットしてよい（個人リポジトリ）。push まで行う。
-- 流れ: 両HTMLに変更 → `./check.sh` → ブラウザ確認 → commit & push → Artifact を再公開 → 何を確認できて何が未確認かを報告。
+- 流れ: index.html（と必要なら desktop/）に変更 → `./check.sh` → `npm run sync` → `npm run smoke`（必要な SMOKE_* を付けて）→ commit & push → `npm run build:mac` して `dist` を `dist-<version>` に改名 → 何を確認できて何が未確認かを報告。古い `dist-*` は利用者が消してと言ったときだけ削除する。
 - 表示確認ができなかった場合（ブラウザが使えない等）は、その旨を必ず伝える。
 - 既知の制約: Artifact版はモデル名・思考量を指定できない（階層のみ）。トークン数は概算。外部通信不可。
 
