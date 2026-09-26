@@ -65,7 +65,7 @@ conv = { id, title, createdAt, order:[nodeId...], activeNodeId,
   nodes:    { [id]: { id, parentId, role:'user'|'assistant', content, branchId, ts, seq,
                       gist?, planned?, usage?, tier?, model?, effort?, mergedFrom?, streaming? } },
   branches: { [id]: { id, name, color, forkFromNodeId, headNodeId, summary, pinned,
-                      status:'open'|'closed', createdAt, autoNamed, seq, model?, effort? } },
+                      status:'open'（「終了」は廃止。旧データの 'closed' は読み込み時に 'open' へ戻す）, createdAt, autoNamed, seq, model?, effort? } },
   _pendingBranch?, _pendingQuote?, _returnNode?, _anchor? }   // 一時状態（保存されるが消えても良い）
 ```
 
