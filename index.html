@@ -41,7 +41,18 @@ button:disabled{opacity:.5;cursor:default}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .seg button{border:0;border-radius:0;background:transparent}
 .seg button.on{background:linear-gradient(135deg,#2f8fff,#22d3ee);color:#03101f;font-weight:700}
-#branchBar{display:flex;gap:6px;padding:3px 14px;border-bottom:1px solid var(--line);background:rgba(6,16,36,.7);overflow-x:auto;align-items:center}
+/* ブランチの帯はブラウザのページタブ風。選択中のタブは白く前面に出て、下の白い画面とつながって見える */
+#branchBar{display:flex;gap:2px;padding:6px 10px 0;border-bottom:0;background:rgba(6,16,36,.7);overflow-x:auto;overflow-y:hidden;align-items:flex-end;position:relative;min-height:36px}
+#branchBar::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--line)}
+#branchBar .chip{position:relative;flex:none;border-radius:9px 9px 0 0;border:1px solid var(--line);border-bottom:0;padding:5px 12px 6px;margin-bottom:0;background:rgba(10,24,52,.85);color:#b7c6e6;font-size:12.5px;box-shadow:none;max-width:220px;transition:background .12s,color .12s}
+#branchBar .chip span:not(.dot){overflow:hidden;text-overflow:ellipsis}
+#branchBar .chip:hover{background:rgba(30,58,110,.75);color:#fff}
+#branchBar .chip .dot{width:9px;height:9px;box-shadow:none}
+#branchBar .chip.on{background:#fff;color:var(--indigo);font-weight:700;border-color:var(--line);padding-top:7px;padding-bottom:7px;z-index:2;box-shadow:0 -2px 10px rgba(30,58,110,.18)}
+#branchBar .chip.on::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--bc);border-radius:9px 9px 0 0}
+#branchBar .chip.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#fff} /* 帯の下線を消して画面とつなげる */
+#branchBar .chip.closed{opacity:.5;text-decoration:line-through}
+#branchBar .chip .tabhint{font-size:10.5px;font-weight:400;color:var(--indigo2);margin-left:2px}
 .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bc);color:var(--bc);border-radius:999px;padding:2px 10px;font-size:12px;white-space:nowrap;cursor:pointer;background:rgba(6,16,36,.7);box-shadow:0 0 8px -2px var(--bc)}
 .chip.on{background:var(--bc);color:#03101f;font-weight:700;box-shadow:0 0 14px var(--bc)}
 .chip.closed{opacity:.45;text-decoration:line-through}
@@ -138,6 +149,7 @@ body{font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:14px}
 #focus button.plan,#overview button.plan{border-color:var(--ystroke);color:var(--ystroke);background:#fff8dc}
 #focus button.plan.on{background:#ffe680}
 #focus .chip,#overview .chip{background:#fff;border-width:2px;box-shadow:none}
+#branchBar .chip{border-width:1px}
 #focus .chip.on,#overview .chip.on{color:#fff}
 #composer{background:#f5f8fe;border-top:2px solid var(--line);backdrop-filter:none;box-shadow:none}
 textarea{background:#fff;color:var(--indigo);border:2px solid #9fb3d9}
@@ -1012,7 +1024,7 @@ async function deleteConvById(id){
 function setSide(open){document.body.classList.toggle('sideHidden',!open);settings.sideHidden=!open;saveSettings();}
 function renderBranchBar(){
   const cur=currentBranchId();
-  $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}${b.status==='closed'?' closed':''}" style="--bc:${b.color}" data-b="${b.id}" title="${b.id===cur?'クリックで名前を変更':'このブランチへ移動'}"><span class="dot"></span>${esc(b.name)}${isEmptyBranch(b)?'（未開始）':''}${b.pinned?' 📌':''}</span>`).join('');
+  $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}${b.status==='closed'?' closed':''}" style="--bc:${b.color}" data-b="${b.id}" title="${b.id===cur?'今開いているブランチ（クリックで名前を変更）':'このブランチへ移動'}"><span class="dot"></span><span>${esc(b.name)}${isEmptyBranch(b)?'（未開始）':''}${b.pinned?' 📌':''}</span>${b.id===cur?'<span class="tabhint ui">◀ 表示中</span>':''}</span>`).join('');
   $('#branchBar').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{if(el.dataset.b===currentBranchId()){renameBranch(el.dataset.b);}else gotoBranch(el.dataset.b);});
 }
 async function renameBranch(bid){const b=B(bid);const v=await askPrompt('ブランチ名を変更',b.name);if(v&&v.trim()){b.name=v.trim().slice(0,30);b.autoNamed=false;persist();renderAll();}}
