@@ -234,6 +234,16 @@ header{z-index:5}
 .msg.editing{width:min(78%,680px)}
 .badges,.divider{max-width:none;margin-left:var(--gutL);margin-right:var(--gutR)}
 .badges{padding-left:6px}
+/* 本文以外（区切り・分岐バッジ・見出し行・位置・ツール表示）は本文より一段小さく */
+.divider{font-size:11px;font-weight:500;padding-top:3px;margin-top:4px;margin-bottom:8px}
+.badges{font-size:11px;margin-bottom:8px}
+.badges .chip{font-size:11px;padding:0 8px;gap:4px}
+.badges .chip .dot{width:7px;height:7px}
+.badges button.small{font-size:11px;padding:0 7px}
+.msg .meta{font-size:10.5px;gap:6px}
+#crumb{font-size:11px;padding:2px 14px}
+.toolchip{font-size:11px;padding:0 9px}
+.msg .tools .hint{font-size:11px}
 #msgs>.msg:only-of-type{max-width:min(92%,680px)}
 @media (max-width:600px){.msg{max-width:92%}.msg.editing{width:92%}}
 
