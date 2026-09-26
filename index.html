@@ -183,18 +183,18 @@ svg text{fill:var(--indigo);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-
 .msg.user .tools{display:flex;position:absolute;right:8px;bottom:6px;margin:0;padding:0;border:0;opacity:0;transition:opacity .15s}
 .msg.user:hover .tools,.msg.user:focus-within .tools{opacity:1}
 .msg.user{padding-right:16px;min-width:0}
-button.ico{width:28px;height:28px;padding:0;border-radius:8px;font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;background:#fff;color:var(--indigo);border:1.5px solid #9fb3d9}
+button.ico{width:20px;height:20px;padding:0;border-radius:6px;font-size:11px;line-height:1;display:inline-flex;align-items:center;justify-content:center;background:#fff;color:var(--indigo);border:1.5px solid #9fb3d9}
 button.ico:hover{border-color:var(--indigo);box-shadow:0 0 0 2px rgba(30,58,110,.15)}
 /* 自前のツールチップ（OS のものは2回目以降に出ないことがある） */
 [data-tip]{position:relative}
 [data-tip]::after{content:attr(data-tip);position:absolute;left:0;top:calc(100% + 6px);z-index:40;white-space:nowrap;background:var(--indigo);color:#fff;font-size:12px;font-weight:400;line-height:1.5;padding:4px 9px;border-radius:6px;box-shadow:0 4px 14px rgba(30,58,110,.25);opacity:0;pointer-events:none;transform:translateY(-2px);transition:opacity .12s,transform .12s;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;letter-spacing:0}
 [data-tip]:hover::after,[data-tip]:focus-visible::after{opacity:1;transform:none;transition-delay:.25s}
 .msg.user .tools [data-tip]::after{left:auto;right:0}
-.ico.dead{display:inline-flex;align-items:center;height:28px;padding:0 8px;border:1.5px dashed #9fb3d9;border-radius:8px;color:var(--indigo2)}
-button.ico.edit{width:24px;height:24px;font-size:13px;background:rgba(255,255,255,.9)}
+.ico.dead{display:inline-flex;align-items:center;height:20px;font-size:11px;padding:0 8px;border:1.5px dashed #9fb3d9;border-radius:8px;color:var(--indigo2)}
+button.ico.edit{width:20px;height:20px;font-size:11px;background:rgba(255,255,255,.9)}
 button.ico.plan{border-color:var(--ystroke);color:var(--ystroke);background:#fff8dc}
 button.ico.plan.on{background:#ffe680}
-.msg:not(.user) .tools{gap:6px}
+.msg:not(.user) .tools{gap:4px}
 
 header{z-index:5}
 /* View メニュー（自前） */
@@ -225,7 +225,7 @@ header{z-index:5}
 
 /* ===== 通常のチャット配置: 自分=右 / AI=左 ===== */
 /* 右の余白はミニ俯瞰図のぶん（最大170px）を確保し、残りの幅の中で本文（最大860px）を中央に置く＝全体として少し左寄り。狭い画面では左右16pxに戻る */
-#focus{--gutR:clamp(16px,calc(100% - 720px),170px);--gutL:max(16px,calc((100% - 860px - var(--gutR))/2))}
+#focus{--gutR:clamp(16px,calc(100% - 720px),170px);--gutL:max(36px,calc((100% - 860px - var(--gutR))/2 + 20px))}
 #msgs{display:flex;flex-direction:column}
 .msg{width:fit-content;min-width:min(240px,80%);max-width:min(78%,680px);margin:0 auto 12px var(--gutL)}
 .msg.user{position:relative;margin:0 var(--gutR) 12px auto;border-left:1.5px solid var(--line);border-right:6px solid var(--bc);border-radius:14px 14px 4px 14px;background:var(--user)}
