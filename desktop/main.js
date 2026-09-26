@@ -161,7 +161,7 @@ async function runSmoke(win) {
     out.page = await win.webContents.executeJavaScript(`(async()=>{
       if(document.getElementById('tutDlg').open)closeTut();
       await probeBridge();
-      const r={title:document.title,origin:location.origin,bridgeOk,claudeCliOk,codex:codexInfo.ok,models:MODEL_OPTS.map(o=>o.l),fontsLocal:!!document.querySelector('link[href="fonts/fonts.css"]'),fontsReady:(await document.fonts.ready,document.fonts.check('16px DotGothic16')&&document.fonts.check('15px "Noto Sans JP"')),lsWorks:(()=>{try{localStorage.setItem('bc.smoke','1');return localStorage.getItem('bc.smoke')==='1';}catch(e){return false;}})()};
+      const r={title:document.title,origin:location.origin,bridgeOk,claudeCliOk,codex:codexInfo.ok,models:MODEL_OPTS.map(o=>o.l),fontsLocal:!!document.querySelector('link[href="fonts/fonts.css"]'),fontsReady:(await document.fonts.ready,document.fonts.check('16px DotGothic16')&&document.fonts.check('15px "IBM Plex Sans JP"')),lsWorks:(()=>{try{localStorage.setItem('bc.smoke','1');return localStorage.getItem('bc.smoke')==='1';}catch(e){return false;}})()};
       settings.provider='dummy'; loadDemo();
       await send('スモークテスト'); r.dummyReply=N(conv.activeNodeId).content.slice(0,40);
       // 中断: ダミー応答を途中で止める

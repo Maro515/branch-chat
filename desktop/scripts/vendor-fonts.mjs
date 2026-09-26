@@ -1,4 +1,4 @@
-// Google Fonts の Noto Sans JP / DotGothic16（どちらも SIL OFL）を取得して同梱用に保存する。
+// Google Fonts の IBM Plex Sans JP / DotGothic16（どちらも SIL OFL）を取得して同梱用に保存する。
 // 出力: desktop/vendor/fonts/fonts.css と woff2 群。sync-app.mjs がこれを見つけると index.html の読み込み先を差し替える。
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, '..', 'vendor', 'fonts');
 mkdirSync(out, { recursive: true });
-const CSS_URL = 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DotGothic16&display=swap';
+const CSS_URL = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600&family=DotGothic16&display=swap';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 let css = await (await fetch(CSS_URL, { headers: { 'User-Agent': UA } })).text();
 const urls = [...new Set([...css.matchAll(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/g)].map((m) => m[1]))];

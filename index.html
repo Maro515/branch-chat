@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BranCHAT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DotGothic16&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600&family=DotGothic16&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#040a17;--bg2:#071229;--panel:rgba(8,20,45,.78);--panel2:rgba(10,26,58,.92);
@@ -18,7 +18,7 @@ html,body{height:100%;margin:0}
 body{background:
   radial-gradient(1200px 600px at 75% -10%,rgba(56,189,248,.20),transparent 60%),
   radial-gradient(900px 500px at 5% 110%,rgba(47,143,255,.16),transparent 60%),var(--bg);
-  color:var(--ink);font:15px/1.7 "Noto Sans JP","Hiragino Sans","Noto Sans CJK JP",sans-serif;display:flex;flex-direction:column;position:relative}
+  color:var(--ink);font:15px/1.7 "IBM Plex Sans JP","Hiragino Sans","Noto Sans CJK JP",sans-serif;display:flex;flex-direction:column;position:relative}
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   background-image:linear-gradient(rgba(76,201,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(76,201,255,.07) 1px,transparent 1px);
   background-size:42px 42px;mask-image:radial-gradient(ellipse at center,#000 30%,transparent 90%)}
@@ -104,7 +104,7 @@ textarea:focus{outline:none;border-color:var(--glow);box-shadow:0 0 12px rgba(76
 .card.pinned{box-shadow:0 0 0 1px var(--bc) inset,0 0 18px -4px var(--bc)}
 .card.plans{--bc:var(--yellow)}
 .card.plans .item{display:flex;gap:6px;align-items:center;justify-content:space-between;padding:4px 0;border-top:1px dashed rgba(255,217,61,.3);font-size:12px}
-svg text{font-size:11px;fill:var(--ink);font-family:"Noto Sans JP",sans-serif}
+svg text{font-size:11px;fill:var(--ink);font-family:"IBM Plex Sans JP",sans-serif}
 .node{cursor:pointer}
 .node:hover .core{stroke-width:3}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--ink);padding:18px 20px;max-width:560px;width:92vw;box-shadow:0 0 40px rgba(76,201,255,.25);backdrop-filter:blur(10px)}
@@ -120,18 +120,19 @@ dialog .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 /* ===== 可読性モード: チャット・俯瞰図は白背景／藍色文字、線を太く ===== */
 :root{--indigo:#1e3a6e;--indigo2:#4a5f8f;--yellow:#f5c400;--ystroke:#b45309;
   --c0:#3b5aa8;--c1:#0369a1;--c2:#be185d;--c3:#047857;--c4:#c2410c;--c5:#6d28d9;--c6:#0e7490;--c7:#a21caf;}
-body{font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:14px}
+body{font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:14px}
 /* 固定のUI文言（全員に共通して表示される部分）だけドットフォント */
-.ui,button,.seg button,header h1,dialog h2,dialog label,dialog select,dialog option,#legend,.card .sum b,.card h3 .hint,#bridgeHint,#ctxDlg .hint,textarea::placeholder,dialog input::placeholder{font-family:"DotGothic16","Noto Sans JP",sans-serif}
-.var{font-family:"Noto Sans JP","Hiragino Sans",sans-serif}
-.msg .body,textarea,input,dialog input{font-family:"Noto Sans JP","Hiragino Sans",sans-serif}
+.ui,button,.seg button,header h1,dialog h2,dialog label,dialog select,dialog option,#legend,.card .sum b,.card h3 .hint,#bridgeHint,#ctxDlg .hint,textarea::placeholder,dialog input::placeholder{font-family:"DotGothic16","IBM Plex Sans JP",sans-serif}
+.var{font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif}
+.msg .body,textarea,input,dialog input{font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif}
 #focus,#overview{--panel:#fff;--panel2:#fff;--ink:var(--indigo);--muted:var(--indigo2);--line:#b7c6e6;--user:#eef3fb;--asst:#fff;--glow:#3b5aa8;--dim:.6;
   background:#fff;color:var(--indigo)}
 #crumb{background:#f5f8fe;border-bottom:1.5px solid var(--line);color:var(--indigo2)}
 #crumb b{text-shadow:none}
 #msgs{background:#fff}
 .msg{background:#fff;border:1.5px solid var(--line);border-left:6px solid var(--bc);backdrop-filter:none;box-shadow:0 2px 10px rgba(30,58,110,.08);color:var(--indigo);line-height:1.7}
-.msg .body{color:#111;font-size:13px} /* 本文は黒・13px（見出し・ボタン・ブランチ名は藍のまま） */
+.msg .body{color:#111;font-size:13.5px;font-weight:400}
+.msg .body b,.msg .body strong{font-weight:600} /* 太字は 600（700 だと Plex は重すぎる） */ /* 本文は黒・13px（見出し・ボタン・ブランチ名は藍のまま） */
 .msg.user{background:var(--user)}
 .msg.planned{border-color:var(--ystroke);box-shadow:0 0 0 2px rgba(245,196,0,.45)}
 .msg .meta{color:var(--indigo2)}
@@ -164,19 +165,19 @@ textarea:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(30,58,110,.1
 .card.plans{--bc:var(--ystroke)}
 .card.plans h3{color:var(--ystroke)}
 .card.plans .item{border-top:1.5px dashed #e6c76a}
-svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13px}
+svg text{fill:var(--indigo);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:13px}
 #toast{background:#fff;color:var(--indigo);border:2px solid var(--indigo);box-shadow:0 4px 20px rgba(30,58,110,.25)}
 
 /* 選択テキストから質問するポップアップ */
 #selPop{position:absolute;z-index:20;display:none;background:#fff;border:1.5px solid var(--indigo);border-radius:10px;box-shadow:0 6px 24px rgba(30,58,110,.25);padding:6px;gap:6px;align-items:center;max-width:calc(100vw - 32px)}
 #selPop.on{display:flex;flex-wrap:wrap}
-#selPop button{background:#f5f8fe;color:var(--indigo);border:1.5px solid #9fb3d9;font-family:"DotGothic16","Noto Sans JP",sans-serif;white-space:nowrap}
+#selPop button{background:#f5f8fe;color:var(--indigo);border:1.5px solid #9fb3d9;font-family:"DotGothic16","IBM Plex Sans JP",sans-serif;white-space:nowrap}
 #selPop button:hover{border-color:var(--indigo);box-shadow:0 0 0 2px rgba(30,58,110,.15)}
 #selPop button.fork{border-color:var(--c1);color:var(--c1)}
-#selPop .q{font-size:11px;color:var(--indigo2);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:"Noto Sans JP",sans-serif}
+#selPop .q{font-size:11px;color:var(--indigo2);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:"IBM Plex Sans JP",sans-serif}
 .msg .body::selection,.msg .body *::selection{background:#ffe680;color:var(--indigo)}
 
-.editBox{width:100%;min-height:90px;font:inherit;font-family:"Noto Sans JP","Hiragino Sans",sans-serif;border:2px solid var(--indigo);border-radius:8px;padding:8px 10px;background:#fff;color:var(--indigo);resize:vertical}
+.editBox{width:100%;min-height:90px;font:inherit;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;border:2px solid var(--indigo);border-radius:8px;padding:8px 10px;background:#fff;color:var(--indigo);resize:vertical}
 .editBtns{display:flex;gap:6px;justify-content:flex-end;align-items:center;margin-top:6px;flex-wrap:wrap}
 .editBtns .hint{margin-right:auto}
 .msg.user .tools{display:flex;position:absolute;right:8px;bottom:6px;margin:0;padding:0;border:0;opacity:0;transition:opacity .15s}
@@ -186,7 +187,7 @@ button.ico{width:28px;height:28px;padding:0;border-radius:8px;font-size:15px;lin
 button.ico:hover{border-color:var(--indigo);box-shadow:0 0 0 2px rgba(30,58,110,.15)}
 /* 自前のツールチップ（OS のものは2回目以降に出ないことがある） */
 [data-tip]{position:relative}
-[data-tip]::after{content:attr(data-tip);position:absolute;left:0;top:calc(100% + 6px);z-index:40;white-space:nowrap;background:var(--indigo);color:#fff;font-size:12px;font-weight:400;line-height:1.5;padding:4px 9px;border-radius:6px;box-shadow:0 4px 14px rgba(30,58,110,.25);opacity:0;pointer-events:none;transform:translateY(-2px);transition:opacity .12s,transform .12s;font-family:"Noto Sans JP","Hiragino Sans",sans-serif;letter-spacing:0}
+[data-tip]::after{content:attr(data-tip);position:absolute;left:0;top:calc(100% + 6px);z-index:40;white-space:nowrap;background:var(--indigo);color:#fff;font-size:12px;font-weight:400;line-height:1.5;padding:4px 9px;border-radius:6px;box-shadow:0 4px 14px rgba(30,58,110,.25);opacity:0;pointer-events:none;transform:translateY(-2px);transition:opacity .12s,transform .12s;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;letter-spacing:0}
 [data-tip]:hover::after,[data-tip]:focus-visible::after{opacity:1;transform:none;transition-delay:.25s}
 .msg.user .tools [data-tip]::after{left:auto;right:0}
 .ico.dead{display:inline-flex;align-items:center;height:28px;padding:0 8px;border:1.5px dashed #9fb3d9;border-radius:8px;color:var(--indigo2)}
@@ -212,7 +213,7 @@ header{z-index:5}
 .vpop button.on{border-color:var(--glow);background:rgba(47,143,255,.22);color:#fff}
 .vpop button i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--glow);flex:none}
 .vpop button.on i{background:var(--glow);box-shadow:0 0 10px var(--glow)}
-.vpop button small{margin-left:auto;color:var(--muted);font-size:11px;font-family:"Noto Sans JP",sans-serif;letter-spacing:0}
+.vpop button small{margin-left:auto;color:var(--muted);font-size:11px;font-family:"IBM Plex Sans JP",sans-serif;letter-spacing:0}
 /* 分岐開始: 分岐元を画面上端へ寄せ、短く光らせる */
 #msgs{position:relative}
 #focus{box-shadow:inset 0 0 0 3px var(--curbc,transparent)} /* 今いるブランチの色で縁取り */
@@ -249,7 +250,7 @@ header{z-index:5}
 #modelPop button{font-size:12px;padding:4px 9px}
 #modelPop button.on{background:var(--indigo)!important;color:#fff!important;border-color:var(--indigo)!important}
 #modelPop .res{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-size:12px}
-#modelPop .res b{font-family:"Noto Sans JP",sans-serif}
+#modelPop .res b{font-family:"IBM Plex Sans JP",sans-serif}
 
 /* ===== AIの回答は枠なし・列幅いっぱい（自分の発言は右の吹き出しのまま） ===== */
 .msg:not(.user){width:auto;min-width:0;max-width:none;margin:0 var(--gutR) 16px var(--gutL);padding:4px 2px;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none}
@@ -264,7 +265,7 @@ header{z-index:5}
 #tutDlg{max-width:680px;padding:0;overflow:hidden}
 #tutDlg .thead{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
 #tutDlg .thead h2{margin:0;flex:1}
-#tutDlg .tbody{padding:16px 18px;max-height:62vh;overflow:auto;font-family:"Noto Sans JP","Hiragino Sans",sans-serif;line-height:1.8}
+#tutDlg .tbody{padding:16px 18px;max-height:62vh;overflow:auto;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;line-height:1.8}
 #tutDlg .tbody h3{margin:14px 0 6px;font-size:14px;color:var(--glow)}
 #tutDlg .tbody h3:first-child{margin-top:0}
 #tutDlg .tbody ol,#tutDlg .tbody ul{margin:4px 0 8px;padding-left:22px}
@@ -347,7 +348,7 @@ body.sideDragging{cursor:col-resize;user-select:none}
 #side .sideHead{padding:8px 10px;border-bottom:1px solid var(--line)}
 #side .sideHead button{flex:1;text-align:left;padding:7px 12px}
 #convList{flex:1;overflow-y:auto;padding:6px}
-.citem{display:flex;align-items:center;gap:6px;padding:7px 8px 7px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;color:var(--ink);font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13px;line-height:1.35}
+.citem{display:flex;align-items:center;gap:6px;padding:7px 8px 7px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;color:var(--ink);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:13px;line-height:1.35}
 .citem:hover{background:rgba(76,201,255,.1);border-color:var(--line)}
 .citem.on{background:rgba(47,143,255,.22);border-color:var(--glow);color:#fff}
 .citem .ct{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -366,7 +367,7 @@ body.sideDragging{cursor:col-resize;user-select:none}
 
 /* ===== バックアップ・引継ぎ ===== */
 #bkDlg{width:min(600px,94vw)}
-#bkDlg .bkbody{font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13.5px;line-height:1.75}
+#bkDlg .bkbody{font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:13.5px;line-height:1.75}
 #bkDlg .bkrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
 #bkDlg .bkrow button{min-width:220px;text-align:left}
 #bkDlg ul{margin:12px 0 0;padding-left:1.3em}
@@ -374,20 +375,20 @@ body.sideDragging{cursor:col-resize;user-select:none}
 /* ===== 俯瞰図の右欄: 何の一覧かを明示する ===== */
 .cardsHead{position:sticky;top:-10px;z-index:3;margin:-10px -10px 10px;padding:10px 12px 8px;background:#f5f8fe;border-bottom:1.5px solid var(--line)}
 .cardsHead h2{margin:0;font-size:15px;color:var(--indigo);letter-spacing:.06em;font-weight:700}
-.cardsHead p{margin:3px 0 0;font-size:11.5px;line-height:1.6;color:var(--indigo2);font-family:"Noto Sans JP","Hiragino Sans",sans-serif}
+.cardsHead p{margin:3px 0 0;font-size:11.5px;line-height:1.6;color:var(--indigo2);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif}
 .cardsSec{margin:12px 2px 6px;font-size:11.5px;letter-spacing:.1em;color:var(--indigo2);display:flex;align-items:center;gap:8px}
 .cardsSec::after{content:"";flex:1;border-top:1px dashed var(--line)}
 .card .lbl{font-size:10.5px;color:var(--indigo2);letter-spacing:.06em;margin-top:6px}
-details.cardsHelp{margin-top:4px;font-size:11.5px;color:var(--indigo2);font-family:"Noto Sans JP","Hiragino Sans",sans-serif}
+details.cardsHelp{margin-top:4px;font-size:11.5px;color:var(--indigo2);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif}
 details.cardsHelp summary{cursor:pointer}
 details.cardsHelp dl{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:3px 8px;line-height:1.55}
-details.cardsHelp dt{font-family:"DotGothic16","Noto Sans JP",sans-serif;color:var(--indigo);white-space:nowrap}
+details.cardsHelp dt{font-family:"DotGothic16","IBM Plex Sans JP",sans-serif;color:var(--indigo);white-space:nowrap}
 details.cardsHelp dd{margin:0}
 
 /* ===== 整理ダイアログ ===== */
 #tidyDlg{width:min(760px,94vw)}
 #tidyDlg .trow{display:flex;gap:10px;align-items:center;margin-bottom:8px}
-#tidyBody{max-height:60vh;overflow:auto;font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13px;line-height:1.6}
+#tidyBody{max-height:60vh;overflow:auto;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:13px;line-height:1.6}
 .tpair{display:grid;grid-template-columns:64px 1fr 1fr;gap:8px;align-items:stretch;border:1px solid var(--line);border-radius:10px;padding:8px;margin-top:8px}
 .tpair .tsc{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}.tpair .tsc b{font-size:17px}.tpair .tsc span{font-size:10.5px;color:var(--muted)}
 .tside{min-width:0;border-left:1px solid var(--line);padding-left:8px}.tside .tt{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tside .tm{font-size:11.5px;color:var(--muted)}.tside .tb{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
@@ -404,19 +405,19 @@ details.cardsHelp dd{margin:0}
 #know .seg{border:1.5px solid #9fb3d9}
 #know .seg button{border:0;background:transparent;padding:3px 10px;font-size:12px}
 #know .seg button.on{background:var(--indigo);color:#fff;font-weight:700}
-#knowInfo{color:var(--indigo2);font-family:"Noto Sans JP",sans-serif}
+#knowInfo{color:var(--indigo2);font-family:"IBM Plex Sans JP",sans-serif}
 #knowMain{flex:1;min-height:0;display:flex}
 #knowWrap{flex:1;min-width:0;overflow:auto;position:relative;background:#fff;background-image:linear-gradient(rgba(30,58,110,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(30,58,110,.05) 1px,transparent 1px);background-size:42px 42px}
-#knowSvg text{font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:11.5px;fill:var(--indigo);paint-order:stroke;stroke:#fff;stroke-width:3.5px;stroke-linejoin:round;pointer-events:none}
+#knowSvg text{font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:11.5px;fill:var(--indigo);paint-order:stroke;stroke:#fff;stroke-width:3.5px;stroke-linejoin:round;pointer-events:none}
 #knowSvg .kn{cursor:pointer;transition:opacity .15s}
 #knowSvg .ke{transition:opacity .15s,stroke .15s}
 #knowSvg.hov .kn:not(.hl){opacity:.22}
 #knowSvg.hov .ke:not(.hl){opacity:.06}
 #knowSvg.hov .ke.hl{stroke:#5b3fd6;opacity:.95}
-#knowCard{width:340px;flex:none;border-left:2px solid var(--line);overflow-y:auto;padding:12px;background:#f5f8fe;font-family:"Noto Sans JP","Hiragino Sans",sans-serif;font-size:13px;line-height:1.7}
+#knowCard{width:340px;flex:none;border-left:2px solid var(--line);overflow-y:auto;padding:12px;background:#f5f8fe;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:13px;line-height:1.7}
 #knowCard h3{margin:0 0 2px;font-size:15px}
 #knowCard .from{font-size:11.5px;color:var(--indigo2);margin-bottom:8px}
-#knowCard .sum b{display:block;font-size:11px;color:var(--indigo2);margin-top:6px;font-family:"DotGothic16","Noto Sans JP",sans-serif;letter-spacing:.06em}
+#knowCard .sum b{display:block;font-size:11px;color:var(--indigo2);margin-top:6px;font-family:"DotGothic16","IBM Plex Sans JP",sans-serif;letter-spacing:.06em}
 #knowCard .rel{display:flex;align-items:center;gap:8px;padding:5px 8px;border:1.5px solid var(--line);border-radius:8px;margin-top:5px;background:#fff;cursor:pointer}
 #knowCard .rel:hover{border-color:var(--indigo)}
 #knowCard .rel .pc{flex:none;width:44px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
@@ -431,8 +432,8 @@ details.cardsHelp dd{margin:0}
 /* ===== Markdown ブロック表示・逐次表示 ===== */
 .msg .body{white-space:normal}
 .msg .body .ln{white-space:pre-wrap;min-height:1.5em}
-.msg .body .ln.h1,.msg .body .ln.h2{font-weight:700;font-size:1.08em;margin-top:.6em}
-.msg .body .ln.h3,.msg .body .ln.h4{font-weight:700;margin-top:.4em}
+.msg .body .ln.h1,.msg .body .ln.h2{font-weight:600;font-size:1.08em;margin-top:.6em}
+.msg .body .ln.h3,.msg .body .ln.h4{font-weight:600;margin-top:.4em}
 .msg .body .ln.li{padding-left:1.4em;position:relative}
 .msg .body .ln.li::before{content:"•";position:absolute;left:.5em;color:var(--indigo2)}
 .msg .body .ln.li.num::before{content:""}
@@ -1502,7 +1503,7 @@ function renderKnow(){
   if(!linkAllRunning)$('#knowInfo').textContent=`ブランチ ${nodes.length} 本 / 関連度 ${thr}% 以上の線 ${edges.length} 本${byTxt?`（${byTxt}）`:''}${jm==='jev'&&!jevReady()?' ／ Jev の接続が未設定のため簡易判定で表示中':''}${jm==='jev'&&jevLastError?' ／ Jev: '+jevLastError:''}`;
   const ab=$('#knowAi');ab.style.display=(jm==='local'||(jm==='model'&&settings.provider==='dummy'))?'none':'';ab.textContent=jm==='jev'?(jevReady()?'Jev で関連度を判定':'Jev の接続を設定'):'AIで関連度を判定';
   const wrap=$('#knowWrap');const W=Math.max(640,wrap.clientWidth-4,Math.sqrt(nodes.length)*210),H=Math.max(420,wrap.clientHeight-4,Math.sqrt(nodes.length)*150);
-  if(!nodes.length){$('#knowSvg').innerHTML=`<div style="padding:40px;color:var(--indigo2);font-family:'Noto Sans JP',sans-serif">まだブランチがありません。会話を始めると、ブランチごとの要点がここに点として並び、関連するもの同士が線で結ばれます。</div>`;$('#knowCard').innerHTML='';return;}
+  if(!nodes.length){$('#knowSvg').innerHTML=`<div style="padding:40px;color:var(--indigo2);font-family:'IBM Plex Sans JP',sans-serif">まだブランチがありません。会話を始めると、ブランチごとの要点がここに点として並び、関連するもの同士が線で結ばれます。</div>`;$('#knowCard').innerHTML='';return;}
   const P=kbLayout(nodes,edges,W,H);const pos=new Map(nodes.map((n,i)=>[n.key,P[i]]));
   const curKey=kKey(conv.id,currentBranchId());
   if(!knowSel||!pos.has(knowSel))knowSel=pos.has(curKey)?curKey:nodes[0].key;
