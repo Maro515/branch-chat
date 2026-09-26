@@ -232,11 +232,11 @@ header{z-index:5}
 .msg:not(.user){border-radius:14px 14px 14px 4px}
 .msg.user .meta{justify-content:flex-end}
 .msg.editing{width:min(78%,680px)}
-.badges,.divider{max-width:none;margin-left:var(--gutL);margin-right:var(--gutR)}
-.badges{padding-left:6px}
+.divider{max-width:none;margin-left:var(--gutL);margin-right:var(--gutR)}
+.badges{display:inline-flex;align-items:center;gap:6px;margin:0 0 0 8px;padding:0 0 0 10px;border-left:1.5px solid var(--line)}
 /* 本文以外（区切り・分岐バッジ・見出し行・位置・ツール表示）は本文より一段小さく */
 .divider{font-size:11px;font-weight:500;padding-top:3px;margin-top:4px;margin-bottom:8px}
-.badges{font-size:11px;margin-bottom:8px}
+.badges{font-size:11px}
 .badges .chip{font-size:11px;padding:0 8px;gap:4px}
 .badges .chip .dot{width:7px;height:7px}
 .badges button.small{font-size:11px;padding:0 7px}
@@ -1076,10 +1076,8 @@ function renderFocus(){
     html+=`<div class="msg ${n.role}${outside?' outside':''}${n.planned?' planned':''}${n.id===conv.activeNodeId&&after!==undefined&&actIdx>=0&&actIdx<path.length-1?' cursor':''}" id="n-${n.id}" style="--bc:${b.color}">
       ${n.role==='user'?'':'<div class="meta">'}${n.role==='user'?'':`<span class="tag">${esc(label(n))}</span><span class="ui">AI</span>`}${n.role==='user'?'':`<span title="このメッセージのトークン（AIは入力+出力の実測、未計測なら概算）">${tokensOf(n)} tok</span>`}${n.role==='assistant'&&n.model?`<span title="この回答を生成したモデルと思考量">${esc(modelLabel(n.model))}${n.modelUsed&&n.modelUsed!==n.model?` <span class="var">(${esc(n.modelUsed)})</span>`:''}${n.effort?' · '+esc(n.effort):''}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="spin4 mini"><i></i><i></i><i></i><i></i></span>':''}${n.role==='user'?'':'</div>'}
       ${imgsHTML(n)}<div class="toolsUsed">${toolsHTML(n)}</div><div class="body">${n.streaming&&!n.content?`<div class="waiting"><span class="spin4"><i></i><i></i><i></i><i></i></span><span class="ui">${n.role==='assistant'?'回答を生成中…':''}</span></div>`:md(n.content)}</div>
-      <div class="tools">${n.role==='assistant'&&!n.streaming&&isDeadNode(n)?`<span class="hint ui ico dead" data-tip="中止した回答からは分岐できません">⑂ ✕</span>`:''}${n.role==='assistant'&&!n.streaming&&!isDeadNode(n)?`<button class="ico" data-fork="${n.id}" aria-label="ここから分岐" data-tip="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">⑂</button><button class="ico plan${n.planned?' on':''}" data-plan="${n.id}" data-tip="${n.planned?'分岐予定の印を外す':'分岐予定の印を付ける（迷っているとき。俯瞰図で黄色く表示）'}" aria-label="分岐予定">${n.planned?'★':'☆'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="ico edit" data-edit="${n.id}" data-tip="この質問を書き直して送り直す" aria-label="質問を編集する">✎</button>`:''}</div>
+      <div class="tools">${n.role==='assistant'&&!n.streaming&&isDeadNode(n)?`<span class="hint ui ico dead" data-tip="中止した回答からは分岐できません">⑂ ✕</span>`:''}${n.role==='assistant'&&!n.streaming&&!isDeadNode(n)?`<button class="ico" data-fork="${n.id}" aria-label="ここから分岐" data-tip="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">⑂</button><button class="ico plan${n.planned?' on':''}" data-plan="${n.id}" data-tip="${n.planned?'分岐予定の印を外す':'分岐予定の印を付ける（迷っているとき。俯瞰図で黄色く表示）'}" aria-label="分岐予定">${n.planned?'★':'☆'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="ico edit" data-edit="${n.id}" data-tip="この質問を書き直して送り直す" aria-label="質問を編集する">✎</button>`:''}${(()=>{const kids=childBranchesOf(n.id);return kids.length?`<span class="badges"><span class="ui">分岐した会話:</span> ${kids.map(k=>`<span class="chip" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}${isEmptyBranch(k)?'（未開始）':''}</span>${isEmptyBranch(k)?`<button class="small" data-cancelbr="${k.id}" title="この未開始の分岐を取り消す">✕ 取り消す</button>`:''}`).join('')}</span>`:'';})()}</div>
     </div>`;
-    const kids=childBranchesOf(n.id);
-    if(kids.length)html+=`<div class="badges"><span class="ui">→ ここから分岐:</span> ${kids.map(k=>`<span class="chip" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}${isEmptyBranch(k)?'（未開始）':''}</span>${isEmptyBranch(k)?`<button class="small" data-cancelbr="${k.id}" title="この未開始の分岐を取り消す">✕ 取り消す</button>`:''}`).join('')}</div>`;
   }
   if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答の下にある「⑂ ここから分岐」で話題を分けられます。<div class="editBtns"><span class="hint ui">使い方を試すなら</span><button class="small" id="demoBtn2">デモ会話を読み込む</button></div>${IS_DESKTOP&&!bridgeOk?`<div style="margin-top:10px;padding:10px 12px;border:1.5px solid var(--ystroke);border-radius:10px;background:#fffbe6"><b class="ui">AIに接続する準備が必要です</b><br>Claude か ChatGPT（Codex）のどちらかにログインすると使えます。手順は画面の案内に沿って進められます。<div class="editBtns"><button class="small primary" id="tutConnectBtn">接続の手順を見る</button></div></div>`:''}</div></div>`;
   const m=$('#msgs');const stick=busy?followTail:(m.scrollHeight-m.scrollTop-m.clientHeight<200);const keepTop=m.scrollTop;
