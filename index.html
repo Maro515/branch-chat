@@ -179,7 +179,15 @@ svg text{fill:var(--indigo);font-family:"Noto Sans JP","Hiragino Sans",sans-seri
 .editBox{width:100%;min-height:90px;font:inherit;font-family:"Noto Sans JP","Hiragino Sans",sans-serif;border:2px solid var(--indigo);border-radius:8px;padding:8px 10px;background:#fff;color:var(--indigo);resize:vertical}
 .editBtns{display:flex;gap:6px;justify-content:flex-end;align-items:center;margin-top:6px;flex-wrap:wrap}
 .editBtns .hint{margin-right:auto}
-.msg.user .tools{display:flex}
+.msg.user .tools{display:flex;position:absolute;right:8px;bottom:6px;margin:0;padding:0;border:0;opacity:0;transition:opacity .15s}
+.msg.user:hover .tools,.msg.user:focus-within .tools{opacity:1}
+.msg.user{padding-right:16px;min-width:0}
+button.ico{width:28px;height:28px;padding:0;border-radius:8px;font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;background:#fff;color:var(--indigo);border:1.5px solid #9fb3d9}
+button.ico:hover{border-color:var(--indigo);box-shadow:0 0 0 2px rgba(30,58,110,.15)}
+button.ico.edit{width:24px;height:24px;font-size:13px;background:rgba(255,255,255,.9)}
+button.ico.plan{border-color:var(--ystroke);color:var(--ystroke);background:#fff8dc}
+button.ico.plan.on{background:#ffe680}
+.msg:not(.user) .tools{gap:6px}
 
 header{z-index:5}
 /* View メニュー（自前） */
@@ -201,6 +209,8 @@ header{z-index:5}
 .vpop button small{margin-left:auto;color:var(--muted);font-size:11px;font-family:"Noto Sans JP",sans-serif;letter-spacing:0}
 /* 分岐開始: 分岐元を画面上端へ寄せ、短く光らせる */
 #msgs{position:relative}
+#focus{box-shadow:inset 0 0 0 3px var(--curbc,transparent)} /* 今いるブランチの色で縁取り */
+#crumb{border-left:6px solid var(--curbc,transparent)}
 #tailSpace{flex:none}
 .msg.anchorFlash{animation:anchorFlash 1.4s ease-out}
 @keyframes anchorFlash{0%{box-shadow:0 0 0 3px var(--bc),0 2px 10px rgba(30,58,110,.08)}100%{box-shadow:0 0 0 0 transparent,0 2px 10px rgba(30,58,110,.08)}}
@@ -211,7 +221,7 @@ header{z-index:5}
 #focus{--gutR:clamp(16px,calc(100% - 720px),170px);--gutL:max(16px,calc((100% - 860px - var(--gutR))/2))}
 #msgs{display:flex;flex-direction:column}
 .msg{width:fit-content;min-width:min(240px,80%);max-width:min(78%,680px);margin:0 auto 12px var(--gutL)}
-.msg.user{margin:0 var(--gutR) 12px auto;border-left:1.5px solid var(--line);border-right:6px solid var(--bc);border-radius:14px 14px 4px 14px;background:var(--user)}
+.msg.user{position:relative;margin:0 var(--gutR) 12px auto;border-left:1.5px solid var(--line);border-right:6px solid var(--bc);border-radius:14px 14px 4px 14px;background:var(--user)}
 .msg:not(.user){border-radius:14px 14px 14px 4px}
 .msg.user .meta{justify-content:flex-end}
 .msg.editing{width:min(78%,680px)}
@@ -1029,22 +1039,27 @@ function gotoBranch(bid){delete conv._anchor;const b=B(bid);if(isEmptyBranch(b)&
 function gotoNode(nid){conv.activeNodeId=nid;conv._anchor=nid;persist();showFocus();scrollAnchorToTop(true);}
 function renderFocus(){
   const cur=currentBranchId();
+  $('#focus').style.setProperty('--curbc',B(cur).color);
   $('#crumb').innerHTML='<span class="ui">位置:</span> '+branchChain(cur).map(b=>`<b style="color:${b.color}">${esc(b.name)}</b>`).join(' → ')+(conv.activeNodeId?` <span>（${esc(label(N(conv.activeNodeId)))} <span class="ui">まで</span>）</span>`:'');
   const head=B(cur).headNodeId||conv.activeNodeId;
-  const path=head?ancestors(head):[];
+  const full=head?ancestors(head):[];
+  // 分岐先では、分岐元の回答1件（薄く）と、その枝の発言だけを表示する。祖先の会話全体は AI には渡るが画面には出さない
+  const forkNode=B(cur).forkFromNodeId;const fi=forkNode?full.findIndex(n=>n.id===forkNode):-1;
+  const path=fi>=0?full.slice(fi):full;
   const actIdx=path.findIndex(n=>n.id===conv.activeNodeId);
   let html='',prevB=null;
   for(const n of path){
     const b=B(n.branchId);
     if(prevB&&prevB!==n.branchId)html+=`<div class="divider ui" style="--bc:${b.color}">⑂ ここから「<span class="var">${esc(b.name)}</span>」に分岐</div>`;
+    else if(fi>=0&&n.id===forkNode)html+=`<div class="divider ui" style="--bc:${B(n.branchId).color}">「<span class="var">${esc(B(n.branchId).name)}</span>」のこの回答から分岐（<a href="#" data-goparent="${n.id}">分岐元を開く</a>）</div>`;
     prevB=n.branchId;
     const after=actIdx>=0&&path.indexOf(n)>actIdx;
     const outside=n.branchId!==cur||after;
     if(after&&path.indexOf(n)===actIdx+1)html+=`<div class="divider ui" style="--bc:${b.color}">ここまでを文脈にして続けます。ここから送信すると新しい枝になります（末尾から続けるには <a href="#" data-gohead="${cur}">この枝の最後へ</a>）</div>`;
     html+=`<div class="msg ${n.role}${outside?' outside':''}${n.planned?' planned':''}${n.id===conv.activeNodeId&&after!==undefined&&actIdx>=0&&actIdx<path.length-1?' cursor':''}" id="n-${n.id}" style="--bc:${b.color}">
-      <div class="meta"><span class="tag">${esc(label(n))}</span><span class="ui">${n.role==='user'?'あなた':'AI'}</span><span title="このメッセージのトークン（AIは入力+出力の実測、未計測なら概算）">${tokensOf(n)} tok</span>${n.role==='assistant'&&n.model?`<span title="この回答を生成したモデルと思考量">${esc(modelLabel(n.model))}${n.modelUsed&&n.modelUsed!==n.model?` <span class="var">(${esc(n.modelUsed)})</span>`:''}${n.effort?' · '+esc(n.effort):''}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="spin4 mini"><i></i><i></i><i></i><i></i></span>':''}</div>
+      ${n.role==='user'?'':'<div class="meta">'}${n.role==='user'?'':`<span class="tag">${esc(label(n))}</span><span class="ui">AI</span>`}${n.role==='user'?'':`<span title="このメッセージのトークン（AIは入力+出力の実測、未計測なら概算）">${tokensOf(n)} tok</span>`}${n.role==='assistant'&&n.model?`<span title="この回答を生成したモデルと思考量">${esc(modelLabel(n.model))}${n.modelUsed&&n.modelUsed!==n.model?` <span class="var">(${esc(n.modelUsed)})</span>`:''}${n.effort?' · '+esc(n.effort):''}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="spin4 mini"><i></i><i></i><i></i><i></i></span>':''}${n.role==='user'?'':'</div>'}
       ${imgsHTML(n)}<div class="toolsUsed">${toolsHTML(n)}</div><div class="body">${n.streaming&&!n.content?`<div class="waiting"><span class="spin4"><i></i><i></i><i></i><i></i></span><span class="ui">${n.role==='assistant'?'回答を生成中…':''}</span></div>`:md(n.content)}</div>
-      <div class="tools">${n.role==='assistant'&&!n.streaming&&isDeadNode(n)?`<span class="hint ui">中止した回答からは分岐できません</span>`:''}${n.role==='assistant'&&!n.streaming&&!isDeadNode(n)?`<button class="small" data-fork="${n.id}" title="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">${emptyBranchFrom(n.id)?'⑂ 未開始の分岐へ':'⑂ ここから分岐'}</button><button class="small plan${n.planned?' on':''}" data-plan="${n.id}" title="分岐するか迷っているときの印。俯瞰図で黄色く表示">${n.planned?'★ 予定解除':'☆ 分岐予定'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="small" data-edit="${n.id}" title="この質問を書き直して送り直す">✎ 質問を編集する</button>`:''}${n.role==='assistant'&&!n.streaming&&n.id!==B(n.branchId).headNodeId?`<button class="small" data-go="${n.id}" title="この回答までを文脈にして続ける（送信すると新しい枝になります）">ここから続ける</button>`:''}</div>
+      <div class="tools">${n.role==='assistant'&&!n.streaming&&isDeadNode(n)?`<span class="hint ui" title="中止した回答からは分岐できません">⑂ ✕</span>`:''}${n.role==='assistant'&&!n.streaming&&!isDeadNode(n)?`<button class="ico" data-fork="${n.id}" aria-label="ここから分岐" title="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">⑂</button><button class="ico plan${n.planned?' on':''}" data-plan="${n.id}" title="${n.planned?'分岐予定の印を外す':'分岐予定の印を付ける（迷っているとき。俯瞰図で黄色く表示）'}" aria-label="分岐予定">${n.planned?'★':'☆'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="ico edit" data-edit="${n.id}" title="この質問を書き直して送り直す" aria-label="質問を編集する">✎</button>`:''}${n.role==='assistant'&&!n.streaming&&n.id!==B(n.branchId).headNodeId?`<button class="ico" data-go="${n.id}" title="ここから続ける（この回答までを文脈にして送信。新しい枝になります）" aria-label="ここから続ける">↳</button>`:''}</div>
     </div>`;
     const kids=childBranchesOf(n.id);
     if(kids.length)html+=`<div class="badges"><span class="ui">→ ここから分岐:</span> ${kids.map(k=>`<span class="chip" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}${isEmptyBranch(k)?'（未開始）':''}</span>${isEmptyBranch(k)?`<button class="small" data-cancelbr="${k.id}" title="この未開始の分岐を取り消す">✕ 取り消す</button>`:''}`).join('')}</div>`;
@@ -1055,6 +1070,7 @@ function renderFocus(){
   updateTailSpace();
   m.querySelectorAll('[data-fork]').forEach(el=>el.onclick=()=>openFork(el.dataset.fork));
   m.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoNode(el.dataset.go));
+  m.querySelectorAll('[data-goparent]').forEach(el=>el.onclick=e=>{e.preventDefault();gotoNode(el.dataset.goparent);});
   m.querySelectorAll('[data-gohead]').forEach(el=>el.onclick=e=>{e.preventDefault();gotoBranch(el.dataset.gohead);});
   m.querySelectorAll('[data-plan]').forEach(el=>el.onclick=()=>togglePlan(el.dataset.plan));
   m.querySelectorAll('[data-cancelbr]').forEach(el=>el.onclick=e=>{e.stopPropagation();const id=el.dataset.cancelbr;if(conv._pendingBranch===id)cancelBranch(id);else{const b=B(id);if(b&&isEmptyBranch(b)){const name=b.name;delete conv.branches[id];persist();renderAll();toast(`分岐「${name}」を取り消しました`);}}});

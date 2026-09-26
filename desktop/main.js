@@ -241,6 +241,8 @@ async function runSmoke(win) {
         r.oa={models:ms,opts:MODEL_OPTS.map(o=>o.v),reply:n.content,usage:n.usage,model:n.model,summary:B('main').summary&&B('main').summary.topic,badKey:n2.content.slice(0,80)};settings.provider='dummy';
       }
       if(${process.env.SMOKE_TABS === '1'}){const kid=Object.values(conv.branches).find(b=>b.name==='副作用');gotoBranch(kid.id);await new Promise(x=>setTimeout(x,300));r.tabs=[...document.querySelectorAll('#branchBar .chip')].map(c=>c.textContent.trim()+(c.classList.contains('on')?' [ON]':''));}
+      if(${process.env.SMOKE_VIEW === '1'}){const kid=Object.values(conv.branches).find(b=>b.name==='副作用');gotoBranch(kid.id);await new Promise(x=>setTimeout(x,300));
+        r.view={shown:[...document.querySelectorAll('#msgs .msg')].map(e=>e.id.replace('n-','')).map(id=>N(id)?B(N(id).branchId).name+'#'+N(id).seq+'/'+N(id).role[0]:id),edge:getComputedStyle(document.querySelector('#focus')).getPropertyValue('--curbc').trim(),userMeta:document.querySelectorAll('#msgs .msg.user .meta').length,icons:[...document.querySelectorAll('#msgs .msg:not(.user) .tools button')].slice(0,3).map(b=>b.textContent+'|'+b.title.slice(0,12)),editOpacity:getComputedStyle(document.querySelector('.msg.user .tools')).opacity};}
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     const img = await win.webContents.capturePage();
