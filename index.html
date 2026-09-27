@@ -931,7 +931,7 @@ function provider(){return settings.provider==='api'?streamAPI:settings.provider
 
 /* ========== 要約（Layer2の更新） ========== */
 const SUM_SYS=`あなたは会話ブランチの要約係です。与えられた会話ログを読み、次のJSONだけを出力してください（前後に説明を付けない）:
-{"title":"10字以内の話題名","topic":"何を話したか（80字以内）","conclusions":"得られた結論・決定事項（120字以内、無ければ「なし」）","open":"未解決の問い（80字以内、無ければ「なし」）"}`;
+{"title":"会話の題名（15字以内。内容が一目で分かる名詞句。「相談」「について」などの語尾は不要）","topic":"何を話したか（80字以内）","conclusions":"得られた結論・決定事項（120字以内、無ければ「なし」）","open":"未解決の問い（80字以内、無ければ「なし」）"}`;
 const summarizing=new Set();
 async function updateSummary(bid){
   if(summarizing.has(bid))return;const b=B(bid);const ns=branchNodes(bid);if(!ns.length)return;const cid=conv.id;
@@ -947,7 +947,7 @@ async function updateSummary(bid){
     const m=out.match(/\{[\s\S]*\}/);if(!m)throw new Error('要約JSONなし');
     const j=JSON.parse(m[0]);
     b.summary={topic:j.topic,conclusions:j.conclusions,open:j.open,updatedAt:Date.now()};
-    if(bid==='main'&&conv.title==='新しい会話'&&j.title)conv.title=j.title;
+    const tc=convs[cid];if(tc&&bid==='main'&&(tc.titleAuto||tc.title==='新しい会話')&&j.title&&String(j.title).trim()){tc.title=String(j.title).trim().slice(0,30);tc.titleAuto=true;} // 最初の要約で AI が題名を付ける。以後も本線の要約ごとに更新（手で名前を付けるまで）
     persist();renderAll();
     updateLinks(cid,bid); // 関連度の AI 判定（3往復ごと・裏で）
   }catch(e){console.warn('summary failed',bid,e);}
@@ -967,6 +967,7 @@ async function send(text,opts={}){
     toast(`途中の回答から続けるため、新しい枝「${nb.name}」を作りました`);
   }
   const u=addNode('user',text,parentId,bid);
+  if(conv.title==='新しい会話'){conv.title=excerpt(text,20);conv.titleAuto=true;} // 仮の題名。最初の要約ができたら AI が付け直す
   if(opts.images&&opts.images.length)u.images=opts.images.map(p=>p.thumb); // 表示用の縮小版だけ保存（送信用の原寸は保存しない）
   const a=addNode('assistant','',u.id,bid);a.streaming=true;if(opts.mergedFrom)a.mergedFrom=opts.mergedFrom;
   conv.activeNodeId=a.id;persist();renderAll();
@@ -1036,7 +1037,7 @@ function switchConv(id){
   conv=convs[id];delete conv._pendingBranch;delete conv._anchor;persist();showFocus();
   if(innerWidth<=760)setSide(false);
 }
-async function renameConvById(id){const c=convs[id];if(!c)return;const v=await askPrompt('会話の名前を変更',c.title);if(v&&v.trim()){c.title=v.trim().slice(0,40);persist();renderAll();}}
+async function renameConvById(id){const c=convs[id];if(!c)return;const v=await askPrompt('会話の名前を変更',c.title);if(v&&v.trim()){c.title=v.trim().slice(0,40);c.titleAuto=false;persist();renderAll();}}
 async function deleteConvById(id){
   const c=convs[id];if(!c)return;
   if(busy&&id===conv.id){toast('生成中の会話は削除できません');return;}
