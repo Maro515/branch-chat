@@ -181,7 +181,9 @@ mark.note:hover{background:#ffe680}
 .noteChip{display:inline-block;margin-top:6px;font-size:11px;background:#fff8dc;border:1px solid var(--ystroke);color:var(--ystroke);border-radius:999px;padding:0 9px;cursor:pointer}
 #notePop{position:absolute;z-index:30;display:none;width:max-content;max-width:min(420px,calc(100vw - 32px));max-height:50vh;overflow:auto;background:#fff;border:1.5px solid var(--ystroke);border-radius:10px;box-shadow:0 8px 28px rgba(30,58,110,.28);padding:8px 10px;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12px;line-height:1.6;color:#111}
 #notePop.on{display:block}
-#notePop .nq{font-weight:500;color:var(--indigo);margin-top:4px}#notePop .nq:first-child{margin-top:0}
+#notePop .nq{font-weight:500;color:var(--indigo);margin-top:2px;padding:3px 6px;border-radius:6px;cursor:pointer}
+#notePop .nq:hover{background:#fff8dc}
+#notePop .nq .more{font-weight:400;font-size:10.5px;color:var(--indigo2)}#notePop .nq:first-child{margin-top:0}
 #notePop .na{white-space:pre-wrap;color:#111}
 #notePop .nh{font-size:10.5px;color:var(--indigo2);margin-top:6px;border-top:1px dashed var(--line);padding-top:4px}
 #noteWin{position:fixed;right:18px;bottom:84px;z-index:35;width:min(400px,calc(100vw - 32px));max-height:min(62vh,560px);display:flex;flex-direction:column;background:#fff;border:2px solid var(--ystroke);border-radius:12px;box-shadow:0 12px 40px rgba(30,58,110,.35);color:#111;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif}
@@ -1770,7 +1772,11 @@ $('#selFork').onclick=()=>{
 const EXPLAIN={1:t=>`「${t}」について、初学者でも分かるように丁寧に説明して`,2:t=>`「${t}」について、辞書や辞典に載っているような一般的な説明をして`,3:t=>`「${t}」について、適宜専門用語などを用いて詳細に説明して`};
 const notesOf=()=>(conv.notes=conv.notes||{});
 let noteCur=null,noteAbort=null,noteBusy=false;
-function noteFor(nodeId,text){const t=text.replace(/\s+/g,' ').trim().slice(0,300);let n=Object.values(notesOf()).find(x=>x.nodeId===nodeId&&x.text===t);if(!n){n={id:uid(),nodeId,text:t,items:[],createdAt:Date.now()};notesOf()[n.id]=n;}return n;}
+// 選択メニューから始めた質問1つにつき、チャットを1つ作る（同じ言葉でも別のチャット）。小窓の中で続けた質問は同じチャットに入る
+function noteFor(nodeId,text){const t=text.replace(/\s+/g,' ').trim().slice(0,300);const n={id:uid(),nodeId,text:t,items:[],createdAt:Date.now()};notesOf()[n.id]=n;return n;}
+function dropEmptyNotes(){let ch=false;for(const [k,n] of Object.entries(conv.notes||{}))if(!n.items.length&&k!==noteCur){delete conv.notes[k];ch=true;}return ch;}
+// 以前の版: 1つのメモに複数の「説明して」が入っていた → 説明の依頼ごとに分ける
+function migrateNotes(){for(const n of Object.values(conv.notes||{})){if(n.split)continue;n.split=true;const cuts=[];n.items.forEach((it,i)=>{if(i>0&&it.role==='user'&&it.content.startsWith('「'+n.text+'」について、'))cuts.push(i);});if(!cuts.length)continue;const parts=[];let st=0;for(const c of cuts.concat(n.items.length)){parts.push(n.items.slice(st,c));st=c;}n.items=parts[0];parts.slice(1).forEach((p,i)=>{const id=uid();conv.notes[id]={id,nodeId:n.nodeId,text:n.text,items:p,createdAt:(n.createdAt||0)+i+1,split:true};});}}
 function renderNoteWin(){
   const n=noteCur&&notesOf()[noteCur];if(!n){$('#noteWin').hidden=true;return;}
   $('#noteWin').hidden=false;$('#nwTitle').textContent='「'+excerpt(n.text,24)+'」';
@@ -1801,30 +1807,34 @@ $('#selSide').onclick=()=>startNote(0);$('#selEx1').onclick=()=>startNote(1);$('
 $('#nwSend').onclick=()=>{if(noteBusy){if(noteAbort)noteAbort.abort();return;}const t=$('#nwInput');const q=t.value;if(!q.trim()||!noteCur)return;t.value='';t.style.height='auto';askNote(noteCur,q);};
 $('#nwInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('#nwSend').click();}});
 $('#nwInput').addEventListener('input',e=>{const t=e.target;t.style.height='auto';t.style.height=Math.min(120,t.scrollHeight+2)+'px';});
-$('#nwClose').onclick=()=>{noteCur=null;$('#noteWin').hidden=true;};
-$('#nwDel').onclick=async()=>{const n=noteCur&&notesOf()[noteCur];if(!n)return;if(noteBusy){toast('生成中は消せません');return;}if(!(await askConfirm(`「${excerpt(n.text,20)}」についてのやり取り（${n.items.filter(i=>i.role==='user').length}件の質問）とマーカーを消しますか？`,'消す')))return;delete notesOf()[n.id];noteCur=null;$('#noteWin').hidden=true;persist();renderAll();};
+$('#nwClose').onclick=()=>{noteCur=null;$('#noteWin').hidden=true;if(dropEmptyNotes()){persist();markNotes();}};
+$('#nwDel').onclick=async()=>{const n=noteCur&&notesOf()[noteCur];if(!n)return;if(noteBusy){toast('生成中は消せません');return;}if(!(await askConfirm(`「${excerpt(n.text,20)}」についてのこのチャット（${n.items.filter(i=>i.role==='user').length}件の質問）を消しますか？\n同じ言葉のほかのチャットは残ります。`,'消す')))return;delete notesOf()[n.id];noteCur=null;$('#noteWin').hidden=true;persist();renderAll();};
 // 表示中の回答の本文から、その言葉を探して黄色のマーカーを付ける。見つからないとき（装飾をまたいだ選択など）は末尾に小さな札を出す
 function markNotes(){
   const m=$('#msgs');m.querySelectorAll('mark.note').forEach(k=>{k.replaceWith(document.createTextNode(k.textContent));});m.querySelectorAll('.noteChip').forEach(k=>k.remove());
-  for(const n of Object.values(conv.notes||{})){
+  const groups=new Map();for(const n of Object.values(conv.notes||{}).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))){const k=n.nodeId+'\u0001'+n.text;if(!groups.has(k))groups.set(k,{nodeId:n.nodeId,text:n.text,ids:[]});groups.get(k).ids.push(n.id);}
+  for(const n of groups.values()){
     const el=document.getElementById('n-'+n.nodeId);const body=el&&el.querySelector('.body');if(!body||!N(n.nodeId)||N(n.nodeId).streaming)continue;
     body.normalize();const w=document.createTreeWalker(body,NodeFilter.SHOW_TEXT);let done=false;
     while(w.nextNode()){const tn=w.currentNode;if(tn.parentElement.closest('mark.note'))continue;const i=tn.nodeValue.indexOf(n.text);if(i<0)continue;
-      const r=document.createRange();r.setStart(tn,i);r.setEnd(tn,i+n.text.length);const k=document.createElement('mark');k.className='note';k.dataset.note=n.id;r.surroundContents(k);done=true;break;}
-    if(!done){const c=document.createElement('span');c.className='noteChip';c.dataset.note=n.id;c.textContent='📝 '+excerpt(n.text,18);body.appendChild(c);}
+      const r=document.createRange();r.setStart(tn,i);r.setEnd(tn,i+n.text.length);const k=document.createElement('mark');k.className='note';k.dataset.note=n.ids.join(',');r.surroundContents(k);done=true;break;}
+    if(!done){const c=document.createElement('span');c.className='noteChip';c.dataset.note=n.ids.join(',');c.textContent='📝 '+excerpt(n.text,18);body.appendChild(c);}
   }
 }
 function showNotePop(target){
-  const n=notesOf()[target.dataset.note];const p=$('#notePop');if(!n){p.classList.remove('on');return;}
-  const qs=n.items.filter(it=>it.role==='user');p.innerHTML=(qs.length?qs.map(it=>`<div class="nq">Q. ${esc(excerpt(it.content,120))}</div>`).join(''):'<div class="na">まだ質問していません</div>')+'<div class="nh ui">クリックで開いて、回答を読む・続けて質問する</div>';
+  const ns=String(target.dataset.note||'').split(',').map(id=>notesOf()[id]).filter(Boolean);const p=$('#notePop');if(!ns.length){p.classList.remove('on');return;}
+  p.innerHTML=ns.map(n=>{const qs=n.items.filter(it=>it.role==='user');return `<div class="nq" data-open="${esc(n.id)}">Q. ${qs.length?esc(excerpt(qs[0].content,120)):'（まだ質問していません）'}${qs.length>1?` <span class="more">＋続き ${qs.length-1} 件</span>`:''}</div>`;}).join('')+'<div class="nh ui">質問を押すと、そのチャットを開きます</div>';
   p.classList.add('on');const r=target.getBoundingClientRect();const w=p.offsetWidth,h=p.offsetHeight;
-  let left=Math.max(8,Math.min(r.left+window.scrollX,window.innerWidth-w-8));let top=r.bottom+window.scrollY+6;if(top+h>window.scrollY+window.innerHeight-8)top=Math.max(window.scrollY+8,r.top+window.scrollY-h-6);
+  let left=Math.max(8,Math.min(r.left+window.scrollX,window.innerWidth-w-8));let top=r.bottom+window.scrollY+2;if(top+h>window.scrollY+window.innerHeight-8)top=Math.max(window.scrollY+8,r.top+window.scrollY-h-2);
   p.style.left=left+'px';p.style.top=top+'px';
 }
-$('#msgs').addEventListener('mouseover',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t)showNotePop(t);});
-$('#msgs').addEventListener('mouseout',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t&&!(e.relatedTarget&&e.relatedTarget.closest&&e.relatedTarget.closest('#notePop')))$('#notePop').classList.remove('on');});
-$('#notePop').addEventListener('mouseleave',()=>$('#notePop').classList.remove('on'));
-$('#msgs').addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t&&!window.getSelection().toString()){$('#notePop').classList.remove('on');openNote(t.dataset.note);}});
+let notePopTimer=null;const hideNotePopSoon=()=>{clearTimeout(notePopTimer);notePopTimer=setTimeout(()=>$('#notePop').classList.remove('on'),220);};
+$('#notePop').addEventListener('mouseenter',()=>clearTimeout(notePopTimer));
+$('#notePop').addEventListener('click',e=>{const q=e.target.closest('[data-open]');if(q){$('#notePop').classList.remove('on');openNote(q.dataset.open);}});
+$('#msgs').addEventListener('mouseover',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t){clearTimeout(notePopTimer);showNotePop(t);}});
+$('#msgs').addEventListener('mouseout',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t)hideNotePopSoon();});
+$('#notePop').addEventListener('mouseleave',hideNotePopSoon);
+$('#msgs').addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t&&!window.getSelection().toString()){const ids=String(t.dataset.note).split(',');if(ids.length===1){$('#notePop').classList.remove('on');openNote(ids[0]);}else showNotePop(t);}}); // 複数あるときは一覧から選ぶ
 $('#msgs').addEventListener('scroll',()=>$('#notePop').classList.remove('on'));
 
 /* ========== デモ会話 ========== */
@@ -1897,7 +1907,7 @@ function resolveUp(bid,key,valid){
   return {v:valid(key==='model'?globalModel():settings.effort),src:'global'};
 }
 // 旧形式（会話単位の指定）は本線の指定へ移す。本線の指定＝会話全体の指定として働く
-function migrateConvModel(){for(const b of Object.values(conv.branches||{}))if(b.status==='closed')b.status='open'; // 「終了」は廃止
+function migrateConvModel(){migrateNotes();for(const b of Object.values(conv.branches||{}))if(b.status==='closed')b.status='open'; // 「終了」は廃止
   for(const b of Object.values(conv.branches||{})){if(b.model==='opus')b.model='claude-opus-5-5';if(b.model==='sonnet')b.model='claude-sonnet-5';} // 以前の版の別名を名指しへ
   for(const k of ['model','effort']){if(conv&&conv[k]!==undefined){const m=B('main');if(m&&m[k]===undefined)m[k]=conv[k];delete conv[k];}}}
 function effModel(bid){return resolveUp(bid,'model',validModel).v||MODEL_OPTS[0].v;}
