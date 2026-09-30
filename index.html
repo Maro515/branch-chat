@@ -179,9 +179,9 @@ svg text{fill:var(--indigo);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-
 mark.note{background:linear-gradient(transparent 45%,#ffe680 45%);color:inherit;cursor:pointer;border-radius:2px;padding:0 1px}
 mark.note:hover{background:#ffe680}
 .noteChip{display:inline-block;margin-top:6px;font-size:11px;background:#fff8dc;border:1px solid var(--ystroke);color:var(--ystroke);border-radius:999px;padding:0 9px;cursor:pointer}
-#notePop{position:absolute;z-index:30;display:none;width:min(420px,calc(100vw - 32px));max-height:50vh;overflow:auto;background:#fff;border:1.5px solid var(--ystroke);border-radius:10px;box-shadow:0 8px 28px rgba(30,58,110,.28);padding:8px 10px;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12px;line-height:1.6;color:#111}
+#notePop{position:absolute;z-index:30;display:none;width:max-content;max-width:min(420px,calc(100vw - 32px));max-height:50vh;overflow:auto;background:#fff;border:1.5px solid var(--ystroke);border-radius:10px;box-shadow:0 8px 28px rgba(30,58,110,.28);padding:8px 10px;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12px;line-height:1.6;color:#111}
 #notePop.on{display:block}
-#notePop .nq{font-weight:600;color:var(--indigo);margin-top:6px}#notePop .nq:first-child{margin-top:0}
+#notePop .nq{font-weight:500;color:var(--indigo);margin-top:4px}#notePop .nq:first-child{margin-top:0}
 #notePop .na{white-space:pre-wrap;color:#111}
 #notePop .nh{font-size:10.5px;color:var(--indigo2);margin-top:6px;border-top:1px dashed var(--line);padding-top:4px}
 #noteWin{position:fixed;right:18px;bottom:84px;z-index:35;width:min(400px,calc(100vw - 32px));max-height:min(62vh,560px);display:flex;flex-direction:column;background:#fff;border:2px solid var(--ystroke);border-radius:12px;box-shadow:0 12px 40px rgba(30,58,110,.35);color:#111;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif}
@@ -1816,7 +1816,7 @@ function markNotes(){
 }
 function showNotePop(target){
   const n=notesOf()[target.dataset.note];const p=$('#notePop');if(!n){p.classList.remove('on');return;}
-  const qa=n.items;p.innerHTML=(qa.length?qa.map(it=>it.role==='user'?`<div class="nq">Q. ${esc(excerpt(it.content,120))}</div>`:`<div class="na">${esc(excerpt(it.content,400))}</div>`).join(''):'<div class="na">まだ質問していません</div>')+'<div class="nh ui">クリックで開いて、全文を読む・続けて質問する</div>';
+  const qs=n.items.filter(it=>it.role==='user');p.innerHTML=(qs.length?qs.map(it=>`<div class="nq">Q. ${esc(excerpt(it.content,120))}</div>`).join(''):'<div class="na">まだ質問していません</div>')+'<div class="nh ui">クリックで開いて、回答を読む・続けて質問する</div>';
   p.classList.add('on');const r=target.getBoundingClientRect();const w=p.offsetWidth,h=p.offsetHeight;
   let left=Math.max(8,Math.min(r.left+window.scrollX,window.innerWidth-w-8));let top=r.bottom+window.scrollY+6;if(top+h>window.scrollY+window.innerHeight-8)top=Math.max(window.scrollY+8,r.top+window.scrollY-h-6);
   p.style.left=left+'px';p.style.top=top+'px';
