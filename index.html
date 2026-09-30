@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#102a18;--bg2:#153a20;--panel:rgba(18,48,28,.82);--panel2:rgba(22,58,34,.94);
+  --bg:#173a22;--bg2:#1e4a2c;--panel:rgba(26,64,38,.84);--panel2:rgba(30,74,44,.94);
   --ink:#eaf5e2;--muted:#a9c9a0;--line:rgba(160,220,140,.30);--glow:#b5e86b;--accent:#5cb85c;
   --user:rgba(70,130,70,.30);--asst:rgba(18,48,28,.72);--dim:.5;--yellow:#ffd93d;
   --c0:#8fb3ff;--c1:#38bdf8;--c2:#f472b6;--c3:#34d399;--c4:#fb923c;--c5:#a78bfa;--c6:#a5d96b;--c7:#e879f9;
@@ -17,7 +17,7 @@
 html,body{height:100%;margin:0}
 body{background:
   radial-gradient(1200px 600px at 75% -10%,rgba(181,232,107,.22),transparent 60%),
-  radial-gradient(900px 500px at 5% 110%,rgba(92,184,92,.18),transparent 60%),linear-gradient(180deg,#153a20,var(--bg));
+  radial-gradient(900px 500px at 5% 110%,rgba(92,184,92,.18),transparent 60%),linear-gradient(180deg,#1e4a2c,var(--bg));
   color:var(--ink);font:15px/1.7 "IBM Plex Sans JP","Hiragino Sans","Noto Sans CJK JP",sans-serif;display:flex;flex-direction:column;position:relative}
 /* 背景: 木漏れ日のような柔らかい緑のグラデーション（格子とスキャン線は廃止） */
 header,#branchBar,main,#toast{position:relative;z-index:1}
@@ -27,9 +27,9 @@ header h1{font-size:17px;margin:0 4px 0 0;white-space:nowrap;letter-spacing:.06e
 .hero img{width:100%;height:100%;object-fit:cover;object-position:50% 38%;display:block;-webkit-mask-image:radial-gradient(ellipse 58% 62% at 50% 50%,#000 35%,transparent 100%);mask-image:radial-gradient(ellipse 58% 62% at 50% 50%,#000 35%,transparent 100%)}
 @media (max-width:900px){.hero{display:none}}
 header select{max-width:220px}
-select{font:inherit;color:var(--ink);background:rgba(24,60,34,.6);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+select{font:inherit;color:var(--ink);background:rgba(32,74,44,.6);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
 .spacer{flex:1}
-button{font:inherit;color:var(--ink);background:rgba(36,86,48,.35);border:1px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;transition:.15s;letter-spacing:.04em}
+button{font:inherit;color:var(--ink);background:rgba(46,100,58,.35);border:1px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;transition:.15s;letter-spacing:.04em}
 button:hover{border-color:var(--glow);box-shadow:0 0 12px rgba(181,232,107,.45);color:#fff}
 button.primary{background:linear-gradient(135deg,#4caf50,#a5d96b);color:#0f2a16;border-color:transparent;font-weight:700;box-shadow:0 0 16px rgba(140,200,110,.45)}
 button.small{padding:2px 9px;font-size:12px;border-radius:6px}
@@ -40,9 +40,9 @@ button:disabled{opacity:.5;cursor:default}
 .seg button{border:0;border-radius:0;background:transparent}
 .seg button.on{background:linear-gradient(135deg,#4caf50,#a5d96b);color:#0f2a16;font-weight:700}
 /* ブランチの帯はブラウザのページタブ風。選択中のタブは白く前面に出て、下の白い画面とつながって見える */
-#branchBar{display:flex;gap:2px;padding:6px 10px 0;border-bottom:0;background:rgba(16,42,24,.7);overflow-x:auto;overflow-y:hidden;align-items:flex-end;position:relative;min-height:36px}
+#branchBar{display:flex;gap:2px;padding:6px 10px 0;border-bottom:0;background:rgba(24,58,34,.7);overflow-x:auto;overflow-y:hidden;align-items:flex-end;position:relative;min-height:36px}
 #branchBar::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--line)}
-#branchBar .chip{position:relative;flex:none;border-radius:9px 9px 0 0;border:1px solid var(--line);border-bottom:0;padding:5px 12px 6px;margin-bottom:0;background:rgba(22,56,32,.85);color:#c3dbbf;font-size:12.5px;box-shadow:none;max-width:220px;transition:background .12s,color .12s}
+#branchBar .chip{position:relative;flex:none;border-radius:9px 9px 0 0;border:1px solid var(--line);border-bottom:0;padding:5px 12px 6px;margin-bottom:0;background:rgba(30,70,40,.85);color:#c3dbbf;font-size:12.5px;box-shadow:none;max-width:220px;transition:background .12s,color .12s}
 #branchBar .chip span:not(.dot){overflow:hidden;text-overflow:ellipsis}
 #branchBar .chip:hover{background:rgba(31,74,43,.75);color:#fff}
 #branchBar .chip .dot{width:9px;height:9px;box-shadow:none}
@@ -50,13 +50,13 @@ button:disabled{opacity:.5;cursor:default}
 #branchBar .chip.on::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--bc);border-radius:9px 9px 0 0}
 #branchBar .chip.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#fff} /* 帯の下線を消して画面とつなげる */
 
-.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bc);color:var(--bc);border-radius:999px;padding:2px 10px;font-size:12px;white-space:nowrap;cursor:pointer;background:rgba(16,42,24,.7);box-shadow:0 0 8px -2px var(--bc)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bc);color:var(--bc);border-radius:999px;padding:2px 10px;font-size:12px;white-space:nowrap;cursor:pointer;background:rgba(24,58,34,.7);box-shadow:0 0 8px -2px var(--bc)}
 .chip.on{background:var(--bc);color:#0f2a16;font-weight:700;box-shadow:0 0 14px var(--bc)}
 .chip .dot{width:8px;height:8px;border-radius:50%;background:var(--bc);box-shadow:0 0 6px var(--bc)}
 .chip.on .dot{background:#0f2a16}
 main{flex:1;min-height:0;display:flex}
 #focus{flex:1;display:flex;flex-direction:column;min-width:0}
-#crumb{padding:3px 14px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);background:rgba(16,42,24,.5)}
+#crumb{padding:3px 14px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);background:rgba(24,58,34,.5)}
 #crumb b{text-shadow:0 0 8px currentColor}
 #msgs{flex:1;overflow-y:auto;padding:6px 0 14px}
 .msg{position:relative;max-width:860px;margin:0 auto 10px;padding:10px 14px 10px 18px;border:1px solid var(--line);border-left:3px solid var(--bc);border-radius:10px;background:var(--asst);backdrop-filter:blur(6px);box-shadow:0 0 22px -8px var(--bc),inset 0 0 40px rgba(181,232,107,.03)}
@@ -69,7 +69,7 @@ main{flex:1;min-height:0;display:flex}
 .msg .meta .ptag{color:var(--yellow);text-shadow:0 0 8px var(--yellow)}
 .msg .body{white-space:pre-wrap;word-break:break-word}
 .msg .body code{background:rgba(181,232,107,.14);padding:0 4px;border-radius:4px;font-size:.92em}
-.msg .body pre{background:rgba(10,28,16,.8);border:1px solid var(--line);padding:8px 10px;border-radius:8px;overflow-x:auto;white-space:pre}
+.msg .body pre{background:rgba(16,40,24,.8);border:1px solid var(--line);padding:8px 10px;border-radius:8px;overflow-x:auto;white-space:pre}
 .msg .tools{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:6px;border-top:1px dashed var(--line)}
 .msg.user .tools{display:none}
 .msg.user:hover .tools{display:flex}
@@ -79,7 +79,7 @@ main{flex:1;min-height:0;display:flex}
 .divider{max-width:860px;margin:6px auto 12px;font-size:12px;color:var(--bc);border-top:1px dashed var(--bc);padding-top:4px;text-shadow:0 0 8px var(--bc)}
 #composer{border-top:1px solid var(--line);background:var(--panel);backdrop-filter:blur(8px);padding:6px 14px;box-shadow:0 -1px 20px rgba(181,232,107,.1)}
 #composer .row{display:flex;gap:8px;max-width:860px;margin:0 auto;align-items:flex-end}
-textarea{flex:1;font:inherit;line-height:1.5;resize:none;min-height:44px;max-height:240px;border:1px solid var(--line);border-radius:10px;padding:10px 10px;background:rgba(10,28,16,.7);color:var(--ink)}
+textarea{flex:1;font:inherit;line-height:1.5;resize:none;min-height:44px;max-height:240px;border:1px solid var(--line);border-radius:10px;padding:10px 10px;background:rgba(16,40,24,.7);color:var(--ink)}
 textarea:focus{outline:none;border-color:var(--glow);box-shadow:0 0 12px rgba(181,232,107,.4)}
 #status{max-width:860px;margin:6px auto 0;font-size:11px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
 #status a{color:var(--glow)}
@@ -92,7 +92,7 @@ textarea:focus{outline:none;border-color:var(--glow);box-shadow:0 0 12px rgba(18
   radial-gradient(900px 400px at 50% 0%,rgba(140,200,110,.14),transparent 70%),rgba(3,9,22,.85)}
 #legend{position:sticky;top:0;left:0;font-size:11px;color:var(--muted);padding:6px 12px;background:rgba(3,9,22,.7);border-bottom:1px solid var(--line);display:flex;gap:14px;flex-wrap:wrap;z-index:2}
 #legend i{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:4px}
-#cards{width:340px;border-left:1px solid var(--line);overflow-y:auto;padding:10px;background:rgba(16,42,24,.6);backdrop-filter:blur(8px)}
+#cards{width:340px;border-left:1px solid var(--line);overflow-y:auto;padding:10px;background:rgba(24,58,34,.6);backdrop-filter:blur(8px)}
 .card{border:1px solid var(--line);border-left:3px solid var(--bc);border-radius:10px;padding:8px 10px;margin-bottom:10px;background:var(--panel);font-size:13px;box-shadow:0 0 18px -8px var(--bc)}
 .card h3{margin:0 0 4px;font-size:14px;color:var(--bc);display:flex;align-items:center;gap:6px;text-shadow:0 0 8px var(--bc)}
 .card .from{font-size:11px;color:var(--muted)}
@@ -109,15 +109,15 @@ dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel2);
 dialog::backdrop{background:rgba(2,6,16,.6)}
 dialog h2{margin:0 0 10px;font-size:16px;letter-spacing:.1em;text-shadow:0 0 10px var(--glow)}
 dialog label{display:block;margin:8px 0 2px;font-size:12px;color:var(--muted)}
-dialog input[type=text],dialog input[type=password],dialog input[type=number],dialog select{width:100%;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:rgba(10,28,16,.7);color:var(--ink)}
+dialog input[type=text],dialog input[type=password],dialog input[type=number],dialog select{width:100%;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:rgba(16,40,24,.7);color:var(--ink)}
 dialog .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 .hint{font-size:11px;color:var(--muted)}
 #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(8,20,45,.95);border:1px solid var(--glow);color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;display:none;z-index:9;box-shadow:0 0 20px rgba(181,232,107,.5)}
 @media (max-width:760px){#cards{width:100%;position:absolute;bottom:0;max-height:45%;border-left:0;border-top:1px solid var(--line)} #overview{position:relative}}
 
 /* ===== 可読性モード: チャット・俯瞰図は白背景／藍色文字、線を太く ===== */
-:root{--indigo:#1f4a2b;--indigo2:#587f5e;--yellow:#f5c400;--ystroke:#b45309;
-  --c0:#6b8e23;--c1:#2e7d32;--c2:#be185d;--c3:#0f766e;--c4:#c2410c;--c5:#6d28d9;--c6:#0369a1;--c7:#a21caf;}
+:root{--indigo:#143a1f;--indigo2:#3f6b48;--yellow:#f5c400;--ystroke:#b45309;
+  --c0:#6b8e23;--c1:#256b2a;--c2:#be185d;--c3:#0f766e;--c4:#c2410c;--c5:#6d28d9;--c6:#0369a1;--c7:#a21caf;}
 body{font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:14px}
 /* UI の文言も本文と同じゴシック体（以前のドットフォントは廃止） */
 .ui,button,.seg button,header h1,dialog h2,dialog label,dialog select,dialog option,#legend,.card .sum b,.card h3 .hint,#bridgeHint,#ctxDlg .hint,textarea::placeholder,dialog input::placeholder{font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif}
@@ -234,8 +234,8 @@ header{z-index:5}
 #viewBtn .vsep{color:var(--muted)}
 #viewBtn .vcaret{font-size:11px;color:var(--glow);transition:transform .2s}
 .vmenu.open #viewBtn .vcaret{transform:rotate(180deg)}
-.vpop{position:absolute;top:calc(100% + 8px);left:0;min-width:230px;background:rgba(16,42,24,.96);border:1px solid var(--glow);border-radius:12px;box-shadow:0 0 28px rgba(181,232,107,.4),0 12px 30px rgba(0,0,0,.5);padding:6px;display:none;z-index:40;backdrop-filter:blur(12px)}
-.vpop::before{display:none;content:"";position:absolute;left:18px;top:-6px;width:10px;height:10px;background:rgba(16,42,24,.96);border-left:1px solid var(--glow);border-top:1px solid var(--glow);transform:rotate(45deg)}
+.vpop{position:absolute;top:calc(100% + 8px);left:0;min-width:230px;background:rgba(24,58,34,.96);border:1px solid var(--glow);border-radius:12px;box-shadow:0 0 28px rgba(181,232,107,.4),0 12px 30px rgba(0,0,0,.5);padding:6px;display:none;z-index:40;backdrop-filter:blur(12px)}
+.vpop::before{display:none;content:"";position:absolute;left:18px;top:-6px;width:10px;height:10px;background:rgba(24,58,34,.96);border-left:1px solid var(--glow);border-top:1px solid var(--glow);transform:rotate(45deg)}
 .vmenu.open .vpop{display:grid;gap:4px;animation:vin .16s ease-out}
 @keyframes vin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 .vpop button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:1px solid transparent;padding:7px 10px;color:var(--ink);letter-spacing:.06em}
@@ -315,13 +315,13 @@ header{z-index:5}
 #tutDlg .dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
 #tutDlg .dots i.on{background:var(--glow);box-shadow:0 0 8px var(--glow)}
 .cmd{display:flex;align-items:center;gap:6px;margin:4px 0 8px}
-.cmd code{flex:1;display:block;background:rgba(10,28,16,.85);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;white-space:pre-wrap;word-break:break-all;color:#cfe6ff;user-select:all}
+.cmd code{flex:1;display:block;background:rgba(16,40,24,.85);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;white-space:pre-wrap;word-break:break-all;color:#cfe6ff;user-select:all}
 .engine{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0;background:rgba(10,26,58,.5)}
 .engine .eh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
 .engine .eh b{font-size:15px}
 .badge{font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid currentColor}
 .badge.ok{color:#34d399}.badge.warn{color:#ffd93d}.badge.ng{color:#f87171}
-.kbd{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:12px;background:rgba(36,86,48,.35)}
+.kbd{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:12px;background:rgba(46,100,58,.35)}
 .msg.cursor{outline:2px dashed var(--indigo);outline-offset:4px;border-radius:12px}
 #webBtn{font-size:12px;padding:4px 10px}
 #webBtn.on{background:#e6f7ff!important;border-color:var(--c1)!important;color:var(--c1)!important;font-weight:700}
@@ -377,7 +377,7 @@ header{z-index:5}
 @media (max-width:1060px){#miniMap{opacity:.75;transform:scale(.85);transform-origin:top right}#miniMap:hover{opacity:1}} /* 狭い画面では右の吹き出しに重なるので控えめに */
 /* ===== 左の会話一覧（サイドバー） ===== */
 main{position:relative}
-#side{width:var(--sideW,248px);flex:none;display:flex;flex-direction:column;border-right:1px solid var(--line);background:rgba(16,42,24,.72);backdrop-filter:blur(8px);min-height:0}
+#side{width:var(--sideW,248px);flex:none;display:flex;flex-direction:column;border-right:1px solid var(--line);background:rgba(24,58,34,.72);backdrop-filter:blur(8px);min-height:0}
 body.sideHidden #side,body.sideHidden #sideGrip{display:none}
 #sideGrip{flex:none;width:7px;margin:0 -3px;cursor:col-resize;position:relative;z-index:6;touch-action:none}
 #sideGrip::after{content:"";position:absolute;left:3px;top:0;bottom:0;width:1px;background:transparent;transition:.12s}
@@ -403,7 +403,7 @@ body.sideDragging{cursor:col-resize;user-select:none}
 #stageBody{flex:1;min-height:0;display:flex}
 #stage.know #branchBar{display:none}
 #sideToggle{padding:2px 8px;font-size:15px;line-height:1.3}
-@media (max-width:760px){#sideGrip{display:none}#side{width:min(86vw,var(--sideW,248px));position:absolute;left:0;top:0;bottom:0;z-index:20;box-shadow:8px 0 30px rgba(0,0,0,.5);background:rgba(16,42,24,.97)}}
+@media (max-width:760px){#sideGrip{display:none}#side{width:min(86vw,var(--sideW,248px));position:absolute;left:0;top:0;bottom:0;z-index:20;box-shadow:8px 0 30px rgba(0,0,0,.5);background:rgba(24,58,34,.97)}}
 
 /* ===== バックアップ・引継ぎ ===== */
 #bkDlg{width:min(600px,94vw)}
