@@ -174,6 +174,29 @@ svg text{fill:var(--indigo);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-
 #selPop button{background:#f5f8fe;color:var(--indigo);border:1.5px solid #9fb3d9;font-family:"DotGothic16","IBM Plex Sans JP",sans-serif;white-space:nowrap}
 #selPop button:hover{border-color:var(--indigo);box-shadow:0 0 0 2px rgba(30,58,110,.15)}
 #selPop button.fork{border-color:var(--c1);color:var(--c1)}
+#selPop button.side{border-color:var(--ystroke);color:var(--ystroke);background:#fff8dc}
+/* チャット外で質問・説明した言葉の黄色マーカー */
+mark.note{background:linear-gradient(transparent 45%,#ffe680 45%);color:inherit;cursor:pointer;border-radius:2px;padding:0 1px}
+mark.note:hover{background:#ffe680}
+.noteChip{display:inline-block;margin-top:6px;font-size:11px;background:#fff8dc;border:1px solid var(--ystroke);color:var(--ystroke);border-radius:999px;padding:0 9px;cursor:pointer}
+#notePop{position:absolute;z-index:30;display:none;width:min(420px,calc(100vw - 32px));max-height:50vh;overflow:auto;background:#fff;border:1.5px solid var(--ystroke);border-radius:10px;box-shadow:0 8px 28px rgba(30,58,110,.28);padding:8px 10px;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12px;line-height:1.6;color:#111}
+#notePop.on{display:block}
+#notePop .nq{font-weight:600;color:var(--indigo);margin-top:6px}#notePop .nq:first-child{margin-top:0}
+#notePop .na{white-space:pre-wrap;color:#111}
+#notePop .nh{font-size:10.5px;color:var(--indigo2);margin-top:6px;border-top:1px dashed var(--line);padding-top:4px}
+#noteWin{position:fixed;right:18px;bottom:84px;z-index:35;width:min(400px,calc(100vw - 32px));max-height:min(62vh,560px);display:flex;flex-direction:column;background:#fff;border:2px solid var(--ystroke);border-radius:12px;box-shadow:0 12px 40px rgba(30,58,110,.35);color:#111;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif}
+#noteWin[hidden]{display:none}
+#noteWin .nwHead{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#fff8dc;border-bottom:1.5px solid var(--ystroke);border-radius:10px 10px 0 0;font-size:12px;color:var(--ystroke)}
+#noteWin .nwHead b{color:#111;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+#noteWin .nwHead button{background:#fff;color:var(--indigo);border:1px solid #9fb3d9;padding:0 7px}
+#noteWin .nwBody{flex:1;overflow-y:auto;padding:10px 12px;font-size:13px;line-height:1.7;min-height:80px}
+#noteWin .nwQ{margin:8px 0 4px auto;width:fit-content;max-width:88%;background:var(--user,#eef3fb);border:1px solid var(--line);border-radius:10px 10px 3px 10px;padding:4px 10px;font-size:12.5px}
+#noteWin .nwQ:first-child{margin-top:0}
+#noteWin .nwA{margin:0 0 6px}
+#noteWin .nwFoot{display:flex;gap:6px;padding:8px 10px 4px;border-top:1px solid var(--line);align-items:flex-end}
+#noteWin textarea{flex:1;min-height:34px;max-height:120px;padding:6px 8px;font-size:13px;background:#fff;color:#111;border:1.5px solid #9fb3d9;border-radius:8px;resize:none}
+#noteWin .nwFoot button{background:var(--indigo);color:#fff;border-color:var(--indigo);height:34px}
+#noteWin .nwNote{font-size:10.5px;color:var(--indigo2);padding:0 10px 7px}
 #selPop .q{font-size:11px;color:var(--indigo2);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:"IBM Plex Sans JP",sans-serif}
 .msg .body::selection,.msg .body *::selection{background:#ffe680;color:var(--indigo)}
 
@@ -528,7 +551,14 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   </div>
   </div>
 </main>
-<div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button></div>
+<div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selExplain">説明してもらう</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button><button class="small side" id="selSide" hidden>チャット外で質問</button><button class="small side" id="selEx1" hidden>簡単な説明</button><button class="small side" id="selEx2" hidden>一般的な説明</button><button class="small side" id="selEx3" hidden>詳細な説明</button></div>
+<div id="notePop"></div>
+<div id="noteWin" hidden>
+  <div class="nwHead"><span class="ui">チャット外</span><b id="nwTitle"></b><span class="spacer"></span><button class="small" id="nwDel" data-tip="このやり取りとマーカーを消す">🗑</button><button class="small" id="nwClose" aria-label="閉じる">✕</button></div>
+  <div class="nwBody" id="nwBody"></div>
+  <div class="nwFoot"><textarea id="nwInput" rows="1" placeholder="この言葉について質問（Enterで送信）"></textarea><button class="small primary" id="nwSend">送信</button></div>
+  <div class="nwNote ui">ここでのやり取りは本線や分岐には残らず、AI の文脈にも入りません</div>
+</div>
 <div id="toast"></div>
 
 <dialog id="settings">
@@ -1034,6 +1064,7 @@ function switchConv(id){
   if(!convs[id])return;
   if(id===conv.id){if(!$('#focus').classList.contains('off'))return;showFocus();return;}
   if(busy){toast('生成中は会話を切り替えられません。完了か停止のあとで切り替えてください');return;}
+  noteCur=null;$('#noteWin').hidden=true;
   conv=convs[id];delete conv._pendingBranch;delete conv._anchor;persist();showFocus();
   if(innerWidth<=760)setSide(false);
 }
@@ -1094,6 +1125,7 @@ function renderFocus(){
   const d2=document.getElementById('demoBtn2');if(d2)d2.onclick=loadDemo;
   const tcb=document.getElementById('tutConnectBtn');if(tcb)tcb.onclick=()=>openTut(1);
   m.querySelectorAll('.badges .chip').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.b));
+  markNotes();
   if(stick)m.scrollTop=m.scrollHeight;else if(busy)m.scrollTop=keepTop; // 途中を読んでいるときは位置を保つ
   if(!busy)setStatus(`概算 ${buildContext(conv.activeNodeId).tokens} tok を次回送信`);
 }
@@ -1568,6 +1600,7 @@ async function deleteBranchDeep(cid,bid){
   const forkNode=b.forkFromNodeId;
   c.order=(c.order||[]).filter(id=>{if(sub.includes(c.nodes[id].branchId)){delete c.nodes[id];return false;}return true;});
   for(const id of sub)delete c.branches[id];
+  for(const k of Object.keys(c.notes||{}))if(!c.nodes[c.notes[k].nodeId])delete c.notes[k];
   if(!c.nodes[c.activeNodeId])c.activeNodeId=(forkNode&&c.nodes[forkNode])?forkNode:(c.branches.main.headNodeId||null);
   if(sub.includes(c._pendingBranch))delete c._pendingBranch;if(c._anchor&&!c.nodes[c._anchor])delete c._anchor;
   persist();scheduleStore(cid);pruneLinks();renderAll();toast(`ブランチ「${b.name}」を削除しました`);return true;
@@ -1686,7 +1719,9 @@ $('#ctxClose').onclick=()=>$('#ctxDlg').close();
 /* ========== 選択テキストから質問 ========== */
 let sel={nodeId:null,text:''};
 const selPop=$('#selPop');
-function hideSelPop(){selPop.classList.remove('on');$('#selHere').hidden=true;$('#selFork').hidden=true;$('#selAsk').hidden=false;}
+const SEL_STEP={top:['selAsk','selExplain'],ask:['selHere','selFork','selSide'],explain:['selEx1','selEx2','selEx3']};
+function selStep(k){for(const ids of Object.values(SEL_STEP))for(const id of ids)$('#'+id).hidden=!SEL_STEP[k].includes(id);}
+function hideSelPop(){selPop.classList.remove('on');selStep('top');}
 function quoteFor(text){return '> '+text.replace(/\s+/g,' ').trim().slice(0,500)+'\n\n';}
 function onSelect(){
   const s=window.getSelection();const text=s&&s.toString().trim();
@@ -1699,7 +1734,7 @@ function onSelect(){
   if(!N(nid)||N(nid).streaming||isDeadNode(N(nid))){hideSelPop();return;}
   sel={nodeId:nid,text};
   $('#selQ').textContent='「'+excerpt(text,40)+'」';
-  $('#selAsk').hidden=false;$('#selHere').hidden=true;$('#selFork').hidden=true;
+  selStep('top');
   $('#selHere').textContent=currentBranchId()==='main'?'本線で質問':'この線で質問';
   const r=range.getBoundingClientRect();
   selPop.classList.add('on');
@@ -1713,7 +1748,8 @@ document.addEventListener('keyup',e=>{if(e.key==='Shift'||e.key.startsWith('Arro
 document.addEventListener('selectionchange',()=>{const s=window.getSelection();if(!s||!s.toString().trim())hideSelPop();});
 document.addEventListener('mousedown',e=>{if(!selPop.contains(e.target)&&!e.target.closest('.msg .body'))hideSelPop();});
 $('#msgs').addEventListener('scroll',hideSelPop);
-$('#selAsk').onclick=()=>{$('#selAsk').hidden=true;$('#selHere').hidden=false;$('#selFork').hidden=false;};
+$('#selAsk').onclick=()=>selStep('ask');
+$('#selExplain').onclick=()=>selStep('explain');
 $('#selHere').onclick=()=>{
   // 現在の線のまま、引用を入力欄に入れて続ける
   $('#input').value=quoteFor(sel.text)+$('#input').value;
@@ -1728,6 +1764,68 @@ $('#selFork').onclick=()=>{
   conv._pendingQuote=q;
   openFork(nid,sel.text.replace(/\s+/g,' ').trim().slice(0,30));
 };
+
+/* ========== チャット外で質問・説明（言葉に黄色のマーカー） ========== */
+/* 本線や分岐に残さない補足のやり取り。conv.notes に保存し、AI の文脈（buildContext）には入れない */
+const EXPLAIN={1:t=>`「${t}」について、初学者でも分かるように丁寧に説明して`,2:t=>`「${t}」について、辞書や辞典に載っているような一般的な説明をして`,3:t=>`「${t}」について、適宜専門用語などを用いて詳細に説明して`};
+const notesOf=()=>(conv.notes=conv.notes||{});
+let noteCur=null,noteAbort=null,noteBusy=false;
+function noteFor(nodeId,text){const t=text.replace(/\s+/g,' ').trim().slice(0,300);let n=Object.values(notesOf()).find(x=>x.nodeId===nodeId&&x.text===t);if(!n){n={id:uid(),nodeId,text:t,items:[],createdAt:Date.now()};notesOf()[n.id]=n;}return n;}
+function renderNoteWin(){
+  const n=noteCur&&notesOf()[noteCur];if(!n){$('#noteWin').hidden=true;return;}
+  $('#noteWin').hidden=false;$('#nwTitle').textContent='「'+excerpt(n.text,24)+'」';
+  $('#nwBody').innerHTML=n.items.length?n.items.map(it=>it.role==='user'?`<div class="nwQ">${esc(it.content)}</div>`:`<div class="nwA">${it.content?md(it.content):'<span class="spin4 mini"><i></i><i></i><i></i><i></i></span>'}</div>`).join(''):'<div class="nwA" style="color:var(--indigo2)">この言葉について、下の欄から質問できます。</div>';
+  $('#nwSend').textContent=noteBusy?'■ 停止':'送信';const b=$('#nwBody');b.scrollTop=b.scrollHeight;
+}
+function openNote(id){noteCur=id;renderNoteWin();$('#nwInput').focus();}
+async function askNote(id,q){
+  const n=notesOf()[id];if(!n||noteBusy||!q.trim())return;
+  const src=N(n.nodeId);noteBusy=true;noteAbort=new AbortController();
+  n.items.push({role:'user',content:q.trim(),ts:Date.now()});const a={role:'assistant',content:'',ts:Date.now()};n.items.push(a);
+  noteCur=id;renderNoteWin();
+  const sys=`あなたは、利用者が読んでいる文章の中の言葉について、補足の質問に答えるアシスタントです。答えは要点から簡潔に書いてください。\n\n## 利用者が読んでいる文章\n${src?String(src.content).slice(0,6000):''}\n\n## 利用者が選んだ言葉\n${n.text}`;
+  const msgs=n.items.slice(0,-1).map(it=>({role:it.role,content:it.content}));
+  try{const model=effModel(src?src.branchId:currentBranchId());
+    for await(const ev of provider()(sys,msgs,model,{signal:noteAbort.signal}))if(ev.text){a.content+=ev.text;if(noteCur===id){const el=$('#nwBody').lastElementChild;if(el){el.innerHTML=md(a.content);$('#nwBody').scrollTop=$('#nwBody').scrollHeight;}}}
+    if(!a.content)a.content=noteAbort.signal.aborted?'（中止しました）':'（空の応答）';
+  }catch(e){a.content+=(a.content?'\n\n':'')+(noteAbort.signal.aborted?'（中止しました）':'⚠️ エラー: '+(e.message||e));}
+  noteBusy=false;noteAbort=null;persist();renderNoteWin();markNotes();
+}
+function startNote(kind){
+  const nid=sel.nodeId,text=sel.text;hideSelPop();window.getSelection().removeAllRanges();
+  if(noteBusy){toast('チャット外の回答を生成中です。終わってから試してください');return;}
+  const n=noteFor(nid,text);persist();markNotes();
+  if(kind)askNote(n.id,EXPLAIN[kind](n.text));else openNote(n.id);
+}
+$('#selSide').onclick=()=>startNote(0);$('#selEx1').onclick=()=>startNote(1);$('#selEx2').onclick=()=>startNote(2);$('#selEx3').onclick=()=>startNote(3);
+$('#nwSend').onclick=()=>{if(noteBusy){if(noteAbort)noteAbort.abort();return;}const t=$('#nwInput');const q=t.value;if(!q.trim()||!noteCur)return;t.value='';t.style.height='auto';askNote(noteCur,q);};
+$('#nwInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('#nwSend').click();}});
+$('#nwInput').addEventListener('input',e=>{const t=e.target;t.style.height='auto';t.style.height=Math.min(120,t.scrollHeight+2)+'px';});
+$('#nwClose').onclick=()=>{noteCur=null;$('#noteWin').hidden=true;};
+$('#nwDel').onclick=async()=>{const n=noteCur&&notesOf()[noteCur];if(!n)return;if(noteBusy){toast('生成中は消せません');return;}if(!(await askConfirm(`「${excerpt(n.text,20)}」についてのやり取り（${n.items.filter(i=>i.role==='user').length}件の質問）とマーカーを消しますか？`,'消す')))return;delete notesOf()[n.id];noteCur=null;$('#noteWin').hidden=true;persist();renderAll();};
+// 表示中の回答の本文から、その言葉を探して黄色のマーカーを付ける。見つからないとき（装飾をまたいだ選択など）は末尾に小さな札を出す
+function markNotes(){
+  const m=$('#msgs');m.querySelectorAll('mark.note').forEach(k=>{k.replaceWith(document.createTextNode(k.textContent));});m.querySelectorAll('.noteChip').forEach(k=>k.remove());
+  for(const n of Object.values(conv.notes||{})){
+    const el=document.getElementById('n-'+n.nodeId);const body=el&&el.querySelector('.body');if(!body||!N(n.nodeId)||N(n.nodeId).streaming)continue;
+    body.normalize();const w=document.createTreeWalker(body,NodeFilter.SHOW_TEXT);let done=false;
+    while(w.nextNode()){const tn=w.currentNode;if(tn.parentElement.closest('mark.note'))continue;const i=tn.nodeValue.indexOf(n.text);if(i<0)continue;
+      const r=document.createRange();r.setStart(tn,i);r.setEnd(tn,i+n.text.length);const k=document.createElement('mark');k.className='note';k.dataset.note=n.id;r.surroundContents(k);done=true;break;}
+    if(!done){const c=document.createElement('span');c.className='noteChip';c.dataset.note=n.id;c.textContent='📝 '+excerpt(n.text,18);body.appendChild(c);}
+  }
+}
+function showNotePop(target){
+  const n=notesOf()[target.dataset.note];const p=$('#notePop');if(!n){p.classList.remove('on');return;}
+  const qa=n.items;p.innerHTML=(qa.length?qa.map(it=>it.role==='user'?`<div class="nq">Q. ${esc(excerpt(it.content,120))}</div>`:`<div class="na">${esc(excerpt(it.content,400))}</div>`).join(''):'<div class="na">まだ質問していません</div>')+'<div class="nh ui">クリックで開いて、全文を読む・続けて質問する</div>';
+  p.classList.add('on');const r=target.getBoundingClientRect();const w=p.offsetWidth,h=p.offsetHeight;
+  let left=Math.max(8,Math.min(r.left+window.scrollX,window.innerWidth-w-8));let top=r.bottom+window.scrollY+6;if(top+h>window.scrollY+window.innerHeight-8)top=Math.max(window.scrollY+8,r.top+window.scrollY-h-6);
+  p.style.left=left+'px';p.style.top=top+'px';
+}
+$('#msgs').addEventListener('mouseover',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t)showNotePop(t);});
+$('#msgs').addEventListener('mouseout',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t&&!(e.relatedTarget&&e.relatedTarget.closest&&e.relatedTarget.closest('#notePop')))$('#notePop').classList.remove('on');});
+$('#notePop').addEventListener('mouseleave',()=>$('#notePop').classList.remove('on'));
+$('#msgs').addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t&&!window.getSelection().toString()){$('#notePop').classList.remove('on');openNote(t.dataset.note);}});
+$('#msgs').addEventListener('scroll',()=>$('#notePop').classList.remove('on'));
 
 /* ========== デモ会話 ========== */
 function loadDemo(){
