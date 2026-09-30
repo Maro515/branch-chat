@@ -563,7 +563,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
     <option value="claude-fable-5-1">Claude Fable 5.1</option>
     <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
   </select>
-  <label>要約モデル（各ブランチの要約カード更新用）</label>
+  <label>要約モデル（各ブランチの要約カード更新用。軽くて速いモデルが向きます）</label>
   <select id="sSumModel">
     <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
     <option value="claude-sonnet-5">Claude Sonnet 5</option>
@@ -1656,7 +1656,9 @@ applySideW(settings.sideW||SIDE_DEF);
   g.addEventListener('dblclick',()=>{settings.sideW=SIDE_DEF;saveSettings();applySideW(SIDE_DEF);});
 })();
 document.body.classList.toggle('sideHidden',settings.sideHidden===undefined?innerWidth<=760:!!settings.sideHidden);
-$('#settingsBtn').onclick=async()=>{await probeBridge();$('#sProvider').value=settings.provider;$('#sProvider').onchange=e=>{const keep=settings.provider;settings.provider=e.target.value;refreshModelCatalog();$('#sModel').innerHTML=MODEL_OPTS.map(o=>`<option value="${esc(o.v)}">${esc(o.l)}${modelEngine(o.v)==='codex'?'（Codex）':''}</option>`).join('');settings.provider=keep;};$('#sKey').value=settings.apiKey;$('#sModel').innerHTML=MODEL_OPTS.map(o=>`<option value="${esc(o.v)}">${esc(o.l)}${modelEngine(o.v)==='codex'?'（Codex）':''}</option>`).join('');$('#sModel').value=validModel(settings.model)||MODEL_OPTS[0].v;$('#sSumModel').value=settings.sumModel;$('#sBudget').value=settings.budget;$('#sExtra').value=settings.extra;$('#settings').showModal();};
+// 本文モデルと要約モデルの選択肢は同じ一覧（Claude と、使えるなら Codex の GPT）から作る
+function fillModelSelects(){const h=MODEL_OPTS.map(o=>`<option value="${esc(o.v)}">${esc(o.l)}${modelEngine(o.v)==='codex'?'（Codex）':''}</option>`).join('');const keep=$('#sSumModel').value;$('#sModel').innerHTML=h;$('#sSumModel').innerHTML=h;if(keep&&MODEL_OPTS.some(o=>o.v===keep))$('#sSumModel').value=keep;}
+$('#settingsBtn').onclick=async()=>{await probeBridge();$('#sProvider').value=settings.provider;$('#sProvider').onchange=e=>{const keep=settings.provider;settings.provider=e.target.value;refreshModelCatalog();fillModelSelects();settings.provider=keep;};$('#sKey').value=settings.apiKey;fillModelSelects();$('#sModel').value=validModel(settings.model)||MODEL_OPTS[0].v;$('#sSumModel').value=validModel(settings.sumModel)||(MODEL_OPTS.find(o=>o.v==='claude-haiku-4-5')||MODEL_OPTS[0]).v;$('#sBudget').value=settings.budget;$('#sExtra').value=settings.extra;$('#settings').showModal();};
 function syncJevFields(){const jo=$('#sJudge').querySelector('option[value="jev"]');if(jo)jo.hidden=jo.disabled=!IS_DESKTOP;const j=IS_DESKTOP&&$('#sJudge').value==='jev',cf=$('#sJevVia').value==='cloudflare';$('#sJevBox').style.display=j?'':'none';$('#sJevKey').style.display=cf?'none':'';$('#sJevCfAcc').style.display=cf?'':'none';$('#sJevCfTok').style.display=cf?'':'none';}
 $('#settingsBtn').addEventListener('click',()=>{$('#sJudge').value=judgeMode();$('#sJevVia').value=settings.jevVia==='cloudflare'?'cloudflare':'typesafe';$('#sJevKey').value=settings.jevKey||'';$('#sJevCfAcc').value=settings.jevCfAccount||'';$('#sJevCfTok').value=settings.jevCfToken||'';syncJevFields();});
 $('#settingsBtn').addEventListener('click',()=>{$('#sStoreBox').style.display=IS_DESKTOP?'':'none';$('#sStoreDir').textContent=storeDir?' 保存先: '+storeDir:'';});
@@ -1864,7 +1866,7 @@ function tutConnectHTML(){
   const a=tutAuth&&tutAuth.auth;
   const row=(nm,st,planTxt)=>{let cls='ng',txt='未インストール';if(st&&st.installed&&st.loggedIn){cls='ok';txt='利用できます'+(planTxt?`（${planTxt}）`:'');}else if(st&&st.installed){cls='warn';txt='インストール済み・未ログイン';}return `<span class="badge ${cls} ui">${txt}</span>`;};
   const cInstall=IS_MAC?'curl -fsSL https://claude.ai/install.sh | bash':'irm https://claude.ai/install.ps1 | iex';
-  const codexBin=(tutAuth&&tutAuth.codex)||(IS_MAC?'/Applications/ChatGPT.app/Contents/Resources/codex':'codex');
+  const codexBin=(tutAuth&&tutAuth.codex)||(IS_MAC?'/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex':'codex');
   const q=s=>/\s/.test(s)?`"${s}"`:s;
   const term=IS_MAC?'「ターミナル」（Launchpad で「ターミナル」と検索）':'「PowerShell」（スタートメニューで検索）';
   const canOpen=IS_DESKTOP&&tutAuth;

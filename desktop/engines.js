@@ -39,7 +39,10 @@ function firstExisting(list) { return list.find((p) => { try { return p && fs.st
 const CLAUDE = findOnPath('claude');
 const CODEX = findOnPath('codex') || firstExisting(IS_WIN
   ? [path.join(HOME, 'AppData', 'Local', 'Programs', 'ChatGPT', 'resources', 'codex.exe')]
-  : ['/Applications/ChatGPT.app/Contents/Resources/codex', '/Applications/Codex.app/Contents/Resources/codex']);
+  // ChatGPT.app の版によって置き場所が違う（26.9 以降は codex-cli/bin/codex）。新しい場所から順に探す
+  : ['/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex', '/Applications/ChatGPT.app/Contents/Resources/codex',
+     '/Applications/Codex.app/Contents/Resources/codex-cli/bin/codex', '/Applications/Codex.app/Contents/Resources/codex',
+     path.join(HOME, 'Applications', 'ChatGPT.app', 'Contents', 'Resources', 'codex-cli', 'bin', 'codex'), path.join(HOME, '.local', 'bin', 'codex')]);
 const CODEX_HOME = process.env.CODEX_HOME || path.join(HOME, '.codex');
 const CODEX_CWD = path.join(os.tmpdir(), 'branchat-codex'); // 空の作業フォルダ（読み取り専用サンドボックスで使用）
 

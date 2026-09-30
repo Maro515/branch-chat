@@ -16,7 +16,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8991
 CLAUDE = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude")
 CODEX = next((c for c in [shutil.which("codex"),
+                          "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex",  # ChatGPT.app 26.9 以降
                           "/Applications/ChatGPT.app/Contents/Resources/codex",
+                          "/Applications/Codex.app/Contents/Resources/codex-cli/bin/codex",
                           "/Applications/Codex.app/Contents/Resources/codex",
                           os.path.expanduser("~/.local/bin/codex")] if c and os.path.exists(c)), None)
 CODEX_HOME = os.environ.get("CODEX_HOME") or os.path.expanduser("~/.codex")
