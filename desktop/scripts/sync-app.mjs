@@ -18,5 +18,6 @@ if (existsSync(join(vendorFonts, 'fonts.css'))) {
   if (html === before) throw new Error('index.html のフォント読み込みタグが見つかりません（sync-app.mjs の置換を更新してください）');
   fonts = '同梱フォント';
 }
+{ const assets = join(here, '..', '..', 'assets'); if (existsSync(assets)) cpSync(assets, join(appDir, 'assets'), { recursive: true }); } // 画像などの素材
 writeFileSync(join(appDir, 'index.html'), html);
 console.log(`synced index.html -> desktop/app/index.html（フォント: ${fonts}）`);
