@@ -116,7 +116,7 @@ dialog .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 @media (max-width:760px){#cards{width:100%;position:absolute;bottom:0;max-height:45%;border-left:0;border-top:1px solid var(--line)} #overview{position:relative}}
 
 /* ===== 可読性モード: チャット・俯瞰図は白背景／藍色文字、線を太く ===== */
-:root{--indigo:#143a1f;--indigo2:#3f6b48;--yellow:#f5c400;--ystroke:#b45309;
+:root{--indigo:#0f2f18;--indigo2:#2c5236;--yellow:#f5c400;--ystroke:#b45309;
   --c0:#6b8e23;--c1:#256b2a;--c2:#be185d;--c3:#0f766e;--c4:#c2410c;--c5:#6d28d9;--c6:#0369a1;--c7:#a21caf;}
 body{font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:14px}
 /* UI の文言も本文と同じゴシック体（以前のドットフォントは廃止） */
@@ -134,7 +134,8 @@ body{font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:14px}
 .msg.user{background:var(--user)}
 .msg.planned{border-color:var(--ystroke);box-shadow:0 0 0 2px rgba(245,196,0,.45)}
 .msg .meta{color:var(--indigo2)}
-.msg .meta .tag{text-shadow:none}
+.msg .meta .tag{text-shadow:none;filter:brightness(.72) saturate(1.1)} /* 枝の色は明るいものもあるので、見出しでは一段濃く */
+.msg .meta{font-weight:500}
 .msg .meta .ptag{color:var(--ystroke);text-shadow:none}
 .msg .body code{background:#eef6e9;color:var(--indigo)}
 .msg .body pre{background:#f3f8f0;border:1.5px solid var(--line);color:var(--indigo)}
@@ -272,7 +273,7 @@ header{z-index:5}
 .badges button.small{font-size:11px;padding:0 7px}
 .msg .meta{font-size:10.5px;gap:6px}
 #crumb{font-size:11px;padding:2px 14px}
-.toolchip{font-size:11px;padding:0 9px}
+.toolchip{font-size:11px;padding:0 9px;color:var(--indigo);border-color:#a8c9a3}
 .msg .tools .hint{font-size:11px}
 #msgs>.msg:only-of-type{max-width:min(92%,680px)}
 @media (max-width:600px){.msg{max-width:92%}.msg.editing{width:92%}}
@@ -479,7 +480,7 @@ details.cardsHelp dd{margin:0}
 .msg .body .ln.li.num::before{content:""}
 .msg .body .ln.li.num .n{position:absolute;left:.2em;color:var(--indigo2)}
 .msg .body .ln.li.sub{padding-left:2.8em}.msg .body .ln.li.sub::before{left:1.9em}.msg .body .ln.li.num.sub .n{left:1.6em}
-.msg .body .ln.quote{border-left:3px solid var(--line);padding-left:10px;color:var(--indigo2)}
+.msg .body .ln.quote{border-left:3px solid var(--indigo2);padding-left:10px;color:var(--indigo)}
 .msg .body hr.md{border:0;border-top:1.5px solid var(--line);margin:8px 0}
 .msg .body pre{white-space:pre;margin:6px 0}
 .msg .body a{color:var(--c1)}
