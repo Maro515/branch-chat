@@ -186,8 +186,15 @@ mark.note:hover{background:#ffe680}
 #notePop .nq .more{font-weight:400;font-size:10.5px;color:var(--indigo2)}#notePop .nq:first-child{margin-top:0}
 #notePop .na{white-space:pre-wrap;color:#111}
 #notePop .nh{font-size:10.5px;color:var(--indigo2);margin-top:6px;border-top:1px dashed var(--line);padding-top:4px}
-#noteWin{position:fixed;right:18px;bottom:84px;z-index:35;width:min(400px,calc(100vw - 32px));max-height:min(62vh,560px);display:flex;flex-direction:column;background:#fff;border:2px solid var(--ystroke);border-radius:12px;box-shadow:0 12px 40px rgba(30,58,110,.35);color:#111;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif}
+#noteWin{position:fixed;right:18px;bottom:84px;z-index:35;width:min(var(--noteW,400px),calc(100vw - 32px));height:min(var(--noteH,460px),calc(100vh - 110px));min-width:280px;min-height:220px;display:flex;flex-direction:column;background:#fff;border:2px solid var(--ystroke);border-radius:12px;box-shadow:0 12px 40px rgba(30,58,110,.35);color:#111;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif}
 #noteWin[hidden]{display:none}
+/* 小窓は左上の角・左の辺・上の辺をドラッグして広げられる（右下に固定されているため） */
+#noteWin .nwGrip{position:absolute;z-index:2}
+#noteWin .nwGrip.c{left:-5px;top:-5px;width:18px;height:18px;cursor:nwse-resize}
+#noteWin .nwGrip.l{left:-5px;top:14px;bottom:0;width:9px;cursor:ew-resize}
+#noteWin .nwGrip.t{top:-5px;left:14px;right:0;height:9px;cursor:ns-resize}
+#noteWin .nwGrip.c::after{content:"";position:absolute;left:7px;top:7px;width:8px;height:8px;border-left:2px solid var(--ystroke);border-top:2px solid var(--ystroke);border-radius:3px 0 0 0;opacity:.7}
+body.noteSizing{user-select:none}
 #noteWin .nwHead{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#fff8dc;border-bottom:1.5px solid var(--ystroke);border-radius:10px 10px 0 0;font-size:12px;color:var(--ystroke)}
 #noteWin .nwHead b{color:#111;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
 #noteWin .nwHead button{background:#fff;color:var(--indigo);border:1px solid #9fb3d9;padding:0 7px}
@@ -556,6 +563,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 <div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selExplain">説明してもらう</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button><button class="small side" id="selSide" hidden>チャット外で質問</button><button class="small side" id="selEx1" hidden>簡単な説明</button><button class="small side" id="selEx2" hidden>一般的な説明</button><button class="small side" id="selEx3" hidden>詳細な説明</button></div>
 <div id="notePop"></div>
 <div id="noteWin" hidden>
+  <div class="nwGrip c" data-g="c" title="ドラッグで大きさを変更。ダブルクリックで元の大きさ"></div><div class="nwGrip l" data-g="l"></div><div class="nwGrip t" data-g="t"></div>
   <div class="nwHead"><span class="ui">チャット外</span><b id="nwTitle"></b><span class="spacer"></span><button class="small" id="nwDel" data-tip="このやり取りとマーカーを消す">🗑</button><button class="small" id="nwClose" aria-label="閉じる">✕</button></div>
   <div class="nwBody" id="nwBody"></div>
   <div class="nwFoot"><textarea id="nwInput" rows="1" placeholder="この言葉について質問（Enterで送信）"></textarea><button class="small primary" id="nwSend">送信</button></div>
@@ -1807,6 +1815,16 @@ $('#selSide').onclick=()=>startNote(0);$('#selEx1').onclick=()=>startNote(1);$('
 $('#nwSend').onclick=()=>{if(noteBusy){if(noteAbort)noteAbort.abort();return;}const t=$('#nwInput');const q=t.value;if(!q.trim()||!noteCur)return;t.value='';t.style.height='auto';askNote(noteCur,q);};
 $('#nwInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('#nwSend').click();}});
 $('#nwInput').addEventListener('input',e=>{const t=e.target;t.style.height='auto';t.style.height=Math.min(120,t.scrollHeight+2)+'px';});
+// 小窓の大きさ: 角や辺をドラッグして変える。大きさは保存する
+function applyNoteSize(){const w=$('#noteWin');if(settings.noteW)w.style.setProperty('--noteW',settings.noteW+'px');else w.style.removeProperty('--noteW');if(settings.noteH)w.style.setProperty('--noteH',settings.noteH+'px');else w.style.removeProperty('--noteH');}
+applyNoteSize();
+document.querySelectorAll('#noteWin .nwGrip').forEach(g=>{let st=null;
+  g.addEventListener('pointerdown',e=>{const r=$('#noteWin').getBoundingClientRect();st={x:e.clientX,y:e.clientY,w:r.width,h:r.height,k:g.dataset.g};g.setPointerCapture(e.pointerId);document.body.classList.add('noteSizing');e.preventDefault();});
+  g.addEventListener('pointermove',e=>{if(!st)return;if(st.k!=='t')settings.noteW=Math.round(Math.max(280,Math.min(innerWidth-32,st.w+(st.x-e.clientX))));if(st.k!=='l')settings.noteH=Math.round(Math.max(220,Math.min(innerHeight-110,st.h+(st.y-e.clientY))));applyNoteSize();});
+  const end=()=>{if(!st)return;st=null;document.body.classList.remove('noteSizing');saveSettings();};
+  g.addEventListener('pointerup',end);g.addEventListener('pointercancel',end);
+  g.addEventListener('dblclick',()=>{delete settings.noteW;delete settings.noteH;saveSettings();applyNoteSize();});
+});
 $('#nwClose').onclick=()=>{noteCur=null;$('#noteWin').hidden=true;if(dropEmptyNotes()){persist();markNotes();}};
 $('#nwDel').onclick=async()=>{const n=noteCur&&notesOf()[noteCur];if(!n)return;if(noteBusy){toast('生成中は消せません');return;}if(!(await askConfirm(`「${excerpt(n.text,20)}」についてのこのチャット（${n.items.filter(i=>i.role==='user').length}件の質問）を消しますか？\n同じ言葉のほかのチャットは残ります。`,'消す')))return;delete notesOf()[n.id];noteCur=null;$('#noteWin').hidden=true;persist();renderAll();};
 // 表示中の回答の本文から、その言葉を探して黄色のマーカーを付ける。見つからないとき（装飾をまたいだ選択など）は末尾に小さな札を出す
