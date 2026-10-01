@@ -252,6 +252,16 @@ async function runSmoke(win) {
         const mk=document.querySelector('mark.note');mk.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));
         r.note={q1:note.items[0].content,a1:note.items[1].content.slice(0,30),items:note.items.length,nodesUnchanged:conv.order.length===nodesBefore,marked:mk&&mk.textContent,popShown:document.querySelector('#notePop').classList.contains('on'),popQ:[...document.querySelectorAll('#notePop .nq')].map(e=>e.textContent.slice(0,44)),marks:document.querySelectorAll('mark.note').length,winOpen:!document.querySelector('#noteWin').hidden,inContext:buildContext(conv.activeNodeId).system.includes('辞書や辞典')||JSON.stringify(buildContext(conv.activeNodeId).messages).includes('辞書や辞典'),steps:(()=>{selStep('explain');const e=[...document.querySelectorAll('#selPop button:not([hidden])')].map(b=>b.textContent);selStep('ask');const k=[...document.querySelectorAll('#selPop button:not([hidden])')].map(b=>b.textContent);selStep('top');return {explain:e,ask:k,top:[...document.querySelectorAll('#selPop button:not([hidden])')].map(b=>b.textContent)};})()};
       }
+      if(${process.env.SMOKE_FLICKER === '1'}){ // コードブロックの逐次表示中にスクロール位置が揺れないか
+        const F=String.fromCharCode(96).repeat(3),NL=String.fromCharCode(10);
+        const long='説明の前置きです。'+NL+NL+F+NL+Array.from({length:70},(_,i)=>(i+1)+'. 要件の説明をここに書きます。送り先、送る内容、呼ばれるタイミングを表にして保存する（行 '+(i+1)+'）').join(NL)+NL+F+NL+NL+'まとめです。';
+        window.streamDummy=async function*(){for(let i=0;i<long.length;i+=3){await new Promise(r=>setTimeout(r,6));yield {text:long.slice(i,i+3)};}};
+        const m=document.querySelector('#msgs');const run=async(label,prep)=>{const samples=[];const pr=send('コードブロックのテスト '+label);await new Promise(x=>setTimeout(x,1200));prep();
+          const tick=setInterval(()=>samples.push(m.scrollTop),20);await pr;clearInterval(tick);
+          let rev=0,drop=0;for(let i=2;i<samples.length;i++){const d1=samples[i-1]-samples[i-2],d2=samples[i]-samples[i-1];if(d1>0&&d2<0||d1<0&&d2>0)rev++;if(Math.abs(d2)>30)drop++;}
+          return {samples:samples.length,reversals:rev,bigJumps:drop,uniq:[...new Set(samples)].length};};
+        r.flicker={follow:await run('A',()=>{}),stopped:await run('B',()=>{m.dispatchEvent(new WheelEvent('wheel',{deltaY:-60}));m.scrollTop-=200;}),anchored:await run('C',()=>{conv._anchor=conv.activeNodeId;updateTailSpace();m.dispatchEvent(new WheelEvent('wheel',{deltaY:-60}));m.scrollTop-=200;})};
+      }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     const img = await win.webContents.capturePage();

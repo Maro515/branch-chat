@@ -249,7 +249,7 @@ header{z-index:5}
 .vpop button.on i{background:var(--glow);box-shadow:0 0 10px var(--glow)}
 .vpop button small{margin-left:auto;color:var(--muted);font-size:11px;font-family:"IBM Plex Sans JP",sans-serif;letter-spacing:0}
 /* 分岐開始: 分岐元を画面上端へ寄せ、短く光らせる */
-#msgs{position:relative}
+#msgs{position:relative;overflow-anchor:none} /* 逐次表示中にブラウザが勝手に位置を補正して揺れないように */
 #focus{box-shadow:inset 0 0 0 3px var(--curbc,transparent)} /* 今いるブランチの色で縁取り */
 #crumb{border-left:6px solid var(--curbc,transparent)}
 #tailSpace{flex:none}
@@ -494,7 +494,7 @@ table.md th{background:#eef6e9;font-weight:700;white-space:nowrap}
 table.md tr:nth-child(even) td{background:#f8fafd}
 .msg.user .body .ln{white-space:pre-wrap}
 .reveal{animation:reveal .55s cubic-bezier(.2,.6,.3,1) both}
-@keyframes reveal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes reveal{from{opacity:0}to{opacity:1}} /* 位置は動かさない（動かすと下の行が揺れる） */
 @media (prefers-reduced-motion:reduce){.reveal{animation:none}}
 </style>
 </head>
@@ -729,7 +729,10 @@ function renderStream(body,text){
   const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   for(let i=k;i<blocks.length;i++){const t=document.createElement('template');t.innerHTML=blocks[i];const el=t.content.firstElementChild;if(!el)continue;
     const cur=body.children[i];
-    if(cur&&cur.tagName===el.tagName&&cur.className.replace(' reveal','')===el.className){cur.innerHTML=el.innerHTML;continue;} // 書きかけの行は中身だけ更新（フェードを途切れさせない）
+    if(cur&&cur.tagName===el.tagName&&cur.className.replace(' reveal','')===el.className){
+      if(cur.tagName==='PRE'&&cur.childNodes.length===1&&cur.firstChild.nodeType===3){cur.firstChild.data=el.textContent;} // コードブロックは文字だけ差し替える（要素を作り直すと位置が揺れる）
+      else cur.innerHTML=el.innerHTML;
+      continue;} // 書きかけの行は中身だけ更新（フェードを途切れさせない）
     if(!reduce){el.classList.add('reveal');el.style.animationDelay=Math.min(Math.max(0,i-Math.max(k,prev.length)),12)*70+'ms';}
     if(cur)cur.replaceWith(el);else body.appendChild(el);}
   body._blocks=blocks;
@@ -1025,7 +1028,7 @@ async function send(text,opts={}){
     for await(const ev of provider()(ctx.system,ctx.messages,model,{effort,web,mcp:mcpSel,images:(opts.images||[]).map(p=>p.full),session:{sessionKey:bid,parentId:u.parentId,messageId:a.id},signal:abortCtl.signal})){
       if(ev.mcp_status){const bad=ev.mcp_status.filter(m=>m.status!=='connected');if(bad.length){const names=bad.map(m=>mcpDisplay(m.name));settings.mcpUnavailable=[...new Set([...(settings.mcpUnavailable||[]),...bad.map(m=>{const sv=mcpList.find(x=>x.slug===m.name);return sv?sv.name:m.name;})])];settings.mcp=(settings.mcp||[]).filter(n=>!settings.mcpUnavailable.includes(n));saveSettings();renderMcpBtn();toast('この連携は今の版では使えません（ログインが必要）: '+names.join(', '));}}
       if(ev.tool){(a.tools=a.tools||[]).push(ev.tool);const el=document.getElementById('n-'+a.id);if(el){const tu=el.querySelector('.toolsUsed');if(tu)tu.innerHTML=toolsHTML(a);}}
-      if(ev.text){a.content+=ev.text;const el=document.getElementById('n-'+a.id);if(el){renderStream(el.querySelector('.body'),a.content);updateTailSpace();autoScroll();}}
+      if(ev.text){a.content+=ev.text;scheduleStreamRender(a);}
       if(ev.usage)a.usage=ev.usage;
       if(ev.model_used)a.modelUsed=ev.model_used; // 別名（opus 等）が実際にどのモデルになったか
       if(ev.rate)a.rate=ev.rate;
@@ -1045,6 +1048,9 @@ function setStatus(s){$('#status').innerHTML=`<span>${esc(s)}</span>${settings.w
 }
 /* 生成中の自動スクロール: 利用者が上へ動かしたら追従をやめ、末尾まで戻したら再開する */
 let followTail=true,lastMsgsTop=0;
+// 逐次表示の描画は1フレームに1回にまとめる（文字が細かく速く届いても、レイアウトと描画を連打して画面が揺れないように）
+let streamRenderReq=0;
+function scheduleStreamRender(a){if(streamRenderReq)return;streamRenderReq=requestAnimationFrame(()=>{streamRenderReq=0;const el=document.getElementById('n-'+a.id);if(el){renderStream(el.querySelector('.body'),a.content);updateTailSpace();autoScroll();}});}
 function autoScroll(){if(!followTail)return;const m=$('#msgs');m.scrollTop=m.scrollHeight;lastMsgsTop=m.scrollTop;}
 function updateJumpBtn(){const b=$('#jumpBtn');if(b)b.classList.toggle('show',busy&&!followTail);}
 function stopFollow(){if(followTail){followTail=false;updateJumpBtn();}}
