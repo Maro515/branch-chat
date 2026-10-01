@@ -486,6 +486,12 @@ details.cardsHelp dd{margin:0}
 .msg .body .ln.quote{border-left:3px solid var(--indigo2);padding-left:10px;color:var(--indigo)}
 .msg .body hr.md{border:0;border-top:1.5px solid var(--line);margin:8px 0}
 .msg .body pre{white-space:pre;margin:6px 0}
+.codewrap{position:relative;margin:6px 0}
+.codewrap pre{margin:0;padding-right:40px}
+.codewrap .cpy{position:absolute;top:6px;right:6px;opacity:.55}
+.codewrap:hover .cpy,.codewrap .cpy:focus-visible{opacity:1}
+button.ico.done{color:#fff;background:var(--c1);border-color:var(--c1)}
+.codewrap [data-tip]::after{left:auto;right:0}
 .msg .body a{color:var(--c1)}
 .tblwrap{overflow-x:auto;margin:8px 0}
 table.md{border-collapse:collapse;font-size:.95em;min-width:60%}
@@ -706,7 +712,7 @@ function mdBlocks(src){ // Markdown をブロック（行・表・コード）�
   const cells=r=>r.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>mdInline(c.trim()));
   while(i<lines.length){
     const L=lines[i];let m;
-    if(/^\s*```/.test(L)){const buf=[];let j=i+1;while(j<lines.length&&!/^\s*```/.test(lines[j])){buf.push(lines[j]);j++;}out.push('<pre>'+esc(buf.join('\n'))+'</pre>');i=j+1;continue;}
+    if(/^\s*```/.test(L)){const buf=[];let j=i+1;while(j<lines.length&&!/^\s*```/.test(lines[j])){buf.push(lines[j]);j++;}out.push('<div class="codewrap"><button class="ico cpy" data-copycode data-tip="この部分だけをコピー" aria-label="コードをコピー">⧉</button><pre>'+esc(buf.join('\n'))+'</pre></div>');i=j+1;continue;}
     if(isRow(L)&&i+1<lines.length&&/^\s*\|?\s*:?-{2,}/.test(lines[i+1])){
       const rows=[];let j=i;while(j<lines.length&&isRow(lines[j])){rows.push(lines[j]);j++;}
       const head=cells(rows[0]);const body=rows.slice(2).map(cells);
@@ -730,7 +736,8 @@ function renderStream(body,text){
   for(let i=k;i<blocks.length;i++){const t=document.createElement('template');t.innerHTML=blocks[i];const el=t.content.firstElementChild;if(!el)continue;
     const cur=body.children[i];
     if(cur&&cur.tagName===el.tagName&&cur.className.replace(' reveal','')===el.className){
-      if(cur.tagName==='PRE'&&cur.childNodes.length===1&&cur.firstChild.nodeType===3){cur.firstChild.data=el.textContent;} // コードブロックは文字だけ差し替える（要素を作り直すと位置が揺れる）
+      const cp=cur.classList.contains('codewrap')?cur.querySelector('pre'):null,ep=cp?el.querySelector('pre'):null;
+      if(cp&&ep&&cp.childNodes.length===1&&cp.firstChild.nodeType===3){cp.firstChild.data=ep.textContent;} // コードブロックは文字だけ差し替える（要素を作り直すと位置が揺れる）
       else cur.innerHTML=el.innerHTML;
       continue;} // 書きかけの行は中身だけ更新（フェードを途切れさせない）
     if(!reduce){el.classList.add('reveal');el.style.animationDelay=Math.min(Math.max(0,i-Math.max(k,prev.length)),12)*70+'ms';}
@@ -1127,7 +1134,7 @@ function renderFocus(){
     html+=`<div class="msg ${n.role}${outside?' outside':''}${n.planned?' planned':''}${n.id===conv.activeNodeId&&after!==undefined&&actIdx>=0&&actIdx<path.length-1?' cursor':''}" id="n-${n.id}" style="--bc:${b.color}">
       ${n.role==='user'?'':'<div class="meta">'}${n.role==='user'?'':`<span class="tag">${esc(B(n.branchId).name)}</span><span class="ui">AI</span>`}${n.role==='assistant'&&n.model?`<span title="この回答を生成したモデルと思考量">${esc(modelLabel(n.model))}${n.modelUsed&&n.modelUsed!==n.model?` <span class="var">(${esc(n.modelUsed)})</span>`:''}${n.effort?' · '+esc(n.effort):''}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="spin4 mini"><i></i><i></i><i></i><i></i></span>':''}${n.role==='user'?'':'</div>'}
       ${imgsHTML(n)}<div class="toolsUsed">${toolsHTML(n)}</div><div class="body">${n.streaming&&!n.content?`<div class="waiting"><span class="spin4"><i></i><i></i><i></i><i></i></span><span class="ui">${n.role==='assistant'?'回答を生成中…':''}</span></div>`:md(n.content)}</div>
-      <div class="tools">${n.role==='assistant'&&!n.streaming&&isDeadNode(n)?`<span class="hint ui ico dead" data-tip="中止した回答からは分岐できません">⑂ ✕</span>`:''}${n.role==='assistant'&&!n.streaming&&!isDeadNode(n)?`<button class="ico" data-fork="${n.id}" aria-label="ここから分岐" data-tip="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">⑂</button><button class="ico plan${n.planned?' on':''}" data-plan="${n.id}" data-tip="${n.planned?'分岐予定の印を外す':'分岐予定の印を付ける（迷っているとき。俯瞰図で黄色く表示）'}" aria-label="分岐予定">${n.planned?'★':'☆'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="ico edit" data-edit="${n.id}" data-tip="この質問を書き直して送り直す" aria-label="質問を編集する">✎</button>`:''}${(()=>{const kids=childBranchesOf(n.id);return kids.length?`<span class="badges"><span class="ui">分岐した会話:</span> ${kids.map(k=>`<span class="chip" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}${isEmptyBranch(k)?'（未開始）':''}</span>${isEmptyBranch(k)?`<button class="small" data-cancelbr="${k.id}" title="この未開始の分岐を取り消す">✕ 取り消す</button>`:''}`).join('')}</span>`:'';})()}</div>
+      <div class="tools">${n.role==='assistant'&&!n.streaming&&isDeadNode(n)?`<span class="hint ui ico dead" data-tip="中止した回答からは分岐できません">⑂ ✕</span>`:''}${n.role==='assistant'&&!n.streaming&&!isDeadNode(n)?`<button class="ico" data-copyall="${n.id}" data-tip="この回答をすべてコピー" aria-label="回答をコピー">⧉</button><button class="ico" data-fork="${n.id}" aria-label="ここから分岐" data-tip="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">⑂</button><button class="ico plan${n.planned?' on':''}" data-plan="${n.id}" data-tip="${n.planned?'分岐予定の印を外す':'分岐予定の印を付ける（迷っているとき。俯瞰図で黄色く表示）'}" aria-label="分岐予定">${n.planned?'★':'☆'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="ico edit" data-edit="${n.id}" data-tip="この質問を書き直して送り直す" aria-label="質問を編集する">✎</button>`:''}${(()=>{const kids=childBranchesOf(n.id);return kids.length?`<span class="badges"><span class="ui">分岐した会話:</span> ${kids.map(k=>`<span class="chip" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}${isEmptyBranch(k)?'（未開始）':''}</span>${isEmptyBranch(k)?`<button class="small" data-cancelbr="${k.id}" title="この未開始の分岐を取り消す">✕ 取り消す</button>`:''}`).join('')}</span>`:'';})()}</div>
     </div>`;
   }
   if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答の下にある「⑂ ここから分岐」で話題を分けられます。<div class="editBtns"><span class="hint ui">使い方を試すなら</span><button class="small" id="demoBtn2">デモ会話を読み込む</button></div>${IS_DESKTOP&&!bridgeOk?`<div style="margin-top:10px;padding:10px 12px;border:1.5px solid var(--ystroke);border-radius:10px;background:#fffbe6"><b class="ui">AIに接続する準備が必要です</b><br>Claude か ChatGPT（Codex）のどちらかにログインすると使えます。手順は画面の案内に沿って進められます。<div class="editBtns"><button class="small primary" id="tutConnectBtn">接続の手順を見る</button></div></div>`:''}</div></div>`;
@@ -1135,6 +1142,7 @@ function renderFocus(){
   m.innerHTML=html+'<div id="tailSpace"></div>';
   updateTailSpace();
   m.querySelectorAll('[data-fork]').forEach(el=>el.onclick=()=>openFork(el.dataset.fork));
+  m.querySelectorAll('[data-copyall]').forEach(el=>el.onclick=()=>copyText(N(el.dataset.copyall).content,el));
   m.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoNode(el.dataset.go));
   m.querySelectorAll('[data-goparent]').forEach(el=>el.onclick=e=>{e.preventDefault();gotoNode(el.dataset.goparent);});
   m.querySelectorAll('[data-gohead]').forEach(el=>el.onclick=e=>{e.preventDefault();gotoBranch(el.dataset.gohead);});
@@ -1863,6 +1871,8 @@ $('#msgs').addEventListener('mouseout',e=>{const t=e.target.closest&&e.target.cl
 $('#notePop').addEventListener('mouseleave',hideNotePopSoon);
 $('#msgs').addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t&&!window.getSelection().toString()){const ids=String(t.dataset.note).split(',');if(ids.length===1){$('#notePop').classList.remove('on');openNote(ids[0]);}else showNotePop(t);}}); // 複数あるときは一覧から選ぶ
 $('#msgs').addEventListener('scroll',()=>$('#notePop').classList.remove('on'));
+$('#msgs').addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-copycode]');if(b){const pre=b.parentElement.querySelector('pre');copyText(pre?pre.textContent:'',b);}});
+async function copyText(text,btn){try{await navigator.clipboard.writeText(text);}catch(e){toast('コピーできませんでした');return;}if(btn){const t=btn.textContent;btn.textContent='✓';btn.classList.add('done');setTimeout(()=>{btn.textContent=t;btn.classList.remove('done');},1200);}toast('コピーしました');}
 
 /* ========== デモ会話 ========== */
 function loadDemo(){

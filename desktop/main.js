@@ -262,6 +262,7 @@ async function runSmoke(win) {
           return {samples:samples.length,reversals:rev,bigJumps:drop,uniq:[...new Set(samples)].length};};
         r.flicker={follow:await run('A',()=>{}),stopped:await run('B',()=>{m.dispatchEvent(new WheelEvent('wheel',{deltaY:-60}));m.scrollTop-=200;}),anchored:await run('C',()=>{conv._anchor=conv.activeNodeId;updateTailSpace();m.dispatchEvent(new WheelEvent('wheel',{deltaY:-60}));m.scrollTop-=200;})};
       }
+      if(${process.env.SMOKE_COPY === '1'}){gotoBranch('main');await new Promise(x=>setTimeout(x,300));const F=String.fromCharCode(96).repeat(3),NL=String.fromCharCode(10);window.streamDummy=async function*(){yield {text:'前置き'+NL+F+NL+'print(1)'+NL+'print(2)'+NL+F+NL+'後書き'};};await send('コピーのテスト');await new Promise(x=>setTimeout(x,400));const el=document.getElementById('n-'+conv.activeNodeId);let clip='';navigator.clipboard.writeText=async t=>{clip=t;};el.querySelector('[data-copycode]').click();await new Promise(x=>setTimeout(x,100));const c1=clip;el.querySelector('[data-copyall]').click();await new Promise(x=>setTimeout(x,100));r.copy={code:c1,all:clip.slice(0,20),order:[...el.querySelectorAll('.tools button')].map(b=>b.textContent).join(' ')};}
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     const img = await win.webContents.capturePage();
