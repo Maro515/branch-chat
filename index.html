@@ -177,7 +177,7 @@ svg text{fill:var(--indigo);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-
 #selPop button:hover{border-color:var(--indigo);box-shadow:0 0 0 2px rgba(31,74,43,.15)}
 #selPop button.fork{border-color:var(--c1);color:var(--c1)}
 #selPop button.side{border-color:var(--ystroke);color:var(--ystroke);background:#fff8dc}
-/* チャット外で質問・説明した言葉の黄色マーカー */
+/* サイドチャットで質問・説明した言葉の黄色マーカー */
 mark.note{background:linear-gradient(transparent 45%,#ffe680 45%);color:inherit;cursor:pointer;border-radius:2px;padding:0 1px}
 mark.note:hover{background:#ffe680}
 .noteChip{display:inline-block;margin-top:6px;font-size:11px;background:#fff8dc;border:1px solid var(--ystroke);color:var(--ystroke);border-radius:999px;padding:0 9px;cursor:pointer}
@@ -569,14 +569,14 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   </div>
   </div>
 </main>
-<div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selExplain">説明してもらう</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button><button class="small side" id="selSide" hidden>チャット外で質問</button><button class="small side" id="selEx1" hidden>簡単な説明</button><button class="small side" id="selEx2" hidden>一般的な説明</button><button class="small side" id="selEx3" hidden>詳細な説明</button></div>
+<div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selExplain">説明してもらう</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button><button class="small side" id="selSide" hidden>サイドチャットで質問</button><button class="small side" id="selEx1" hidden>簡単な説明</button><button class="small side" id="selEx2" hidden>一般的な説明</button><button class="small side" id="selEx3" hidden>詳細な説明</button></div>
 <div id="notePop"></div>
 <div id="noteWin" hidden>
   <div class="nwGrip c" data-g="c" title="ドラッグで大きさを変更。ダブルクリックで元の大きさ"></div><div class="nwGrip l" data-g="l"></div><div class="nwGrip t" data-g="t"></div>
-  <div class="nwHead"><span class="ui">チャット外</span><b id="nwTitle"></b><span class="spacer"></span><button class="small" id="nwDel" data-tip="このやり取りとマーカーを消す">🗑</button><button class="small" id="nwClose" aria-label="閉じる">✕</button></div>
+  <div class="nwHead"><span class="ui">サイドチャット</span><b id="nwTitle"></b><span class="spacer"></span><button class="small" id="nwDel" data-tip="このやり取りとマーカーを消す">🗑</button><button class="small" id="nwClose" aria-label="閉じる">✕</button></div>
   <div class="nwBody" id="nwBody"></div>
   <div class="nwFoot"><textarea id="nwInput" rows="1" placeholder="この言葉について質問（Enterで送信）"></textarea><button class="small primary" id="nwSend">送信</button></div>
-  <div class="nwNote ui">ここでのやり取りは本線や分岐には残らず、AI の文脈にも入りません</div>
+  <div class="nwNote ui">ここでのやり取りは本線や分岐には残りません。要点だけが会話マップに入り、AI が把握します</div>
 </div>
 <div id="toast"></div>
 
@@ -872,6 +872,18 @@ function branchCard(b,cur){
 function branchTranscript(bid){
   return branchNodes(bid).map(n=>`${n.role==='user'?'ユーザー':'AI'}: ${n.content}`).join('\n\n');
 }
+// サイドチャット（本文の語句について脇で聞いたやり取り）の要点。会話マップの末尾に添える
+function sideChatCards(){
+  const ns=Object.values(conv.notes||{}).filter(n=>n.items.some(i=>i.role==='assistant'&&i.content)).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).slice(-20);
+  if(!ns.length)return '';
+  const rows=ns.map(n=>{const src=N(n.nodeId);const where=src?`「${B(src.branchId)?B(src.branchId).name:'?'}」の回答`:'';const q=n.items.filter(i=>i.role==='user').map(i=>excerpt(i.content,60)).join(' ／ ');
+    const sm=n.summary?`要点: ${n.summary.conclusions||n.summary.topic||''}`:`回答: ${excerpt((n.items.filter(i=>i.role==='assistant').slice(-1)[0]||{}).content,160)}`;
+    return `- 語句「${n.text}」（${where}）: 質問: ${q}。${sm}`;});
+  return `
+
+### サイドチャット（本文の語句について脇で聞いたやり取り。会話の発言ではないが、利用者は内容を把握している）
+${rows.join('\n')}`;
+}
 function buildContext(targetNodeId,opts={}){
   const cur=opts.branchId||(targetNodeId?N(targetNodeId).branchId:'main');
   const chain=branchChain(cur).map(b=>b.name).join(' → ');
@@ -886,7 +898,7 @@ function buildContext(targetNodeId,opts={}){
 ${settings.extra?'\n追加指示: '+settings.extra+'\n':''}
 ## 会話マップ
 現在位置: ${chain}
-${cards}`;
+${cards}${sideChatCards()}`;
   const pinned=Object.values(conv.branches).filter(b=>b.pinned&&b.id!==cur);
   const extraPins=(opts.pinIds||[]).map(B).filter(b=>b&&!pinned.includes(b));
   for(const b of pinned.concat(extraPins)){
@@ -1792,7 +1804,7 @@ $('#selFork').onclick=()=>{
   openFork(nid,sel.text.replace(/\s+/g,' ').trim().slice(0,30));
 };
 
-/* ========== チャット外で質問・説明（言葉に黄色のマーカー） ========== */
+/* ========== サイドチャットで質問・説明（言葉に黄色のマーカー） ========== */
 /* 本線や分岐に残さない補足のやり取り。conv.notes に保存し、AI の文脈（buildContext）には入れない */
 const EXPLAIN={1:t=>`「${t}」について、初学者でも分かるように丁寧に説明して`,2:t=>`「${t}」について、辞書や辞典に載っているような一般的な説明をして`,3:t=>`「${t}」について、適宜専門用語などを用いて詳細に説明して`};
 const notesOf=()=>(conv.notes=conv.notes||{});
@@ -1821,10 +1833,24 @@ async function askNote(id,q){
     if(!a.content)a.content=noteAbort.signal.aborted?'（中止しました）':'（空の応答）';
   }catch(e){a.content+=(a.content?'\n\n':'')+(noteAbort.signal.aborted?'（中止しました）':'⚠️ エラー: '+(e.message||e));}
   noteBusy=false;noteAbort=null;persist();renderNoteWin();markNotes();
+  updateNoteSummary(id);
+}
+const NOTE_SUM_SYS=`あなたは補足のやり取りの要約係です。与えられた語句についての質問と回答を読み、次のJSONだけを出力してください（前後に説明を付けない）:
+{"topic":"何を聞いたか（40字以内）","conclusions":"分かったこと・結論（120字以内）"}`;
+const noteSummarizing=new Set();
+async function updateNoteSummary(id){
+  const n=notesOf()[id];if(!n||noteSummarizing.has(id))return;const cid=conv.id;noteSummarizing.add(id);
+  try{let out='';
+    if(settings.provider==='dummy'){const a=n.items.filter(i=>i.role==='assistant').slice(-1)[0];out=JSON.stringify({topic:excerpt(n.items[0].content,40),conclusions:'（ダミー）'+excerpt(a?a.content:'',80)});}
+    else{const log=`語句: ${n.text}\n\n`+n.items.map(i=>`${i.role==='user'?'質問':'回答'}: ${i.content}`).join('\n\n')+'\n\n上記を指定のJSON形式（topic/conclusions）だけで要約してください。';
+      for await(const ev of provider()(NOTE_SUM_SYS,[{role:'user',content:log}],settings.sumModel,{raw:true}))if(ev.text)out+=ev.text;}
+    const m=out.match(/\{[\s\S]*\}/);if(!m)throw new Error('要約JSONなし');const j=JSON.parse(m[0]);
+    const c=convs[cid];if(c&&c.notes&&c.notes[id]){c.notes[id].summary={topic:j.topic,conclusions:j.conclusions,updatedAt:Date.now()};persist();}
+  }catch(e){console.warn('note summary failed',id,e);}finally{noteSummarizing.delete(id);}
 }
 function startNote(kind){
   const nid=sel.nodeId,text=sel.text;hideSelPop();window.getSelection().removeAllRanges();
-  if(noteBusy){toast('チャット外の回答を生成中です。終わってから試してください');return;}
+  if(noteBusy){toast('サイドチャットの回答を生成中です。終わってから試してください');return;}
   const n=noteFor(nid,text);persist();markNotes();
   if(kind)askNote(n.id,EXPLAIN[kind](n.text));else openNote(n.id);
 }
