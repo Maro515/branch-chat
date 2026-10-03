@@ -175,6 +175,7 @@ async function runSmoke(win) {
   try {
     await new Promise((r) => win.webContents.once('did-finish-load', r));
     await new Promise((r) => setTimeout(r, 1200));
+    if (process.env.SMOKE_LOG) win.webContents.on('console-message', (e, level, msg) => { if (level >= 2) console.error('RENDERER ' + msg); });
     out.page = await win.webContents.executeJavaScript(`(async()=>{
       if(document.getElementById('tutDlg').open)closeTut();
       await probeBridge();
@@ -404,8 +405,28 @@ async function runSmoke(win) {
         let rb=null,err='';try{rb=figRenderSpec(blot);}catch(e){err=e.message;}r.fig5.blot=err||!!(rb&&rb.blot&&rb.svg.includes('kDa')&&rb.svg.includes('Raji'));
         const lay=figRenderSpec({kind:'layout',cols:2,panels:[spec,blot]});r.fig5.inLayout=!!(lay&&lay.n===2&&lay.svg.includes('/api/img/'));const cl=await figToPng(lay.svg,lay.w,lay.h,150);r.fig5.png2=cl.toDataURL('image/png');
       }
+      if(${process.env.SMOKE_FIG6 === '1'}){ // Figure 模式図: 6 種を描き、チャットのブロック→「{} 編集」で書き戻す
+        gotoBranch('main');await new Promise(x=>setTimeout(x,200));
+        const NL2=String.fromCharCode(10),F=String.fromCharCode(96).repeat(3);
+        const specs={
+          diagram:{kind:'schematic',type:'diagram',title:'SPIB → CD20 の仮説',dir:'LR',nodes:[{id:'z',text:'Zolmin',shape:'icon',icon:'drug'},{id:'s',text:'SPIB',shape:'round',fill:'#DCE9F7'},{id:'m',text:'MS4A1'+NL2+'(CD20)',shape:'rect'},{id:'c',text:'B 細胞',shape:'icon',icon:'bcell'},{id:'r',text:'Rituximab'+NL2+'感受性',shape:'ellipse',fill:'#FDE7C8'},{id:'ab',text:'抗 CD20 抗体',shape:'icon',icon:'antibody'}],edges:[{from:'z',to:'s',type:'arrow',label:'誘導'},{from:'s',to:'m',type:'inhibit',label:'転写抑制'},{from:'m',to:'c',type:'arrow'},{from:'c',to:'r',type:'arrow'},{from:'ab',to:'r',type:'arrow',dash:true}],groups:[{text:'核内',nodes:['s','m']}]},
+          pedigree:{kind:'schematic',type:'pedigree',title:'家系図',members:[{id:'I-1',sex:'M',deceased:true,label:'I-1'},{id:'I-2',sex:'F',carrier:true,label:'I-2'},{id:'II-1',sex:'F',affected:true,proband:true,label:'II-1',note:'45y'},{id:'II-2',sex:'M',label:'II-2'},{id:'II-3',sex:'M',label:'II-3'},{id:'II-4',sex:'F',carrier:true,label:'II-4'},{id:'III-1',sex:'U',label:'III-1'},{id:'III-2',sex:'F',affected:true,label:'III-2'}],unions:[{a:'I-1',b:'I-2',children:['II-1','II-3']},{a:'II-1',b:'II-2',children:['III-1']},{a:'II-3',b:'II-4',children:['III-2']}]},
+          gene:{kind:'schematic',type:'gene',name:'MS4A1 (CD20)',length:297,unit:'aa',domains:[{name:'TM1',from:50,to:72},{name:'TM2',from:80,to:100},{name:'TM3',from:118,to:140},{name:'TM4',from:184,to:206}],variants:[{pos:66,label:'p.V66M',type:'missense',n:2},{pos:120,label:'p.R120*',type:'nonsense',n:4},{pos:172,label:'p.A172fs',type:'frameshift',n:1},{pos:230,label:'c.690+1G>A',type:'splice',n:3},{pos:236,label:'p.D236N',type:'missense',n:1}]},
+          venn:{kind:'schematic',type:'venn',title:'DEG の重なり',sets:[{name:'Raji',n:320},{name:'BC-1',n:280},{name:'Daudi',n:150}],overlaps:{AB:90,AC:40,BC:35,ABC:20}},
+          timeline:{kind:'schematic',type:'timeline',title:'投与スケジュール',unit:'day',items:[{t:0,label:'Zolmin 投与',icon:'syringe'},{t:7,label:'投与',icon:'syringe'},{t:14,label:'投与',icon:'syringe'},{t:3,label:'採血',pos:'below'},{t:21,label:'剖検',pos:'below'}],spans:[{from:0,to:21,label:'観察期間'},{from:0,to:14,label:'治療期間',fill:'#FF8000'}]},
+          table:{kind:'schematic',type:'table',title:'Table 1. 患者背景',columns:['','Control (n = 24)','Zolmin (n = 25)','P'],rows:[['年齢, 中央値 (範囲)','62 (41–78)','60 (38–80)','0.71'],['男性, n (%)','14 (58.3)','13 (52.0)','0.66'],['病期'],['  I–II','9 (37.5)','10 (40.0)','0.86'],['  III–IV','15 (62.5)','15 (60.0)','']],note:'P: Mann–Whitney U または χ² 検定'}};
+        try{
+        r.fig6={render:{},png:{}};for(const [k,sp] of Object.entries(specs)){let x=null,err='';try{x=figRenderSpec(sp);}catch(e){err=e.message;}r.fig6.render[k]=err||!!(x&&x.schematic&&x.svg.length>300);if(x&&x.svg){const c=await figToPng(x.svg,x.w,x.h,150);r.fig6.png[k]=c.toDataURL('image/png');}}
+        window.streamDummy=async function*(){yield {text:'模式図です。'+NL2+NL2+F+'figure'+NL2+JSON.stringify(specs.diagram)+NL2+F+NL2};};
+        await send('模式図を作って',{branchId:effectiveBranchForSend(),parentId:conv.activeNodeId});await new Promise(x=>setTimeout(x,600));
+        const nid=conv.activeNodeId;const fb=document.getElementById('n-'+nid).querySelector('.figblock');r.fig6.block=!!(fb&&fb.classList.contains('schematic'));r.fig6.nodes=fb.querySelectorAll('[data-node]').length;r.fig6.edges=fb.querySelectorAll('[data-edge]').length;r.fig6.promptHasSchematic=buildContext(nid).system.includes('kind "schematic"');
+        fb.querySelector('[data-figjson]').click();await new Promise(x=>setTimeout(x,300));const dlg=document.querySelector('#figJsonDlg');r.fig6.dlgOpen=!!(dlg&&dlg.open);const ta=dlg.querySelector('#figJsonText');const jj=JSON.parse(ta.value);jj.nodes[1].text='SPIB (edited)';ta.value=JSON.stringify(jj);ta.dispatchEvent(new Event('input'));await new Promise(x=>setTimeout(x,200));r.fig6.preview=!!dlg.querySelector('#figJsonPrev svg');
+        dlg.querySelector('#figJsonSave').click();await new Promise(x=>setTimeout(x,400));r.fig6.writtenBack=N(nid).content.includes('SPIB (edited)');r.fig6.inLayout=!!figRenderSpec({kind:'layout',cols:2,panels:[specs.gene,specs.venn]});
+        }catch(e){r.fig6=Object.assign(r.fig6||{},{error:String(e&&e.stack||e).slice(0,600)});}
+      }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
+    if (out.page && out.page.fig6 && out.page.fig6.png) { for (const [k, d] of Object.entries(out.page.fig6.png)) { const f = path.join(process.env.SMOKE_OUT || require('node:os').tmpdir(), 'branchat-fig6-' + k + '.png'); fs.writeFileSync(f, Buffer.from(d.split(',')[1], 'base64')); out.page.fig6.png[k] = f; } }
     for (const k of ['fig4','fig5']) for (const kk of ['png','png2']) if (out.page && out.page[k] && out.page[k][kk]) { const f = path.join(process.env.SMOKE_OUT || require('node:os').tmpdir(), 'branchat-' + k + kk + '.png'); fs.writeFileSync(f, Buffer.from(out.page[k][kk].split(',')[1], 'base64')); out.page[k][kk] = f; }
     const img = await win.webContents.capturePage();
     const shot = path.join(process.env.SMOKE_OUT || require('node:os').tmpdir(), 'branchat-smoke.png');

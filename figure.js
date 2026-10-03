@@ -220,6 +220,7 @@ function figStateFromSpec(j){j=j||{};const opts=Object.assign({errType:j.err||'S
   return {text:String(j.data||'').trim(),kind:j.kind||'',type:j.type||'',opts,title:j.title||'',cmp:j.compare||'none',ctrl:+(j.ctrl||0)};}
 function figRenderSpec(j){if(typeof figRenderLayout==='function'&&figIsLayout(j))return figRenderLayout(j); // figure-layout.js
   if(typeof figRenderImage==='function'&&figIsImage(j))return figRenderImage(j); // figure-image.js
+  if(typeof figRenderSchematic==='function'&&figIsSchematic(j))return figRenderSchematic(j); // figure-schematic.js
   const st=figStateFromSpec(j);const parsed=figParseTable(st.text);if(!parsed)return null;const kind=st.kind||figAutoKind(parsed);const data=figBuildData(parsed,kind);if(!data)return null;const types=FIG_TYPES[kind]||FIG_TYPES.column;const type=types.some(t=>t[0]===st.type)?st.type:types[0][0];
   const compare=st.cmp!=='none'?(kind==='column'?figCompare(data.groups,st.cmp,st.ctrl):kind==='grouped'?figCompareGrouped(data,st.cmp,st.ctrl):null):null;return figRender({data,type,opts:st.opts,title:st.title,compare,cmp:st.cmp,ctrl:st.ctrl,legend:st.opts.legend||'right'});}
 const FIG_SCHEMES={prism:['#0000FF','#FF0000','#00C000','#A000E0','#FF8000','#000000','#906020','#000080','#600050'],colorblind:['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#F0E442','#000000'],gray:['#000000','#707070','#B0B0B0','#404040','#909090','#D0D0D0'],nature:['#E64B35','#4DBBD5','#00A087','#3C5488','#F39B7F','#8491B4','#91D1C2','#DC0000']};
@@ -431,7 +432,7 @@ function figBlockHTML(json,nodeId,index){
   let j=null;try{j=JSON.parse(json);}catch(e){return `<div class="figblock waiting"><span class="spin4 mini"><i></i><i></i><i></i><i></i></span><span class="ui">図を作成中…</span></div>`;}
   let r=null;try{r=figRenderSpec(j);}catch(e){r=null;}
   if(!r||!r.svg)return `<div class="figblock"><div class="hint">図を描けませんでした（データの形を確認してください）</div><pre>${figEsc(json)}</pre></div>`;
-  if(r.layout)return figLayoutBlockHTML(j,r,nodeId,index);if(r.image)return figImageBlockHTML(j,r,nodeId,index);
+  if(r.layout)return figLayoutBlockHTML(j,r,nodeId,index);if(r.image)return figImageBlockHTML(j,r,nodeId,index);if(r.schematic)return figSchematicBlockHTML(j,r,nodeId,index);
   return `<div class="figblock" data-fignode="${figEsc(nodeId||'')}" data-figidx="${index}">${r.svg}<div class="figbtns"><button class="small" data-figedit data-tip="この図を作成画面で編集する">✎ 編集</button><button class="small" data-figpng data-tip="PNG（300 dpi）で保存">PNG</button><button class="small" data-figsvg data-tip="SVG で保存">SVG</button><button class="small" data-figcopy data-tip="画像をコピー">⧉</button></div></div>`;
 }
 function figOpenFromBlock(el,panel){const nid=el.dataset.fignode,idx=+el.dataset.figidx;const n=N(nid);if(!n)return;const b=figFindBlocks(n.content)[idx];if(!b)return;let j;try{j=JSON.parse(b.json);}catch(e){toast('図の指定を読めませんでした');return;}
