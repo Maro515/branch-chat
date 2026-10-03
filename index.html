@@ -1187,7 +1187,7 @@ function setSide(open){document.body.classList.toggle('sideHidden',!open);settin
 function renderBranchBar(){
   const cur=effectiveBranchForSend();
   $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}" style="--bc:${b.color}" data-b="${b.id}" title="${b.id===cur?'今開いているブランチ（クリックで名前を変更）':'このブランチへ移動'}"><span class="dot"></span><span>${esc(b.name)}${isEmptyBranch(b)?'（未開始）':''}${b.pinned?' 📌':''}</span></span>`).join('');
-  $('#branchBar').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{if(el.dataset.b===currentBranchId()){renameBranch(el.dataset.b);}else gotoBranch(el.dataset.b);});
+  $('#branchBar').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{if(el.dataset.b===effectiveBranchForSend()){renameBranch(el.dataset.b);}else{delete conv._pendingBranch;gotoBranch(el.dataset.b);}}); // 選択中（次の送信先）のタブは名前変更、ほかは移動
 }
 async function renameBranch(bid){const b=B(bid);const v=await askPrompt('ブランチ名を変更',b.name);if(v&&v.trim()){b.name=v.trim().slice(0,30);b.autoNamed=false;persist();renderAll();}}
 function gotoBranch(bid){delete conv._anchor;const b=B(bid);if(isEmptyBranch(b)&&b.forkFromNodeId){if(conv._pendingBranch!==bid)conv._returnNode=conv.activeNodeId;conv.activeNodeId=b.forkFromNodeId;conv._pendingBranch=bid;conv._anchor=b.forkFromNodeId;persist();showFocus();scrollAnchorToTop(false);toast(`「${b.name}」はまだ発言がありません。ここで送信すると、この枝の最初の発言になります`);$('#input').focus();return;}conv.activeNodeId=b.headNodeId;persist();showFocus();}

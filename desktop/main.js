@@ -267,6 +267,7 @@ async function runSmoke(win) {
         applyTemplate(TEMPLATES.find(t=>t.id==='paper'));await new Promise(x=>setTimeout(x,300));
         const tabs=[...document.querySelectorAll('#branchBar .chip')].map(c=>c.textContent.trim());
         const me=Object.values(conv.branches).find(b=>b.name==='Methods');gotoBranch(me.id);await new Promise(x=>setTimeout(x,300));
+        document.querySelector('#branchBar .chip[data-b="main"]').click();await new Promise(x=>setTimeout(x,200));r.tabMain={dialogOpen:document.querySelector('#qDlg').open,sendTo:B(effectiveBranchForSend()).name};gotoBranch(me.id);await new Promise(x=>setTimeout(x,200));
         const sendTo=effectiveBranchForSend();const sys0=buildContext(conv.activeNodeId,{branchId:sendTo}).system;
         await send('対象と期間を決めたい',{branchId:effectiveBranchForSend(),parentId:conv.activeNodeId});await new Promise(x=>setTimeout(x,900));
         const ag=conv.agenda;const inM=branchNodes(me.id).length;
