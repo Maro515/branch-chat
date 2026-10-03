@@ -332,6 +332,7 @@ async function runSmoke(win) {
         r.fig2.render={};for(const [k,sp] of Object.entries(specs)){let ok=false,err='';try{const x=figRenderSpec(sp);ok=!!(x&&x.svg&&x.svg.length>500);}catch(e){err=e.message;}r.fig2.render[k]=err||ok;}
         r.fig2.autoKind={roc:figAutoKind(figParseTable(specs.roc.data)),forest:figAutoKind(figParseTable(specs.forest.data)),km:figAutoKind(figParseTable(km.data))};
         r.fig2.kindOptions=[...document.querySelectorAll('#figKind option')].map(o=>o.value);
+        const fd=figRenderSpec(Object.assign({},specs.dose,{style:{doseBand:true,doseCI:true}}));const ff=fd&&figParseTable(specs.dose.data);const fdata=figBuildData(ff,'xy');const fres=figRenderMore({data:fdata,type:'xy-dose',opts:{},title:''}).res;r.fig2.nls={band:(fd.svg.match(/fill-opacity="0.15"/g)||[]).length===1,ciText:/95% CI/.test(fd.svg),se:!!(fres.fits[0].stats&&fres.fits[0].stats.se.every(v=>v>0)),table:/SE<.th>/.test(figStatsMore(fdata,{type:'xy-dose',res:fres,opts:{}}))};
       }
       if(${process.env.SMOKE_FIG3 === '1'}){ // Figure P3: 推定プロット・PCA・スイマーなどをチャットのブロックと作成画面で描く
         gotoBranch('main');await new Promise(x=>setTimeout(x,200));
