@@ -91,7 +91,7 @@ conv = { id, title, createdAt, order:[nodeId...], activeNodeId,
 ### コンテキスト組み立て（`buildContext`）
 
 1. **Layer 1** 現在ノードまでの祖先パス全文 → `messages`
-2. **Layer 2** 全ブランチの要約カード「会話マップ」→ system。要約は回答完了ごとに安いモデルで非同期更新（`updateSummary`）
+2. **Layer 2** 全ブランチの要約カード「会話マップ」→ system。要約は回答完了ごとに安いモデルで非同期更新（`updateSummary`）。**差分方式**: `summary.upto`（要約に含めた最後の発言 id）より後の発言だけを「前回の要約」と一緒に渡し、送る量は36,000字まで（長いブランチで要約が失敗していた対処）。「要約更新」ボタンは `upto` を捨てて全文から作り直す
 3. **Layer 3** ピン留めブランチの全文 → system
 
 予算超過時は古い往復から省略。

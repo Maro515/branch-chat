@@ -162,6 +162,8 @@ textarea:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(31,74,43,.15
 #cards{background:#f3f8f0;border-left:2px solid var(--line);backdrop-filter:none}
 .card{background:#fff;border:1.5px solid var(--line);border-left:6px solid var(--bc);box-shadow:0 2px 10px rgba(31,74,43,.08);color:var(--indigo)}
 .card h3{text-shadow:none}
+.card .curBadge{display:inline-block;margin:0 0 6px;padding:1px 8px;border:2px solid var(--bc);border-radius:6px;color:var(--bc);font-size:11px;font-weight:700;letter-spacing:.06em;background:#fff}
+.card:has(.curBadge){box-shadow:0 0 0 2px var(--bc),0 2px 10px rgba(31,74,43,.12)}
 .card .from,.card .sum b{color:var(--indigo2)}
 .card.pinned{box-shadow:0 0 0 2px var(--bc) inset}
 .card.plans{--bc:var(--ystroke)}
@@ -1006,12 +1008,17 @@ async function updateSummary(bid){
     if(settings.provider==='dummy'){
       out=JSON.stringify({title:excerpt(ns[0].content,10),topic:excerpt(ns[0].content,60),conclusions:'（ダミー）'+excerpt(ns[ns.length-1].content,50),open:'なし'});
     }else{
-      const log=(b.summary?`前回の要約: ${JSON.stringify(b.summary)}\n\n`:'')+`会話ログ:\n${branchTranscript(bid)}\n\n上記の会話ログを、指定のJSON形式（title/topic/conclusions/open）だけで要約してください。JSON以外は書かないでください。`;
+      // 長いブランチでも要約が失敗しないよう、送る量に上限を設ける。前回の要約があれば、それ以降の発言だけを渡して更新する
+      const LIM=36000;let tx;
+      if(b.summary&&b.summary.upto){const idx=ns.findIndex(n=>n.id===b.summary.upto);const rest=idx>=0?ns.slice(idx+1):ns;tx=rest.map(n=>`${n.role==='user'?'ユーザー':'AI'}: ${n.content}`).join('\n\n');}
+      else tx=branchTranscript(bid);
+      if(tx.length>LIM)tx='（前半は省略）…\n\n'+tx.slice(-LIM);
+      const log=(b.summary?`前回の要約: ${JSON.stringify({topic:b.summary.topic,conclusions:b.summary.conclusions,open:b.summary.open})}\n\n`:'')+`${b.summary?'前回の要約より後の':''}会話ログ:\n${tx}\n\n${b.summary?'前回の要約を土台に、新しいログの内容を反映して':'上記の会話ログを、'}指定のJSON形式（title/topic/conclusions/open）だけで要約してください。JSON以外は書かないでください。`;
       for await(const ev of provider()(SUM_SYS,[{role:'user',content:log}],settings.sumModel,{raw:true}))if(ev.text)out+=ev.text;
     }
     const m=out.match(/\{[\s\S]*\}/);if(!m)throw new Error('要約JSONなし');
     const j=JSON.parse(m[0]);
-    b.summary={topic:j.topic,conclusions:j.conclusions,open:j.open,updatedAt:Date.now()};
+    b.summary={topic:j.topic,conclusions:j.conclusions,open:j.open,updatedAt:Date.now(),upto:ns[ns.length-1].id};
     const tc=convs[cid];if(tc&&bid==='main'&&(tc.titleAuto||tc.title==='新しい会話')&&j.title&&String(j.title).trim()){tc.title=String(j.title).trim().slice(0,30);tc.titleAuto=true;} // 最初の要約で AI が題名を付ける。以後も本線の要約ごとに更新（手で名前を付けるまで）
     persist();renderAll();
     updateLinks(cid,bid); // 関連度の AI 判定（3往復ごと・裏で）
@@ -1419,12 +1426,12 @@ function renderOverview(){
   const plans=plannedNodes();
   const planCard=plans.length?`<div class="card plans"><h3 class="ui">★ 分岐予定 <span class="hint">${plans.length}件</span></h3>${plans.map(n=>`<div class="item"><span>${esc(label(n))}「${esc(excerpt(n.content,18))}」</span><span><button class="small plan" data-forkp="${n.id}">分岐する</button><button class="small" data-unplan="${n.id}">解除</button></span></div>`).join('')}</div>`:'';
   const cardsHead=`<div class="cardsHead"><h2 class="ui">各ブランチの要約</h2><p>左の図の枝を、1本ずつ文章でまとめた一覧です。<b>AI には質問のたびにこの要約が渡されます</b>（回答のあとに自動で更新）。枝の色は左の図と同じです。</p>
-    <details class="cardsHelp"><summary class="ui">ボタンの説明</summary><dl><dt>移動</dt><dd>その枝のチャットを開く</dd><dt>📌 全文を参照</dt><dd>要約では足りないとき、その枝の全文も AI に渡す</dd><dt>現在ブランチに合流</dt><dd>その枝の結論を、今いる枝へ取り込む</dd><dt>名前</dt><dd>枝の名前を変える</dd><dt>要約更新</dt><dd>要約を今すぐ作り直す</dd></dl></details></div>`;
+    <details class="cardsHelp"><summary class="ui">ボタンの説明</summary><dl><dt>移動</dt><dd>その枝のチャットを開く</dd><dt>📌 全文を参照</dt><dd>ほかの枝で送信するとき、この枝の要約だけでなく全文も AI に渡す。要約では足りない細かい内容を参照させたいときに使う（長い枝では送る量が大きく増える）</dd><dt>現在ブランチに合流</dt><dd>その枝の結論を、今いる枝へ取り込む</dd><dt>名前</dt><dd>枝の名前を変える</dd><dt>要約更新</dt><dd>要約を今すぐ作り直す</dd></dl></details></div>`;
   $('#cards').innerHTML=cardsHead+(planCard?`<div class="cardsSec ui">あとで分岐する予定の回答</div>`+planCard:'')+`<div class="cardsSec ui">ブランチごとの要約（${bs.length}本）</div>`+bs.map(b=>{
     const from=b.forkFromNodeId?`${esc(label(N(b.forkFromNodeId)))}「${esc(excerpt(N(b.forkFromNodeId).content,24))}」から`:'ルート';
     const toks=branchNodes(b.id).reduce((a,n)=>a+tokensOf(n),0);
     const sum=b.summary?`<div class="sum"><b>話題 <span class="var" style="font-weight:400">— 何を話したか</span></b>${esc(b.summary.topic)}<b>結論 <span class="var" style="font-weight:400">— 決まったこと</span></b>${esc(b.summary.conclusions)}<b>未解決 <span class="var" style="font-weight:400">— 残っている問い</span></b>${esc(b.summary.open)}</div>`:`<div class="sum hint ui">要約未作成（AIの回答後に自動生成）</div>`;
-    return `<div class="card${b.pinned?' pinned':''}" style="--bc:${b.color}"><h3>${esc(b.name)}${b.id===cur?' <span class="hint">現在</span>':''}</h3>
+    return `<div class="card${b.pinned?' pinned':''}" style="--bc:${b.color}">${b.id===cur?'<span class="curBadge ui">現在のブランチ</span>':''}<h3>${esc(b.name)}</h3>
       <div class="from">${from} / ${branchNodes(b.id).length} <span class="ui">発言</span> / ${toks} tok${(validModel(b.model)||validEffort(b.effort))?` / <span title="このブランチ専用のモデル設定">⚙ ${esc(effLabel(b.id))}</span>`:''}</div>${sum}
       <div class="act">
         <button class="small" title="その枝のチャットを開く" data-go="${b.id}">移動</button>
@@ -1438,7 +1445,7 @@ function renderOverview(){
   c.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.go));
   c.querySelectorAll('[data-pin]').forEach(el=>el.onclick=()=>{const b=B(el.dataset.pin);b.pinned=!b.pinned;persist();renderAll();});
   c.querySelectorAll('[data-rename]').forEach(el=>el.onclick=()=>renameBranch(el.dataset.rename));
-  c.querySelectorAll('[data-resum]').forEach(el=>el.onclick=()=>{toast('要約を更新中…');updateSummary(el.dataset.resum);branchNodes(el.dataset.resum).forEach(n=>{if(n.content.length>20)delete n.gist;});ensureGists();});
+  c.querySelectorAll('[data-resum]').forEach(el=>el.onclick=()=>{toast('要約を更新中…');const bb=B(el.dataset.resum);if(bb&&bb.summary)delete bb.summary.upto;updateSummary(el.dataset.resum);branchNodes(el.dataset.resum).forEach(n=>{if(n.content.length>20)delete n.gist;});ensureGists();});
   c.querySelectorAll('[data-merge]').forEach(el=>el.onclick=()=>mergeBranch(el.dataset.merge));
   c.querySelectorAll('[data-delbr]').forEach(el=>el.onclick=()=>{const id=el.dataset.delbr;const wasPending=conv._pendingBranch===id;const b=B(id);if(!b||!isEmptyBranch(b))return;if(wasPending){cancelBranch(id);showOverview();}else{const name=b.name;delete conv.branches[id];persist();renderAll();toast(`分岐「${name}」を取り消しました`);}});
   c.querySelectorAll('[data-forkp]').forEach(el=>el.onclick=()=>openFork(el.dataset.forkp));
