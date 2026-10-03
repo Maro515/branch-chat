@@ -84,6 +84,7 @@ function figCMStats(m){const k=m.length;const N=m.flat().reduce((a,b)=>a+b,0);co
 const figTextCol=c=>c.raw.some(v=>v!==''&&isNaN(+v));
 const figNUniq=c=>new Set(c.raw.filter(v=>v!=='')).size;
 function figAutoKindP3(parsed){const cols=parsed.cols;const lc=figLC;
+  if(typeof figAutoKindP4==='function'){const k=figAutoKindP4(parsed);if(k)return k;} // figure-omics.js
   if(cols.some(c=>/log2?\s*fc|fold|log2foldchange|効果量/.test(lc(c)))&&cols.some(c=>/^(p|pvalue|p\.?val(ue)?|padj|p_adj|fdr|q|qvalue|adj\.?p)/.test(lc(c))))return 'feature';
   if(parsed.firstColText&&cols.some(c=>/^(duration|end|stop|treatment|期間|終了|投与期間|on.?study|治療期間)/.test(lc(c))&&c.vals.some(v=>v!==null)))return 'swimmer';
   if(parsed.firstColText&&cols.some(c=>/^(time|week|month|day|visit|cycle|時点|週|月|日)/.test(lc(c))&&c.vals.some(v=>v!==null))&&cols.some(c=>/change|%|変化|縮小/.test(lc(c)))&&figNUniq(cols[0])<cols[0].raw.filter(v=>v!=='').length)return 'spider';
@@ -92,6 +93,7 @@ function figAutoKindP3(parsed){const cols=parsed.cols;const lc=figLC;
   if(cols.some(c=>/importance|重要度|gain|shap/.test(lc(c)))&&parsed.firstColText)return 'importance';
   return null;}
 function figBuildDataP3(parsed,kind){
+  if(typeof figBuildDataP4==='function'){const r=figBuildDataP4(parsed,kind);if(r!==undefined)return r;}
   if(kind==='multi')return figBuildMulti(parsed);if(kind==='nested')return figBuildNested(parsed);if(kind==='swimmer')return figBuildSwimmer(parsed);if(kind==='spider')return figBuildSpider(parsed);if(kind==='feature')return figBuildFeature(parsed);if(kind==='importance')return figBuildImportance(parsed);
   return undefined;}
 function figBuildMulti(parsed){const cols=parsed.cols;const num=cols.filter(c=>c.vals.filter(v=>v!==null).length>=2&&!figTextCol(c));if(num.length<2)return null;const text=cols.filter(c=>!num.includes(c)&&c.raw.some(v=>v!==''));
@@ -129,6 +131,7 @@ function figBuildImportance(parsed){const cols=parsed.cols;const num=cols.filter
 
 /* ---------- 描画 ---------- */
 function figRenderP3(spec){const d=spec.data,t=spec.type;
+  if(typeof figRenderP4==='function'){const r=figRenderP4(spec);if(r)return r;}
   if(d.kind==='multi')return /^pca/.test(t)?figRenderPCA(spec):figRenderBubble(spec);if(d.kind==='nested')return figRenderSuper(spec);if(d.kind==='swimmer')return figRenderSwimmer(spec);if(d.kind==='spider')return figRenderSpider(spec);if(d.kind==='feature')return figRenderVolcano(spec);if(d.kind==='importance')return figRenderImportance(spec);
   if(d.kind==='heatmap'&&t==='confusion')return figRenderConfusion(spec);
   if(t==='estimation')return figRenderEstimation(spec);if(t==='qq')return figRenderQQ(spec);if(t==='bland-altman')return figRenderBA2(spec);if(t==='grouped-line')return figRenderGroupedLine(spec);if(t==='xy-band')return figRenderBand(spec);
@@ -286,7 +289,7 @@ function figRenderImportance(spec){const d=spec.data;const o=Object.assign({},FI
   const r=F.wrap(`<g data-sel="series:0">${body}</g>`);r.res={n,total:d.items.length};return r;}
 
 /* ---------- 左下の結果表 ---------- */
-function figStatsP3(data,st){if(!data)return null;const res=st.res||{};const t=st.type;const P=p=>!(p>=0)?'–':p<0.0001?'<0.0001':p.toFixed(4);const esc=figEsc;const f3=v=>isFinite(v)?figFmt(+v.toPrecision(4)):'–';
+function figStatsP3(data,st){if(!data)return null;if(typeof figStatsP4==='function'){const h=figStatsP4(data,st);if(h!=null)return h;}const res=st.res||{};const t=st.type;const P=p=>!(p>=0)?'–':p<0.0001?'<0.0001':p.toFixed(4);const esc=figEsc;const f3=v=>isFinite(v)?figFmt(+v.toPrecision(4)):'–';
   if(data.kind==='multi'){if(/^pca/.test(t)){const pca=res.pca;if(!pca)return '<div class="hint">PCA には 3 行以上・2 変数以上が必要です</div>';let s=`<div class="hint">PCA（${pca.scale?'標準化・相関行列':'中心化のみ・共分散行列'}）: n = ${pca.n}、変数 ${pca.p}${pca.pa?' ／ Parallel analysis（同じ n・変数数の正規乱数 '+(st.opts.pcaNPA||100)+' 回。帯は 5–95 パーセンタイル、破線は平均。固有値が帯を上回る成分を採用）':''}</div><table><tr><th>PC</th><th>固有値</th><th>寄与率</th><th>累積</th>${pca.pa?'<th>PA 平均</th><th>PA 95%</th>':''}</tr>`;let cum=0;pca.values.forEach((v,i)=>{cum+=pca.prop[i];s+=`<tr><td>PC${i+1}</td><td>${v.toFixed(4)}</td><td>${(pca.prop[i]*100).toFixed(2)}%</td><td>${(cum*100).toFixed(2)}%</td>${pca.pa?`<td>${pca.pa[i].mean.toFixed(3)}</td><td>${pca.pa[i].p95.toFixed(3)}</td>`:''}</tr>`;});s+='</table>';
       const show=Math.min(pca.p,3);s+=`<table><tr><th>ローディング</th>${Array.from({length:show},(_,k)=>`<th>PC${k+1}</th>`).join('')}</tr>`+data.vars.map((v,j)=>`<tr><td>${esc(v)}</td>${Array.from({length:show},(_,k)=>`<td>${pca.loadings[k][j].toFixed(3)}</td>`).join('')}</tr>`).join('')+'</table>';if(res.scl)s+=`<div class="hint">バイプロットのローディングは ${res.scl.toFixed(2)} 倍（スコアの 90% に収める）</div>`;return s;}
     return `<div class="hint">n = ${res.n||data.X.length}${res.size?` ／ 大きさ（面積比例）: 最小 ${f3(res.size.min)}、中間 ${f3(res.size.mid)}（幾何平均）、最大 ${f3(res.size.max)}`:''}${res.cont?' ／ 色＝'+esc(data.bubble.cname):''}${data.group?' ／ 群 '+data.groups.length:''}</div>`;}

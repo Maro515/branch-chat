@@ -212,10 +212,11 @@ async function figToPng(svg,w,h,dpi){if(typeof figInlineImages==='function'&&svg
 
 /* ---------- 仕様（チャットとの受け渡し） ---------- */
 // ```figure の中の JSON: {title, kind, type, err, compare, ctrl, ytitle, xtitle, ymin, ymax, data(TSV), style:{...}}
-function figSpecFromState(st){return {title:st.title||'',kind:st.kind,type:st.type,err:st.opts.errType,compare:st.cmp||'none',ctrl:st.ctrl||0,ytitle:st.opts.yTitle||'',xtitle:st.opts.xTitle||'',ymin:st.opts.ymin||'',ymax:st.opts.ymax||'',data:st.text,style:figStyleOf(st.opts)};}
+function figSpecFromState(st){return Object.assign({},st.opts.x||{},{title:st.title||'',kind:st.kind,type:st.type,err:st.opts.errType,compare:st.cmp||'none',ctrl:st.ctrl||0,ytitle:st.opts.yTitle||'',xtitle:st.opts.xTitle||'',ymin:st.opts.ymin||'',ymax:st.opts.ymax||'',data:st.text,style:figStyleOf(st.opts)});}
 const FIG_STYLE_KEYS=['fontPt','bold','axisPt','tickLen','wIn','hIn','symPt','linePt','barFill','bracketShape','pStyle','showNs','legend','scheme','series','barDots','legendPos','frame','grid','tickDir','ylog','xRot','barEdge','fontFamily','refLine','errDir','fillAlpha','capW','axisColor'];
 function figStyleOf(o){const st={};for(const k of FIG_STYLE_KEYS)if(o[k]!==undefined&&o[k]!==''&&o[k]!==null)st[k]=o[k];return st;}
 function figStateFromSpec(j){j=j||{};const opts=Object.assign({errType:j.err||'SD',pThr:0.05,pStyle:'GP',showNs:false,yTitle:j.ytitle||'',xTitle:j.xtitle||'',ymin:j.ymin==null?'':j.ymin,ymax:j.ymax==null?'':j.ymax,barFill:'solid',bracketShape:'long'},j.style||{});
+  const known=new Set(['title','kind','type','err','compare','ctrl','ytitle','xtitle','ymin','ymax','data','style']);const x={};for(const k of Object.keys(j))if(!known.has(k))x[k]=j[k];if(Object.keys(x).length)opts.x=x; // 図種固有の追加項目（GSEA の nes/pval/fdr など）は opts.x に保ち、書き戻しで元に戻す
   if(opts.scheme&&FIG_SCHEMES[opts.scheme])opts.colors=FIG_SCHEMES[opts.scheme];
   return {text:String(j.data||'').trim(),kind:j.kind||'',type:j.type||'',opts,title:j.title||'',cmp:j.compare||'none',ctrl:+(j.ctrl||0)};}
 function figRenderSpec(j){if(typeof figRenderLayout==='function'&&figIsLayout(j))return figRenderLayout(j); // figure-layout.js

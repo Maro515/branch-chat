@@ -425,6 +425,33 @@ async function runSmoke(win) {
         dlg.querySelector('#figJsonSave').click();await new Promise(x=>setTimeout(x,400));r.fig6.writtenBack=N(nid).content.includes('SPIB (edited)');r.fig6.inLayout=!!figRenderSpec({kind:'layout',cols:2,panels:[specs.gene,specs.venn]});
         }catch(e){r.fig6=Object.assign(r.fig6||{},{error:String(e&&e.stack||e).slice(0,600)});}
       }
+      if(${process.env.SMOKE_FIG7 === '1'}){ // Figure オミクス: 13 種の描画、チャットのブロック、追加項目（nes 等）の書き戻し
+        gotoBranch('main');await new Promise(x=>setTimeout(x,200));
+        const TB=String.fromCharCode(9),NL2=String.fromCharCode(10),F=String.fromCharCode(96).repeat(3);const J=(h,rows)=>[h.join(TB)].concat(rows.map(r=>r.join(TB))).join(NL2);
+        const specs={
+          manhattan:{kind:'omics',type:'manhattan',data:J(['SNP','CHR','BP','P'],Array.from({length:120},(_,i)=>['rs'+i,1+(i%6),i*1e6,(i===7?1e-9:Math.pow(10,-(i%5)-0.5)).toExponential(2)]))},
+          embedding:{kind:'omics',type:'embedding',data:J(['UMAP_1','UMAP_2','cluster'],Array.from({length:60},(_,i)=>[(i%3)*4+(i%7)*0.2,(i%3)*2+(i%5)*0.3,'C'+(i%3)]))},
+          gsea:{kind:'omics',type:'gsea',nes:1.7,pval:0.002,fdr:0.03,data:J(['Rank','Metric','Hit'],Array.from({length:100},(_,i)=>[i+1,(2-i/25).toFixed(2),i<20&&i%3===0||i%17===0?1:0]))},
+          enrich:{kind:'omics',type:'enrich-dot',data:J(['Term','GeneRatio','Count','p.adjust'],[['A','10/100',10,'1e-5'],['B','8/100',8,'1e-3'],['C','5/100',5,'0.02']])},
+          enrichbar:{kind:'omics',type:'enrich-bar',data:J(['Term','Count','q'],[['A',10,'1e-5'],['B',8,'1e-3']])},
+          dotplot:{kind:'omics',type:'dotplot',data:J(['Gene','Cluster','Pct','Avg'],[['MS4A1','B',80,2.5],['MS4A1','T',5,0.1],['CD3E','B',3,0.1],['CD3E','T',90,3]])},
+          sbs96:{kind:'omics',type:'sbs96',data:J(['Type','Count'],['C>A','C>G','C>T','T>A','T>C','T>G'].flatMap(s=>'ACGT'.split('').flatMap(l=>'ACGT'.split('').map(r=>[l+'['+s+']'+r,(s==='C>T'?30:5)]))))},
+          onco:{kind:'omics',type:'oncoprint',data:J(['Gene','S1','S2','S3','S4'],[['TP53','Missense','','Nonsense',''],['MYD88','','Amp','','Missense']])},
+          logo:{kind:'omics',type:'logo',data:J(['seq'],[['TGACTCA'],['TGACTCA'],['TGAGTCA'],['TTACTCA']])},
+          sankey:{kind:'omics',type:'sankey',data:J(['From','To','Value'],[['Screened','Enrolled',100],['Screened','Excluded',20],['Enrolled','A',50],['Enrolled','B',50]])},
+          rank:{kind:'omics',type:'rank',data:J(['Gene','Score'],Array.from({length:50},(_,i)=>['G'+i,(2-i/12).toFixed(2)])),style:{rankHi:'G1'}},
+          network:{kind:'omics',type:'network',data:J(['From','To'],[['A','B'],['B','C'],['C','A'],['C','D']])},
+          tree:{kind:'omics',type:'tree',data:J(['tree'],[['((A:1,B:1):0.5,C:2);']])}};
+        r.fig7={render:{}};for(const [k,sp] of Object.entries(specs)){let x=null,err='';try{x=figRenderSpec(sp);}catch(e){err=e.message;}r.fig7.render[k]=err||!!(x&&x.svg&&x.svg.length>300&&!(x.res&&x.res.error));}
+        r.fig7.autoKind=figAutoKind(figParseTable(specs.manhattan.data));r.fig7.autoType=figBuildData(figParseTable(specs.sankey.data),'omics').type;
+        window.streamDummy=async function*(){yield {text:'GSEA です。'+NL2+NL2+F+'figure'+NL2+JSON.stringify(specs.gsea)+NL2+F+NL2};};
+        await send('GSEA を作って',{branchId:effectiveBranchForSend(),parentId:conv.activeNodeId});await new Promise(x=>setTimeout(x,600));
+        const nid=conv.activeNodeId;const fb=document.getElementById('n-'+nid).querySelector('.figblock');r.fig7.block=!!(fb&&fb.querySelector('svg'));r.fig7.nesShown=!!(fb&&fb.innerHTML.includes('NES = 1.70'));r.fig7.promptHasOmics=buildContext(nid).system.includes('kind "omics"');
+        fb.querySelector('[data-figedit]').click();await new Promise(x=>setTimeout(x,300));r.fig7.kindSel=document.querySelector('#figKind').value;r.fig7.typeSel=document.querySelector('#figType').value;r.fig7.stats=document.querySelector('#figStats').textContent.slice(0,40);
+        document.querySelector('#figTitle').value='GSEA (edited)';document.querySelector('#figTitle').dispatchEvent(new Event('input'));await new Promise(x=>setTimeout(x,200));document.querySelector('#figUpdate').click();await new Promise(x=>setTimeout(x,400));
+        const j1=JSON.parse(figFindBlocks(N(nid).content)[0].json);r.fig7.extrasKept=j1.nes===1.7&&j1.fdr===0.03&&j1.title==='GSEA (edited)';
+        r.fig7.kindOptions=[...document.querySelectorAll('#figKind option')].map(o=>o.value).includes('omics');
+      }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     if (out.page && out.page.fig6 && out.page.fig6.png) { for (const [k, d] of Object.entries(out.page.fig6.png)) { const f = path.join(process.env.SMOKE_OUT || require('node:os').tmpdir(), 'branchat-fig6-' + k + '.png'); fs.writeFileSync(f, Buffer.from(d.split(',')[1], 'base64')); out.page.fig6.png[k] = f; } }
