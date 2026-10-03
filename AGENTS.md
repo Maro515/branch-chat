@@ -84,6 +84,13 @@ conv = { id, title, createdAt, order:[nodeId...], activeNodeId,
 - **アジェンダ**（`#agenda`、`conv.agenda={items:[{id,n,text,status:'open'|'done',by,src,doneSrc}],memo:[]}`、`renderAgenda()`）: チャット画面の右側に常時表示（ヘッダー「📋 進捗」で開閉、`settings.agendaOff`）。区分は 進行中（青）／未解決項目（橙）／解決済み（緑）の3つで色分け（議事録は利用者の指示で廃止。`conv.agenda.memo` は空のまま残る）。未解決項目は `updateSummary` の JSON に足した `resolved_ids`（番号 `n`）と `new_open` で AI が出し入れし（`applyAgendaFromSummary`）、手でも追加・編集・解決・削除できる。各項目は出どころの枝（`src`）を持ち、押すとその発言へ移動。`agendaCards()` が会話マップの末尾に「## アジェンダ」として AI に渡す（番号で指示できる）。⧉ で Markdown をコピー。
 - **テンプレート**（`TEMPLATES`、`applyTemplate`、`#tplDlg`）: 「＋ 新しい会話」はテンプレート選択から。本線＝全体の設計と仕上げ、分岐＝部品の作り込み。適用すると、本線に骨組みの説明の発言（`model:'template'` の assistant ノード。要約の対象外）を1つ置き、そこから各分岐を空のまま作る（`branch.instr` に役割）。`B('main').instr` と `B(cur).instr` は `templateInstr()` が system の先頭に入れる。空の枝のタブを押すとその枝が「次の送信先」になる（`gotoBranch` が `_pendingBranch` をその枝に設定、タブは `effectiveBranchForSend()` を選択中として表示）。テンプレート由来の空の枝には「✕ 取り消す」を出さない。収録: 論文（本線＋Introduction/Methods/Results/Discussion）、学会抄録、学会発表、試験勉強、アプリ開発。初期の未解決項目は `t.agenda`。
 
+### Figure 作成（Prism 9 風、`figure.js` + `figure-stats.js`）
+
+- 仕様の出典は `~/Applications/prism9-figure-spec/03_Prism9同等Figure作成アプリ_要件定義書.md`（§6 描画エンジン、付録B 既定値、§15 ロードマップ）。現状は **P1（Prism コア）の最小版**: データ表 Column / Grouped / XY、グラフ 散布ドット・棒・箱ひげ・バイオリン・集合棒・集合散布・XY 折れ線・XY 散布、誤差 SD/SEM/95%CI、有意差（2群 Welch t、3群以上 一元配置分散分析＋Tukey 全比較、または Dunnett 対照群比較）の自動ブラケット（GP 書式）、SVG/PNG（300 dpi）書き出し、画像コピー、チャットへの添付（図を画像、データをコードブロックで入力欄へ）。
+- `figure-stats.js` は PrismLab（`~/Applications/prism-lab/build/00_base.html` の数学コア）からの流用で、scipy と照合済み（ANOVA・Tukey・Welch を Node で再確認した）。描画は `figRender()` で要件書の既定値から作り直した（Arial 太字 12pt、軸 1pt の L 字で最後の目盛で終わる、目盛は外向きで数字の高さ×0.7、Prism の既定色、棒の間隔 隣接50%/群間100%/端50%、誤差棒はキャップ幅＝棒幅×0.5で棒の上では上向きのみ、散布の平均線はキャップ幅×2・太さ2倍、ブラケットは脚＝データ上端＋0.75h・段間隔 2h）。1pt＝1.333px、図は X 3.00in × Y 2.00in。
+- 入口は ＋メニュー「📊 Figure を作る」と、AI の回答の表の右上「📊」（`figFromTable`）。SVG は XML なので属性値に二重引用符を入れない（フォント名は単一引用符。ここで一度 PNG 化が失敗した）。作った図は `conv.figures[]` に状態を保存。
+- 2つの JS は `sync-app.mjs` が `app/` へ写し、`check.sh` が構文を検査する。単一 HTML の方針の例外（自前のファイル、依存ライブラリではない）。未着手: 非線形あてはめ、生存曲線、ROC、ヒートマップ、複数パネルのレイアウト、画像パネル、模式図（ロードマップ P2 以降）。
+
 ### 会話一覧・知識マップ・会話記録のファイル保存
 
 - 「記憶の引き継ぎ」（他のAIのメモリを貼り付けて全会話の前提にする機能）は**利用者の指示で不採用**。再導入しない。以前の版で保存された `settings.memory` は起動時に破棄する。

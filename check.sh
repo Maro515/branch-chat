@@ -22,7 +22,7 @@ no(r'IS_ARTIFACT\s*=\s*true|claude\.use\(',idx,'Artifact 版の名残が無い')
 sys.exit(bad)
 PY
 python3 -c "import ast,sys;ast.parse(open('bridge.py').read());print('OK   bridge.py 構文')" || fail=1
-for f in desktop/main.js desktop/engines.js; do
+for f in desktop/main.js desktop/engines.js figure.js figure-stats.js; do
   if node --check "$f" 2>/dev/null; then echo "OK   $f 構文"; else echo "FAIL $f 構文"; fail=1; fi
 done
 # bridge.py と engines.js の安全側フラグが揃っているか

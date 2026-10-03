@@ -275,6 +275,18 @@ async function runSmoke(win) {
         const sys=buildContext(conv.activeNodeId).system;
         r.tpl={tabs,sendTo:B(sendTo).name,methodsMsgs:inM,roleInSys:sys0.includes('この枝の役割')&&sys0.includes('Methods だけ'),mainInSys:sys0.includes('テンプレート'),agendaOpen:ag.items.filter(x=>x.status==='open').map(x=>x.text),agendaDone:ag.items.filter(x=>x.status==='done').map(x=>x.text),agendaInSys:sys.includes('## アジェンダ')&&sys.includes('手で足した項目'),panelRows:document.querySelectorAll('#agenda .ag').length,panelVisible:getComputedStyle(document.querySelector('#agenda')).display!=='none',title:conv.title};
       }
+      if(${process.env.SMOKE_FIG === '1'}){ // Figure 作成
+        figOpen({});await new Promise(x=>setTimeout(x,300));
+        const TB=String.fromCharCode(9),NL2=String.fromCharCode(10);document.querySelector('#figData').value=['Control'+TB+'Low'+TB+'High','12.1'+TB+'15.4'+TB+'19.2','11.8'+TB+'16.0'+TB+'18.7','12.6'+TB+'14.9'+TB+'20.1','13.0'+TB+'15.8'+TB+'19.6','12.3'+TB+'16.3'+TB+'18.9'].join(NL2);document.querySelector('#figData').dispatchEvent(new Event('input'));
+        document.querySelector('#figCmp').value='all';document.querySelector('#figCmp').dispatchEvent(new Event('change'));
+        document.querySelector('[data-fopt="yTitle"]').value='Tumor volume (mm³)';document.querySelector('[data-fopt="yTitle"]').dispatchEvent(new Event('input'));
+        await new Promise(x=>setTimeout(x,200));
+        r.fig={open:document.querySelector('#figDlg').open,svgLen:(figState.svg||'').length,brackets:(figState.svg.match(/<polyline/g)||[]).length,statsRows:document.querySelectorAll('#figStats tr').length,types:[...document.querySelectorAll('#figType option')].map(o=>o.value)};
+        document.querySelector('#figType').value='bar';document.querySelector('#figType').dispatchEvent(new Event('change'));await new Promise(x=>setTimeout(x,200));r.fig.barRects=(figState.svg.match(/<rect /g)||[]).length;
+        document.querySelector('#figType').value='scatter';document.querySelector('#figType').dispatchEvent(new Event('change'));await new Promise(x=>setTimeout(x,200));
+        try{await figAttach();}catch(e){r.fig.attachErr=String(e.message||e);}r.fig.attached=pendingImgs.length;r.fig.inputHead=document.querySelector('#input').value.slice(0,40);r.fig.saved=(conv.figures||[]).length;
+        figOpen({});await new Promise(x=>setTimeout(x,300));
+      }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     const img = await win.webContents.capturePage();
