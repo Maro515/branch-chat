@@ -444,10 +444,17 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 #agenda .agHead{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1.5px solid var(--line);font-size:13px}
 #agenda .agHead button{background:#fff;color:var(--indigo);border:1px solid #a8c9a3;padding:0 7px;height:22px}
 #agenda .agBody{flex:1;overflow-y:auto;padding:8px 10px 14px;font-size:12.5px;line-height:1.55}
-#agenda h4{margin:10px 0 4px;font-size:11px;letter-spacing:.1em;color:var(--indigo2);display:flex;align-items:center;gap:6px}
-#agenda h4:first-child{margin-top:0}
+#agenda .sec{border-radius:10px;padding:8px 10px 10px;margin-bottom:10px;border:1.5px solid var(--sc);background:var(--sbg)}
+#agenda .sec h4{margin:0 0 6px;font-size:11.5px;letter-spacing:.1em;color:var(--sc);display:flex;align-items:center;gap:6px}
+#agenda .sec h4::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--sc)}
+#agenda .now-s{--sc:#1f6feb;--sbg:#eef4ff}
+#agenda .open-s{--sc:#b45309;--sbg:#fff7e6}
+#agenda .done-s{--sc:#2e7d32;--sbg:#eef7ea}
+#agenda .open-s .ag .ck{border-color:#d69a3f}
+#agenda .done-s .ag.done .ck{background:#2e7d32;border-color:#2e7d32}
+#agenda .ag:hover{background:rgba(255,255,255,.7)}
 #agenda h4 .cnt{font-weight:400}
-#agenda .now{background:#fff;border:1.5px solid var(--line);border-left:4px solid var(--curbc,var(--line));border-radius:8px;padding:6px 8px;color:#111}
+#agenda .now{background:#fff;border:1px solid #c7d7f5;border-left:4px solid var(--curbc,#1f6feb);border-radius:8px;padding:6px 8px;color:#111}
 #agenda .ag{display:flex;gap:6px;align-items:flex-start;padding:4px 4px 4px 2px;border-radius:6px}
 #agenda .ag:hover{background:#fff}
 #agenda .ag .ck{flex:none;width:18px;height:18px;border:1.5px solid #a8c9a3;border-radius:5px;background:#fff;padding:0;font-size:11px;line-height:1;display:inline-flex;align-items:center;justify-content:center;color:var(--c1);margin-top:1px}
@@ -459,15 +466,10 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 #agenda .ag:hover .ops{display:inline-flex}
 #agenda .ag .ops button{width:18px;height:18px;padding:0;font-size:10px;border-radius:4px;background:#fff;border:1px solid #a8c9a3;color:var(--indigo)}
 #agenda .add{display:flex;gap:4px;margin-top:4px}
-#agenda .add input{flex:1;min-width:0;font-size:12px;padding:3px 7px;border:1px solid #a8c9a3;border-radius:6px;background:#fff;color:#111}
+#agenda .add input{flex:1;min-width:0;font-size:12px;padding:3px 7px;border:1px solid #d6c9a8;border-radius:6px;background:#fff;color:#111}
 #agenda .add button{padding:0 8px;background:#fff;border:1px solid #a8c9a3;color:var(--indigo)}
-#agenda .memo{background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px 8px;margin:3px 0;color:#111;white-space:pre-wrap;position:relative}
-#agenda .memo .src{font-size:10px;color:var(--indigo2);margin-left:4px;cursor:pointer}
-#agenda .memo .del{position:absolute;right:4px;top:3px;display:none;width:18px;height:18px;padding:0;font-size:10px;border-radius:4px;background:#fff;border:1px solid #a8c9a3;color:var(--indigo)}
-#agenda .memo:hover .del{display:inline-flex}
 #agenda .empty{color:var(--indigo2);font-size:11.5px;padding:2px 4px}
 #agendaBtn.on{border-color:var(--glow);color:#fff}
-#selPop button.memo{border-color:#5a7d2a;color:#3f6b1a;background:#f3f8e8}
 @media (max-width:1100px){#agenda{width:250px}}
 /* ===== テンプレート選択 ===== */
 #tplDlg{width:min(760px,94vw)}
@@ -623,7 +625,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   </div>
   </div>
 </main>
-<div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selExplain">説明してもらう</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button><button class="small side" id="selSide" hidden>サイドチャットで質問</button><button class="small side" id="selEx1" hidden>簡単な説明</button><button class="small side" id="selEx2" hidden>一般的な説明</button><button class="small side" id="selEx3" hidden>詳細な説明</button><button class="small memo" id="selMemo">議事録に残す</button></div>
+<div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selExplain">説明してもらう</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button><button class="small side" id="selSide" hidden>サイドチャットで質問</button><button class="small side" id="selEx1" hidden>簡単な説明</button><button class="small side" id="selEx2" hidden>一般的な説明</button><button class="small side" id="selEx3" hidden>詳細な説明</button></div>
 <div id="notePop"></div>
 <div id="noteWin" hidden>
   <div class="nwGrip c" data-g="c" title="ドラッグで大きさを変更。ダブルクリックで元の大きさ"></div><div class="nwGrip l" data-g="l"></div><div class="nwGrip t" data-g="t"></div>
@@ -1784,12 +1786,11 @@ function applyAgendaFromSummary(cid,bid,j,lastNodeId){
   persist();if(c===conv)renderAgenda();
 }
 function agendaCards(){
-  const ag=conv.agenda;if(!ag||(!ag.items.length&&!ag.memo.length))return '';
+  const ag=conv.agenda;if(!ag||!ag.items.length)return '';
   const open=ag.items.filter(x=>x.status==='open'),done=ag.items.filter(x=>x.status==='done');
   let t='\n\n## アジェンダ（進捗表。利用者が常に見ている一覧。番号で指示されることがある）';
   t+='\n未解決項目:'+(open.length?'\n'+open.map(x=>`${x.n}. ${x.text}${x.src&&B(x.src.bid)?`（${B(x.src.bid).name}）`:''}`).join('\n'):' なし');
   if(done.length)t+='\n解決済み:\n'+done.slice(-12).map(x=>`- ${x.text}${x.doneSrc&&B(x.doneSrc.bid)?`（${B(x.doneSrc.bid).name} で解決）`:''}`).join('\n');
-  if(ag.memo.length)t+='\n議事録:\n'+ag.memo.slice(-15).map(m=>`- ${excerpt(m.text,120)}`).join('\n');
   return t;
 }
 function renderAgenda(){
@@ -1799,29 +1800,24 @@ function renderAgenda(){
   const src=(sr)=>sr&&B(sr.bid)?`<span class="src" style="--bc:${B(sr.bid).color}" data-go="${esc(sr.nodeId||'')}" data-gob="${esc(sr.bid)}">${esc(B(sr.bid).name)}</span>`:'';
   const row=x=>`<div class="ag${x.status==='done'?' done':''}" data-ag="${x.id}"><button class="ck" data-toggle="${x.id}" data-tip="${x.status==='done'?'未解決に戻す':'解決済みにする'}">${x.status==='done'?'✓':''}</button><span class="tx"><span class="n">${x.n}.</span> ${esc(x.text)}${src(x.status==='done'?(x.doneSrc||x.src):x.src)}</span><span class="ops"><button data-edit="${x.id}" data-tip="文言を直す">✎</button><button data-del="${x.id}" data-tip="消す">✕</button></span></div>`;
   const now=b?(b.summary?b.summary.topic:(branchNodes(b.id).length?'要約の更新を待っています':(b.instr?'この枝の役割: '+excerpt(b.instr,60):'まだ発言がありません'))):'';
-  box.innerHTML=`<h4 class="ui">進行中 <span class="cnt var">— ${esc(b?b.name:'')}</span></h4><div class="now">${esc(now)}</div>
-    <h4 class="ui">未解決項目 <span class="cnt">${open.length}</span></h4>${open.length?open.map(row).join(''):'<div class="empty">まだありません。AI の回答のあとに自動で加わります。手でも足せます。</div>'}
-    <div class="add"><input id="agNew" placeholder="項目を足す（Enter）"><button id="agAdd">＋</button></div>
-    <h4 class="ui">解決済み <span class="cnt">${done.length}</span></h4>${done.length?done.map(row).join(''):'<div class="empty">まだありません</div>'}
-    <h4 class="ui">議事録 <span class="cnt">${ag.memo.length}</span></h4>${ag.memo.length?ag.memo.map(m=>`<div class="memo" data-memo="${m.id}">${esc(m.text)}${src(m.src)}<button class="del" data-mdel="${m.id}" data-tip="消す">✕</button></div>`).join(''):'<div class="empty">回答の一部を選んで「議事録に残す」か、下の欄から書き足せます。</div>'}
-    <div class="add"><input id="agMemoNew" placeholder="議事録に書き足す（Enter）"><button id="agMemoAdd">＋</button></div>`;
+  box.innerHTML=`<section class="sec now-s"><h4 class="ui">進行中 <span class="cnt var">— ${esc(b?b.name:'')}</span></h4><div class="now">${esc(now)}</div></section>
+    <section class="sec open-s"><h4 class="ui">未解決項目 <span class="cnt">${open.length}</span></h4>${open.length?open.map(row).join(''):'<div class="empty">まだありません。AI の回答のあとに自動で加わります。手でも足せます。</div>'}
+    <div class="add"><input id="agNew" placeholder="項目を足す（Enter）"><button id="agAdd">＋</button></div></section>
+    <section class="sec done-s"><h4 class="ui">解決済み <span class="cnt">${done.length}</span></h4>${done.length?done.map(row).join(''):'<div class="empty">まだありません</div>'}</section>
+`;
   box.querySelectorAll('[data-toggle]').forEach(el=>el.onclick=()=>{const it=ag.items.find(x=>x.id===el.dataset.toggle);if(!it)return;if(it.status==='done'){it.status='open';delete it.doneTs;delete it.doneSrc;}else{it.status='done';it.doneTs=Date.now();it.doneSrc={bid:cur,nodeId:conv.activeNodeId};}persist();renderAgenda();});
   box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{ag.items=ag.items.filter(x=>x.id!==el.dataset.del);persist();renderAgenda();});
   box.querySelectorAll('[data-edit]').forEach(el=>el.onclick=async()=>{const it=ag.items.find(x=>x.id===el.dataset.edit);if(!it)return;const v=await askPrompt('項目の文言',it.text);if(v&&v.trim()){it.text=v.trim().slice(0,80);it.by='user';persist();renderAgenda();}});
-  box.querySelectorAll('[data-mdel]').forEach(el=>el.onclick=()=>{ag.memo=ag.memo.filter(x=>x.id!==el.dataset.mdel);persist();renderAgenda();});
   box.querySelectorAll('.src').forEach(el=>el.onclick=()=>{if(busy)return;if(el.dataset.go&&N(el.dataset.go))gotoNode(el.dataset.go);else if(B(el.dataset.gob))gotoBranch(el.dataset.gob);});
   const add=(inp,fn)=>{const i=box.querySelector(inp);const go=()=>{const v=i.value.trim();if(!v)return;fn(v);i.value='';persist();renderAgenda();box.querySelector(inp).focus();};i.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();go();}});return go;};
   $('#agAdd').onclick=add('#agNew',v=>{if(!addAgendaItem(v,'user',{bid:cur,nodeId:conv.activeNodeId}))toast('同じ項目がすでにあります');});
-  $('#agMemoAdd').onclick=add('#agMemoNew',v=>ag.memo.push({id:uid(),text:v.slice(0,500),src:{bid:cur,nodeId:conv.activeNodeId},ts:Date.now()}));
 }
-function addMemo(text,src){const ag=agendaOf();ag.memo.push({id:uid(),text:String(text).replace(/\s+/g,' ').trim().slice(0,500),src,ts:Date.now()});persist();renderAgenda();toast('議事録に残しました');}
-$('#selMemo').onclick=()=>{const nid=sel.nodeId,text=sel.text;hideSelPop();window.getSelection().removeAllRanges();addMemo(text,{bid:N(nid).branchId,nodeId:nid});};
 function setAgenda(on){document.body.classList.toggle('agendaOff',!on);settings.agendaOff=!on;saveSettings();renderAgenda();}
 $('#agendaBtn').onclick=()=>setAgenda(document.body.classList.contains('agendaOff'));
 $('#agHide').onclick=()=>setAgenda(false);
 document.body.classList.toggle('agendaOff',!!settings.agendaOff);
 $('#agExport').onclick=()=>{const ag=agendaOf();const open=ag.items.filter(x=>x.status==='open'),done=ag.items.filter(x=>x.status==='done');
-  const md=`# ${conv.title} — 進捗表\n\n## 未解決項目\n${open.length?open.map(x=>`- [ ] ${x.text}`).join('\n'):'- なし'}\n\n## 解決済み\n${done.length?done.map(x=>`- [x] ${x.text}${x.doneSrc&&B(x.doneSrc.bid)?`（${B(x.doneSrc.bid).name}）`:''}`).join('\n'):'- なし'}\n\n## 議事録\n${ag.memo.length?ag.memo.map(m=>`- ${m.text}`).join('\n'):'- なし'}\n`;copyText(md);};
+  const md=`# ${conv.title} — 進捗表\n\n## 未解決項目\n${open.length?open.map(x=>`- [ ] ${x.text}`).join('\n'):'- なし'}\n\n## 解決済み\n${done.length?done.map(x=>`- [x] ${x.text}${x.doneSrc&&B(x.doneSrc.bid)?`（${B(x.doneSrc.bid).name}）`:''}`).join('\n'):'- なし'}\n`;copyText(md);};
 
 /* ========== テンプレート（学生・研究者向け） ========== */
 /* 本線＝全体の設計と仕上げ、分岐＝部品の作り込み。どの枝からでも始められる。迷ったら本線で方針を決めてから */
@@ -1931,7 +1927,7 @@ $('#ctxClose').onclick=()=>$('#ctxDlg').close();
 /* ========== 選択テキストから質問 ========== */
 let sel={nodeId:null,text:''};
 const selPop=$('#selPop');
-const SEL_STEP={top:['selAsk','selExplain','selMemo'],ask:['selHere','selFork','selSide'],explain:['selEx1','selEx2','selEx3']};
+const SEL_STEP={top:['selAsk','selExplain'],ask:['selHere','selFork','selSide'],explain:['selEx1','selEx2','selEx3']};
 function selStep(k){for(const ids of Object.values(SEL_STEP))for(const id of ids)$('#'+id).hidden=!SEL_STEP[k].includes(id);}
 function hideSelPop(){selPop.classList.remove('on');selStep('top');}
 function quoteFor(text){return '> '+text.replace(/\s+/g,' ').trim().slice(0,500)+'\n\n';}
