@@ -481,54 +481,58 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 .tpl .br{font-size:10.5px;color:var(--glow);margin-top:auto}
 .tpl.blank{border-style:dashed}
 /* ===== Figure 作成 ===== */
-#figDlg{width:min(1240px,96vw);max-width:none;max-height:94vh;padding:14px 16px}
-#figDlg .figHead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-#figDlg .figBody{display:grid;grid-template-columns:minmax(280px,340px) 1fr minmax(220px,260px);gap:14px;max-height:calc(94vh - 130px)}
-#figDlg .figLeft{overflow-y:auto;display:flex;flex-direction:column;gap:6px;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px}
-#figDlg label{font-size:11.5px;color:var(--muted);margin:0}
-#figDlg textarea#figData{min-height:150px;max-height:260px;resize:vertical;font:12px/1.4 Menlo,monospace;background:rgba(10,28,16,.7);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px;white-space:pre}
-#figDlg .figRow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-#figDlg .figRow select,#figDlg .figRow input[type=text]{font-size:12px;padding:3px 6px;max-width:200px}
-#figDlg .figStats{margin-top:6px;font-size:11.5px}
-#figDlg .figStats table{border-collapse:collapse;margin:4px 0;width:100%}
-#figDlg .figStats th,#figDlg .figStats td{border:1px solid var(--line);padding:2px 6px;text-align:left;font-weight:400}
-#figDlg .figRight{display:flex;flex-direction:column;gap:8px;min-width:0}
-#figDlg .figPreview{flex:1;min-height:320px;background:#fff;border-radius:10px;padding:16px;overflow:auto;display:flex;align-items:center;justify-content:center;color:#333}
-#figDlg .figPreview svg{max-width:100%;height:auto}
-#figDlg .figActs{display:flex;gap:6px;flex-wrap:wrap}
+#figDlg,#figImgDlg{width:min(1240px,96vw);max-width:none;max-height:94vh;padding:14px 16px}
+#figDlg .figHead,#figImgDlg .figHead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+#figDlg .figBody,#figImgDlg .figBody{display:grid;grid-template-columns:minmax(280px,340px) 1fr minmax(220px,260px);gap:14px;max-height:calc(94vh - 130px)}
+#figDlg .figLeft,#figImgDlg .figLeft{overflow-y:auto;display:flex;flex-direction:column;gap:6px;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px}
+#figDlg label,#figImgDlg label{font-size:11.5px;color:var(--muted);margin:0}
+#figDlg textarea#figData,#figImgDlg textarea#figData{min-height:150px;max-height:260px;resize:vertical;font:12px/1.4 Menlo,monospace;background:rgba(10,28,16,.7);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px;white-space:pre}
+#figDlg .figRow,#figImgDlg .figRow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#figDlg .figRow select,#figImgDlg .figRow select,#figDlg .figRow input[type=text],#figImgDlg .figRow input[type=text]{font-size:12px;padding:3px 6px;max-width:200px}
+#figDlg .figStats,#figImgDlg .figStats{margin-top:6px;font-size:11.5px}
+#figDlg .figStats table,#figImgDlg .figStats table{border-collapse:collapse;margin:4px 0;width:100%}
+#figDlg .figStats th,#figImgDlg .figStats th,#figDlg .figStats td,#figImgDlg .figStats td{border:1px solid var(--line);padding:2px 6px;text-align:left;font-weight:400}
+#figDlg .figRight,#figImgDlg .figRight{display:flex;flex-direction:column;gap:8px;min-width:0}
+#figDlg .figPreview,#figImgDlg .figPreview{flex:1;min-height:320px;background:#fff;border-radius:10px;padding:16px;overflow:auto;display:flex;align-items:center;justify-content:center;color:#333}
+#figDlg .figPreview > svg,#figImgDlg .figPreview > svg{max-width:100%;height:auto}
+#figDlg .figActs,#figImgDlg .figActs{display:flex;gap:6px;flex-wrap:wrap}
 .tblwrap{position:relative}
 .tblwrap .figfrom{position:absolute;right:4px;top:4px;opacity:.5;font-size:11px}
 .tblwrap:hover .figfrom{opacity:1}
 .tblwrap [data-tip]::after{left:auto;right:0}
-@media (max-width:1000px){#figDlg .figBody{grid-template-columns:1fr}}
-#figDlg .figTools{display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:6px 0 8px;border-bottom:1px solid var(--line);margin-bottom:8px}
-#figDlg .figTools .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
-#figDlg .figTools button{font-size:12px}
-#figDlg .figTools button:disabled{opacity:.4}
-#figDlg .ftm{position:relative}
-#figDlg .ftm .ftp{display:none;position:absolute;left:0;top:calc(100% + 4px);z-index:50;min-width:260px;max-height:60vh;overflow:auto;background:var(--panel2);border:1px solid var(--glow);border-radius:10px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px}
-#figDlg .ftm.open .ftp{display:block}
-#figDlg .ftp .irow{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
-#figDlg .ftp .irow label{font-size:11px;color:var(--muted)}
-#figDlg .ftp .irow.chk{flex-direction:row;align-items:center;gap:6px;color:var(--ink)}
-#figDlg .ftp .srow{display:flex;gap:4px;align-items:center}
-#figDlg .ftp input,#figDlg .ftp select{font-size:12px;padding:3px 6px;max-width:100%}
-#figDlg .ftp input[type=color]{width:44px;height:26px;padding:0 2px}
-#figDlg .figInspect{overflow-y:auto;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px;border-left:1px solid var(--line);padding-left:12px}
-#figDlg .figInspect h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-#figDlg .figInspect .irow{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
-#figDlg .figInspect .irow label{font-size:11px;color:var(--muted)}
-#figDlg .figInspect input,#figDlg .figInspect select{font-size:12px;padding:3px 6px;max-width:100%}
-#figDlg .figInspect input[type=color]{width:60px;height:28px;padding:0 2px}
-#figDlg .figPreview [data-sel]{cursor:pointer}
-#figDlg .figPreview [data-sel]:hover{opacity:.75}
-#figDlg .figPreview [data-sel].sel{filter:drop-shadow(0 0 2px #1f6feb) drop-shadow(0 0 1px #1f6feb)}
+@media (max-width:1000px){#figDlg .figBody,#figImgDlg .figBody{grid-template-columns:1fr}}
+#figDlg .figTools,#figImgDlg .figTools{display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:6px 0 8px;border-bottom:1px solid var(--line);margin-bottom:8px}
+#figDlg .figTools .sep,#figImgDlg .figTools .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+#figDlg .figTools button,#figImgDlg .figTools button{font-size:12px}
+#figDlg .figTools button:disabled,#figImgDlg .figTools button:disabled{opacity:.4}
+#figDlg .ftm,#figImgDlg .ftm{position:relative}
+#figDlg .ftm .ftp,#figImgDlg .ftm .ftp{display:none;position:absolute;left:0;top:calc(100% + 4px);z-index:50;min-width:260px;max-height:60vh;overflow:auto;background:var(--panel2);border:1px solid var(--glow);border-radius:10px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px}
+#figDlg .ftm.open .ftp,#figImgDlg .ftm.open .ftp{display:block}
+#figDlg .ftp .irow,#figImgDlg .ftp .irow{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+#figDlg .ftp .irow label,#figImgDlg .ftp .irow label{font-size:11px;color:var(--muted)}
+#figDlg .ftp .irow.chk,#figImgDlg .ftp .irow.chk{flex-direction:row;align-items:center;gap:6px;color:var(--ink)}
+#figDlg .ftp .srow,#figImgDlg .ftp .srow{display:flex;gap:4px;align-items:center}
+#figDlg .ftp input,#figImgDlg .ftp input,#figDlg .ftp select,#figImgDlg .ftp select{font-size:12px;padding:3px 6px;max-width:100%}
+#figDlg .ftp input[type=color],#figImgDlg .ftp input[type=color]{width:44px;height:26px;padding:0 2px}
+#figDlg .figInspect,#figImgDlg .figInspect{overflow-y:auto;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px;border-left:1px solid var(--line);padding-left:12px}
+#figDlg .figInspect h4,#figImgDlg .figInspect h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#figDlg .figInspect .irow,#figImgDlg .figInspect .irow{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+#figDlg .figInspect .irow label,#figImgDlg .figInspect .irow label{font-size:11px;color:var(--muted)}
+#figDlg .figInspect input,#figImgDlg .figInspect input,#figDlg .figInspect select,#figImgDlg .figInspect select{font-size:12px;padding:3px 6px;max-width:100%}
+#figDlg .figInspect input[type=color],#figImgDlg .figInspect input[type=color]{width:60px;height:28px;padding:0 2px}
+#figDlg .figPreview [data-sel],#figImgDlg .figPreview [data-sel]{cursor:pointer}
+#figDlg .figPreview [data-sel]:hover,#figImgDlg .figPreview [data-sel]:hover{opacity:.75}
+#figDlg .figPreview [data-sel].sel,#figImgDlg .figPreview [data-sel].sel{filter:drop-shadow(0 0 2px #1f6feb) drop-shadow(0 0 1px #1f6feb)}
 /* チャット内の図 */
 .figblock{position:relative;display:inline-block;max-width:100%;margin:6px 0;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px}
-.figblock svg{max-width:100%;height:auto;display:block}
+.figblock > svg{max-width:100%;height:auto;display:block}
 .figblock.waiting{display:flex;align-items:center;gap:8px;padding:10px 14px;color:var(--indigo2);font-size:12px}
 .figblock .figbtns{display:flex;gap:4px;margin-top:4px}
-.figblock .figbtns{flex-wrap:wrap;align-items:center}.figblock .figbtns select{font-size:11px;height:22px;padding:0 4px;border:1px solid #a8c9a3;border-radius:6px;background:#fff}.figblock .figbtns .ui{font-size:11px;color:var(--muted)}.figblock .figbtns .hint{font-size:10px}.figblock .figbtns button.on{background:var(--indigo);color:#fff}.figblock .figbtns input.small{font-size:11px;height:22px;border:1px solid #a8c9a3;border-radius:6px;padding:0 4px}.figblock.image [data-cellbox]{cursor:crosshair}.figblock.schematic [data-node],.figblock.image [data-annot]{cursor:move}
+.figblock .figbtns{flex-wrap:wrap;align-items:center}.figblock .figbtns select{font-size:11px;height:22px;padding:0 4px;border:1px solid #a8c9a3;border-radius:6px;background:#fff}.figblock .figbtns .ui{font-size:11px;color:var(--muted)}.figblock .figbtns .hint{font-size:10px}.figblock .figbtns button.on{background:var(--indigo);color:#fff}.figblock .figbtns input.small{font-size:11px;height:22px;border:1px solid #a8c9a3;border-radius:6px;padding:0 4px}.figblock.image [data-cellbox]{cursor:crosshair}
+#figImgDlg .figBody{grid-template-columns:minmax(300px,390px) 1fr}#figImgDlg .figRow select,#figImgDlg .figRow input[type=text],#figImgDlg .figRow input[type=number]{width:auto;max-width:170px;font-size:12px;padding:3px 6px}#figImgDlg .imgItem select,#figImgDlg .imgItem input{width:auto}#figImgDlg .figPreview{align-items:flex-start}#figImgDlg .figPreview > svg{width:100%}
+#figImgDlg .imgList{display:flex;flex-direction:column;gap:6px}#figImgDlg .imgItem{display:grid;grid-template-columns:44px 1fr;gap:6px;border:1px solid var(--line);border-radius:8px;padding:5px;background:rgba(10,28,16,.35)}#figImgDlg .imgItem img,#figImgDlg .imgItem .thumb{width:44px;height:44px;object-fit:cover;border-radius:4px;background:#000}#figImgDlg .imgItem .thumb{display:flex;align-items:center;justify-content:center;font-size:10px;color:#9ab}
+#figImgDlg .imgItem .rows{display:flex;flex-direction:column;gap:3px;min-width:0}#figImgDlg .imgItem .r{display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:11px}#figImgDlg .imgItem input[type=text],#figImgDlg .imgItem input[type=number]{font-size:11px;padding:2px 4px}#figImgDlg .imgItem select{font-size:11px;padding:2px 3px}#figImgDlg .imgItem .ib{font-size:10px;padding:0 5px;height:18px}
+#figImgDlg .figPreview [data-cellbox]{cursor:crosshair}#figImgDlg .figPreview [data-annot]{cursor:move}#figImgDlg .figTools button.on{background:var(--indigo);color:#fff}#figImgDlg textarea.small{font:11px Menlo,monospace;min-height:48px;width:100%;background:rgba(10,28,16,.7);color:var(--ink);border:1px solid var(--line);border-radius:6px}.figblock.schematic [data-node],.figblock.image [data-annot]{cursor:move}
 .figblock .figbtns button{font-size:11px;padding:0 8px;height:22px;background:#fff;color:var(--indigo);border:1px solid #a8c9a3}
 .figblock pre{font-size:10px;max-height:120px;overflow:auto}
 /* ===== 整理ダイアログ ===== */
@@ -773,6 +777,38 @@ table.md tr:nth-child(even) td{background:#f8fafd}
     </ul>
   </div>
   <div class="btns"><button id="bkClose">閉じる</button></div>
+</dialog>
+<dialog id="figImgDlg">
+  <div class="figHead"><h2 style="margin:0">🔬 画像パネル作成</h2><span class="hint" id="figImgHint" style="margin-left:8px"></span><span class="spacer"></span><button id="figImgClose">閉じる</button></div>
+  <div class="figTools" id="figImgTools"></div>
+  <div class="figBody">
+    <div class="figLeft">
+      <div class="figRow"><button id="figImgAdd" class="small">＋ 画像を追加（PNG/JPEG/TIFF）</button><input type="file" id="figImgAddFile" accept="image/*,.tif,.tiff" multiple hidden></div>
+      <div class="figRow"><label>型</label><select id="figImgType"><option value="grid">グリッド（顕微鏡・IHC・写真）</option><option value="blot">ブロット（ゲル・ウェスタン）</option></select></div>
+      <div class="figRow"><label>題名</label><input id="figImgTitle" type="text" placeholder="任意"></div>
+      <div id="figImgGridOpts">
+        <div class="figRow"><label>列数</label><select id="figImgCols"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select><label>セル幅</label><select id="figImgCell"><option value="0.8">0.8 in</option><option value="1">1.0 in</option><option value="1.2" selected>1.2 in</option><option value="1.5">1.5 in</option><option value="2">2.0 in</option></select></div>
+        <div class="figRow"><label>行見出し</label><input id="figImgRows" type="text" placeholder="Control, Zolmin（カンマ区切り）" style="max-width:none;flex:1"></div>
+        <div class="figRow"><label>列見出し</label><input id="figImgColsLab" type="text" placeholder="DAPI, GFP, Merge" style="max-width:none;flex:1"></div>
+        <div class="figRow"><label>列見出しの色</label><input id="figImgColColors" type="text" placeholder="#4040FF, #00C000, （空＝黒）" style="max-width:none;flex:1"></div>
+        <div class="figRow"><label>スケールバー</label><input id="figImgUm" type="number" step="any" min="0" placeholder="µm/px" style="width:70px"><input id="figImgLen" type="number" step="any" min="0" placeholder="長さ" style="width:56px"><select id="figImgUnit"><option>µm</option><option>nm</option><option>mm</option></select><select id="figImgLabelOn"><option value="first">表示: 1 枚目</option><option value="all">表示: 全部</option><option value="none">表示: なし</option></select><select id="figImgSbColor"><option value="white">白</option><option value="black">黒</option></select><select id="figImgSbPos"><option value="br">右下</option><option value="bl">左下</option><option value="tr">右上</option><option value="tl">左上</option></select></div>
+      </div>
+      <div id="figImgBlotOpts" style="display:none">
+        <div class="figRow"><label>幅</label><select id="figImgWidth"><option value="2">2.0 in</option><option value="2.5" selected>2.5 in</option><option value="3">3.0 in</option><option value="4">4.0 in</option></select><label>レーン名</label><select id="figImgLaneRot"><option value="0">横</option><option value="1">45°</option></select></div>
+        <div class="figRow"><label>レーン</label><input id="figImgLanes" type="text" placeholder="1, 2, 3, 4" style="max-width:none;flex:1"></div>
+        <div class="figRow" style="align-items:flex-start"><label>条件行</label><textarea id="figImgConds" class="small" placeholder="Zolmin: −, +, −, +&#10;濃度: wedge"></textarea></div>
+        <div class="figRow"><label>群見出し</label><input id="figImgGroups" type="text" placeholder="Raji: 1-2, BC-1: 3-4" style="max-width:none;flex:1"></div>
+      </div>
+      <label>画像（上から順に並びます。チェックした画像は「合成セル」にまとめられます）</label>
+      <div class="imgList" id="figImgList"></div>
+      <div class="figRow"><button id="figImgMerge" class="small">チェックした画像で合成セルを足す</button></div>
+      <div id="figImgStats" class="figStats"></div>
+    </div>
+    <div class="figRight">
+      <div id="figImgPreview" class="figPreview"></div>
+      <div class="figActs"><button class="primary" id="figImgAttach">チャットに添付して質問する</button><button id="figImgUpdate" style="display:none">回答の図を更新</button><button id="figImgCopy">画像をコピー</button><button id="figImgPng">PNG（300 dpi）</button><button id="figImgSvg">SVG</button><button id="figImgJson">{} JSON</button></div>
+    </div>
+  </div>
 </dialog>
 <dialog id="figDlg">
   <div class="figHead"><h2 style="margin:0">📊 Figure 作成</h2><span class="spacer"></span><button id="figClose">閉じる</button></div>
@@ -2124,16 +2160,16 @@ document.querySelectorAll('#noteWin .nwGrip').forEach(g=>{let st=null;
   g.addEventListener('dblclick',()=>{delete settings.noteW;delete settings.noteH;saveSettings();applyNoteSize();});
 });
 $('#figBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');figOpen({});};
-$('#figImgBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');$('#figImgFile').click();};$('#figImgFile').onchange=async()=>{await figImportImages($('#figImgFile').files);$('#figImgFile').value='';};
+$('#figImgBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');$('#figImgFile').click();};$('#figImgFile').onchange=async()=>{await figImgOpenWithFiles($('#figImgFile').files);$('#figImgFile').value='';};
 $('#nwClose').onclick=()=>{noteCur=null;$('#noteWin').hidden=true;if(dropEmptyNotes()){persist();markNotes();}};
 $('#nwDel').onclick=async()=>{const n=noteCur&&notesOf()[noteCur];if(!n)return;if(noteBusy){toast('生成中は消せません');return;}if(!(await askConfirm(`「${excerpt(n.text,20)}」についてのこのチャット（${n.items.filter(i=>i.role==='user').length}件の質問）を消しますか？\n同じ言葉のほかのチャットは残ります。`,'消す')))return;delete notesOf()[n.id];noteCur=null;$('#noteWin').hidden=true;persist();renderAll();};
 // 表示中の回答の本文から、その言葉を探して黄色のマーカーを付ける。見つからないとき（装飾をまたいだ選択など）は末尾に小さな札を出す
 function figHydrate(){document.querySelectorAll('#msgs .msg').forEach(m=>{const id=m.id.replace(/^n-/,'');const bs=m.querySelectorAll('.figblock[data-figidx]');bs.forEach(b=>{b.dataset.fignode=id;});
   if(bs.length>=2&&![...bs].some(b=>b.classList.contains('layout'))){const bar=bs[bs.length-1].querySelector('.figbtns');if(bar&&!bar.querySelector('[data-figcombine]')){const bt=document.createElement('button');bt.className='small';bt.dataset.figcombine='1';bt.dataset.tip='この発言の図を 1 枚の Figure（A, B, C…）にまとめる';bt.textContent='⊞ 1 枚にまとめる';bar.appendChild(bt);}}});}
 // 図のドラッグ: 模式図のノード（data-node）と画像パネルの注釈（data-annot）を動かし、離したら回答に書き戻す
-(()=>{let d=null;$('#msgs').addEventListener('pointerdown',e=>{if(e.button!==0)return;const el=e.target.closest&&(e.target.closest('.figblock.schematic [data-node]')||e.target.closest('.figblock.image [data-annot]'));if(!el)return;if(typeof figImgTool!=='undefined'&&figImgTool)return;const svg=el.closest('svg');const fb=el.closest('.figblock');if(!svg||!fb)return;const vb=svg.viewBox.baseVal;const rect=svg.getBoundingClientRect();const sc=vb&&vb.width?vb.width/rect.width:1;d={el,fb,svg,sc,x0:e.clientX,y0:e.clientY,moved:false,kind:el.hasAttribute('data-node')?'node':'annot',id:el.getAttribute('data-node')||el.getAttribute('data-annot'),base:el.getAttribute('transform')||''};try{el.setPointerCapture&&el.setPointerCapture(e.pointerId);}catch(err){}e.preventDefault();});
+(()=>{let d=null;document.addEventListener('pointerdown',e=>{if(e.button!==0)return;const el=e.target.closest&&(e.target.closest('.figblock.schematic [data-node]')||e.target.closest('.figblock.image [data-annot]')||e.target.closest('#figImgPreview [data-annot]'));if(!el)return;if(typeof figImgTool!=='undefined'&&figImgTool)return;const svg=el.closest('svg');const fb=el.closest('.figblock')||el.closest('#figImgPreview');if(!svg||!fb)return;const vb=svg.viewBox.baseVal;const rect=svg.getBoundingClientRect();const sc=vb&&vb.width?vb.width/rect.width:1;d={el,fb,svg,sc,x0:e.clientX,y0:e.clientY,moved:false,kind:el.hasAttribute('data-node')?'node':'annot',id:el.getAttribute('data-node')||el.getAttribute('data-annot'),base:el.getAttribute('transform')||''};try{el.setPointerCapture&&el.setPointerCapture(e.pointerId);}catch(err){}e.preventDefault();});
   document.addEventListener('pointermove',e=>{if(!d)return;const dx=(e.clientX-d.x0)*d.sc,dy=(e.clientY-d.y0)*d.sc;if(Math.hypot(dx,dy)>2)d.moved=true;d.el.setAttribute('transform',`translate(${dx} ${dy}) ${d.base}`.trim());});
-  document.addEventListener('pointerup',e=>{if(!d)return;const dx=(e.clientX-d.x0)*d.sc,dy=(e.clientY-d.y0)*d.sc;const cur=d;d=null;if(!cur.moved){cur.el.setAttribute('transform',cur.base);return;}if(cur.kind==='node')figSchDragEnd(cur.fb,cur.id,dx,dy);else figImgDragEnd(cur.fb,+cur.id,dx,dy);});})();
+  document.addEventListener('pointerup',e=>{if(!d)return;const dx=(e.clientX-d.x0)*d.sc,dy=(e.clientY-d.y0)*d.sc;const cur=d;d=null;if(!cur.moved){cur.el.setAttribute('transform',cur.base);return;}if(cur.kind==='node')figSchDragEnd(cur.fb,cur.id,dx,dy);else if(cur.fb.id==='figImgPreview')figImgDlgDragEnd(+cur.id,dx,dy);else figImgDragEnd(cur.fb,+cur.id,dx,dy);});})();
 $('#msgs').addEventListener('change',e=>{const el=e.target.closest&&e.target.closest('[data-figlay]');const fb=el&&el.closest('.figblock');if(el&&fb)figLayoutSet(fb,el.dataset.figlay,el.type==='checkbox'?el.checked:el.value);const ei=e.target.closest&&e.target.closest('[data-figimg]');const fbi=ei&&ei.closest('.figblock');if(ei&&fbi)figImageSet(fbi,ei.dataset.figimg,ei.value);});
 function markNotes(){
   const m=$('#msgs');m.querySelectorAll('mark.note').forEach(k=>{k.replaceWith(document.createTextNode(k.textContent));});m.querySelectorAll('.noteChip').forEach(k=>k.remove());

@@ -438,6 +438,7 @@ function figBlockHTML(json,nodeId,index){
 }
 function figOpenFromBlock(el,panel){const nid=el.dataset.fignode,idx=+el.dataset.figidx;const n=N(nid);if(!n)return;const b=figFindBlocks(n.content)[idx];if(!b)return;let j;try{j=JSON.parse(b.json);}catch(e){toast('図の指定を読めませんでした');return;}
   const src={nodeId:nid,index:idx};if(typeof figIsLayout==='function'&&figIsLayout(j)){const k=panel==null?0:+panel;j=(j.panels||[])[k];if(!j){toast('パネルが見つかりません');return;}src.panel=k;} // レイアウトの中の 1 パネルを編集
+  if(typeof figIsImage==='function'&&figIsImage(j)&&typeof figImgOpen==='function'){figImgOpen(j,src);return;} // 画像パネルは専用の画面
   const st=figStateFromSpec(j);st.src=src;figOpen(st);}
 async function figBlockAction(el,act){const svgEl=el.querySelector('svg');if(!svgEl)return;const svg=svgEl.outerHTML;const w=+svgEl.getAttribute('width'),h=+svgEl.getAttribute('height');
   if(act==='svg'){saveTextFile(`figure_${Date.now()}.svg`,svg);return;}
