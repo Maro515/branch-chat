@@ -483,7 +483,7 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 /* ===== Figure 作成 ===== */
 #figDlg{width:min(1240px,96vw);max-width:none;max-height:94vh;padding:14px 16px}
 #figDlg .figHead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-#figDlg .figBody{display:grid;grid-template-columns:minmax(280px,340px) 1fr minmax(220px,260px);gap:14px;max-height:calc(94vh - 80px)}
+#figDlg .figBody{display:grid;grid-template-columns:minmax(280px,340px) 1fr minmax(220px,260px);gap:14px;max-height:calc(94vh - 130px)}
 #figDlg .figLeft{overflow-y:auto;display:flex;flex-direction:column;gap:6px;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px}
 #figDlg label{font-size:11.5px;color:var(--muted);margin:0}
 #figDlg textarea#figData{min-height:150px;max-height:260px;resize:vertical;font:12px/1.4 Menlo,monospace;background:rgba(10,28,16,.7);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px;white-space:pre}
@@ -501,6 +501,19 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 .tblwrap:hover .figfrom{opacity:1}
 .tblwrap [data-tip]::after{left:auto;right:0}
 @media (max-width:1000px){#figDlg .figBody{grid-template-columns:1fr}}
+#figDlg .figTools{display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:6px 0 8px;border-bottom:1px solid var(--line);margin-bottom:8px}
+#figDlg .figTools .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+#figDlg .figTools button{font-size:12px}
+#figDlg .figTools button:disabled{opacity:.4}
+#figDlg .ftm{position:relative}
+#figDlg .ftm .ftp{display:none;position:absolute;left:0;top:calc(100% + 4px);z-index:50;min-width:260px;max-height:60vh;overflow:auto;background:var(--panel2);border:1px solid var(--glow);border-radius:10px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px}
+#figDlg .ftm.open .ftp{display:block}
+#figDlg .ftp .irow{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+#figDlg .ftp .irow label{font-size:11px;color:var(--muted)}
+#figDlg .ftp .irow.chk{flex-direction:row;align-items:center;gap:6px;color:var(--ink)}
+#figDlg .ftp .srow{display:flex;gap:4px;align-items:center}
+#figDlg .ftp input,#figDlg .ftp select{font-size:12px;padding:3px 6px;max-width:100%}
+#figDlg .ftp input[type=color]{width:44px;height:26px;padding:0 2px}
 #figDlg .figInspect{overflow-y:auto;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px;border-left:1px solid var(--line);padding-left:12px}
 #figDlg .figInspect h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 #figDlg .figInspect .irow{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
@@ -762,6 +775,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 </dialog>
 <dialog id="figDlg">
   <div class="figHead"><h2 style="margin:0">📊 Figure 作成</h2><span class="spacer"></span><button id="figClose">閉じる</button></div>
+  <div id="figToolbar"></div>
   <div class="figBody">
     <div class="figLeft">
       <label>データ（タブ・カンマ区切り、または Markdown の表を貼り付け）</label>

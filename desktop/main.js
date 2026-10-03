@@ -290,6 +290,12 @@ async function runSmoke(win) {
         r.fig.seriesChanged=figState.svg.includes('#008000')&&figState.svg.includes('<rect')&&figState.opts.series[1].symbol==='square';
         document.querySelector('#figUpdate').click();await new Promise(x=>setTimeout(x,300));const n=N(conv.activeNodeId);r.fig.writtenBack=n.content.includes('"symbol":"square"')&&n.content.includes('#008000');r.fig.rerendered=!!document.getElementById('n-'+n.id).querySelector('.figblock rect');
         fb&&0;figOpenFromBlock(document.getElementById('n-'+n.id).querySelector('.figblock'));await new Promise(x=>setTimeout(x,300));
+        // ツールメニュー: grouped（棒に点・群内比較・凡例下・枠・回転）と undo
+        figOpen({text:['Cond'+TB+'A'+TB+'A'+TB+'A'+TB+'B'+TB+'B'+TB+'B'+TB+'C'+TB+'C'+TB+'C','Condition 1'+TB+'38'+TB+'40'+TB+'36'+TB+'95'+TB+'92'+TB+'97'+TB+'80'+TB+'70'+TB+'90','Condition 2'+TB+'25'+TB+'27'+TB+'22'+TB+'30'+TB+'32'+TB+'28'+TB+'45'+TB+'40'+TB+'50'].join(NL2),kind:'grouped',type:'grouped-bar',cmp:'all',opts:{errType:'SD',yTitle:'Response',barDots:true,legendPos:'bottom',barEdge:'black',frame:'L',xRot:0}});await new Promise(x=>setTimeout(x,300));
+        const tb=document.querySelector('#figToolbar');r.fig.tools=[...tb.querySelectorAll('.ftm > button')].map(b=>b.textContent.trim());
+        tb.querySelector('[data-ftm="axes"] > button').click();await new Promise(x=>setTimeout(x,100));const fr=document.querySelector('#ftp-axes [data-tk="frame"]');r.fig.axesPanelItems=document.querySelectorAll('#ftp-axes [data-tk]').length;fr.value='box';fr.dispatchEvent(new Event('change'));await new Promise(x=>setTimeout(x,500));
+        r.fig.grouped={brackets:(figState.svg.match(/<polyline/g)||[]).length,dots:(figState.svg.match(/<circle/g)||[]).length,legendBottom:figState.svg.includes('Group')||/Cond/.test(figState.svg),box:(figState.svg.match(/<rect /g)||[]).length,pairs:figState.spec.compare.pairs.length};
+        const before=figState.opts.frame;figDoUndo();await new Promise(x=>setTimeout(x,100));r.fig.undo={before,after:figState.opts.frame};
       }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
