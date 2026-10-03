@@ -275,17 +275,21 @@ async function runSmoke(win) {
         const sys=buildContext(conv.activeNodeId).system;
         r.tpl={tabs,sendTo:B(sendTo).name,methodsMsgs:inM,roleInSys:sys0.includes('この枝の役割')&&sys0.includes('Methods だけ'),mainInSys:sys0.includes('テンプレート'),agendaOpen:ag.items.filter(x=>x.status==='open').map(x=>x.text),agendaDone:ag.items.filter(x=>x.status==='done').map(x=>x.text),agendaInSys:sys.includes('## アジェンダ')&&sys.includes('手で足した項目'),panelRows:document.querySelectorAll('#agenda .ag').length,panelVisible:getComputedStyle(document.querySelector('#agenda')).display!=='none',title:conv.title};
       }
-      if(${process.env.SMOKE_FIG === '1'}){ // Figure 作成
-        figOpen({});await new Promise(x=>setTimeout(x,300));
-        const TB=String.fromCharCode(9),NL2=String.fromCharCode(10);document.querySelector('#figData').value=['Control'+TB+'Low'+TB+'High','12.1'+TB+'15.4'+TB+'19.2','11.8'+TB+'16.0'+TB+'18.7','12.6'+TB+'14.9'+TB+'20.1','13.0'+TB+'15.8'+TB+'19.6','12.3'+TB+'16.3'+TB+'18.9'].join(NL2);document.querySelector('#figData').dispatchEvent(new Event('input'));
-        document.querySelector('#figCmp').value='all';document.querySelector('#figCmp').dispatchEvent(new Event('change'));
-        document.querySelector('[data-fopt="yTitle"]').value='Tumor volume (mm³)';document.querySelector('[data-fopt="yTitle"]').dispatchEvent(new Event('input'));
-        await new Promise(x=>setTimeout(x,200));
-        r.fig={open:document.querySelector('#figDlg').open,svgLen:(figState.svg||'').length,brackets:(figState.svg.match(/<polyline/g)||[]).length,statsRows:document.querySelectorAll('#figStats tr').length,types:[...document.querySelectorAll('#figType option')].map(o=>o.value)};
-        document.querySelector('#figType').value='bar';document.querySelector('#figType').dispatchEvent(new Event('change'));await new Promise(x=>setTimeout(x,200));r.fig.barRects=(figState.svg.match(/<rect /g)||[]).length;
-        document.querySelector('#figType').value='scatter';document.querySelector('#figType').dispatchEvent(new Event('change'));await new Promise(x=>setTimeout(x,200));
-        try{await figAttach();}catch(e){r.fig.attachErr=String(e.message||e);}r.fig.attached=pendingImgs.length;r.fig.inputHead=document.querySelector('#input').value.slice(0,40);r.fig.saved=(conv.figures||[]).length;
-        figOpen({});await new Promise(x=>setTimeout(x,300));
+      if(${process.env.SMOKE_FIG === '1'}){ // Figure: チャットの figure ブロック → 描画 → 編集 → 書き戻し、プレビューの要素選択
+        gotoBranch('main');await new Promise(x=>setTimeout(x,200));
+        const TB=String.fromCharCode(9),NL2=String.fromCharCode(10),F=String.fromCharCode(96).repeat(3);
+        const spec={title:'Tumor volume',kind:'column',type:'scatter',err:'SD',compare:'all',ytitle:'Tumor volume (mm3)',data:['Control'+TB+'Low'+TB+'High','12.1'+TB+'15.4'+TB+'19.2','11.8'+TB+'16.0'+TB+'18.7','12.6'+TB+'14.9'+TB+'20.1','13.0'+TB+'15.8'+TB+'19.6','12.3'+TB+'16.3'+TB+'18.9'].join(NL2)};
+        window.streamDummy=async function*(){const t='図を作りました。'+NL2+NL2+F+'figure'+NL2+JSON.stringify(spec)+NL2+F+NL2+'以上です。';for(let i=0;i<t.length;i+=7){await new Promise(r=>setTimeout(r,5));yield {text:t.slice(i,i+7)};}};
+        await send('腫瘍体積の図を作って',{branchId:effectiveBranchForSend(),parentId:conv.activeNodeId});await new Promise(x=>setTimeout(x,500));
+        const el=document.getElementById('n-'+conv.activeNodeId);const fb=el.querySelector('.figblock');
+        r.fig={rendered:!!(fb&&fb.querySelector('svg')),node:fb&&fb.dataset.fignode===conv.activeNodeId,brackets:fb?(fb.innerHTML.match(/<polyline/g)||[]).length:0,promptInSys:buildContext(conv.activeNodeId).system.includes('figure ブロック')};
+        fb.querySelector('[data-figedit]').click();await new Promise(x=>setTimeout(x,300));
+        r.fig.opened=document.querySelector('#figDlg').open;r.fig.updateBtn=document.querySelector('#figUpdate').style.display!=='none';r.fig.titleLoaded=document.querySelector('#figTitle').value;
+        const g1=document.querySelector('#figPreview [data-sel="series:1"]');r.fig.hasSeries=!!g1;r.fig.selsInPreview=[...document.querySelectorAll('#figPreview [data-sel]')].map(e=>e.dataset.sel);if(g1)g1.dispatchEvent(new MouseEvent('click',{bubbles:true}));await new Promise(x=>setTimeout(x,100));
+        r.fig.sel=figState.sel;r.fig.inspector=document.querySelector('#figInspect h4').textContent;const col=document.querySelector('#figInspect [data-ik="series.color"]');col.value='#008000';col.dispatchEvent(new Event('change'));const sy=document.querySelector('#figInspect [data-ik="series.symbol"]');sy.value='square';sy.dispatchEvent(new Event('change'));await new Promise(x=>setTimeout(x,100));
+        r.fig.seriesChanged=figState.svg.includes('#008000')&&figState.svg.includes('<rect')&&figState.opts.series[1].symbol==='square';
+        document.querySelector('#figUpdate').click();await new Promise(x=>setTimeout(x,300));const n=N(conv.activeNodeId);r.fig.writtenBack=n.content.includes('"symbol":"square"')&&n.content.includes('#008000');r.fig.rerendered=!!document.getElementById('n-'+n.id).querySelector('.figblock rect');
+        fb&&0;figOpenFromBlock(document.getElementById('n-'+n.id).querySelector('.figblock'));await new Promise(x=>setTimeout(x,300));
       }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);

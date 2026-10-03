@@ -483,7 +483,7 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 /* ===== Figure 作成 ===== */
 #figDlg{width:min(1240px,96vw);max-width:none;max-height:94vh;padding:14px 16px}
 #figDlg .figHead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-#figDlg .figBody{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:14px;max-height:calc(94vh - 80px)}
+#figDlg .figBody{display:grid;grid-template-columns:minmax(280px,340px) 1fr minmax(220px,260px);gap:14px;max-height:calc(94vh - 80px)}
 #figDlg .figLeft{overflow-y:auto;display:flex;flex-direction:column;gap:6px;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px}
 #figDlg label{font-size:11.5px;color:var(--muted);margin:0}
 #figDlg textarea#figData{min-height:150px;max-height:260px;resize:vertical;font:12px/1.4 Menlo,monospace;background:rgba(10,28,16,.7);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px;white-space:pre}
@@ -500,7 +500,23 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 .tblwrap .figfrom{position:absolute;right:4px;top:4px;opacity:.5;font-size:11px}
 .tblwrap:hover .figfrom{opacity:1}
 .tblwrap [data-tip]::after{left:auto;right:0}
-@media (max-width:900px){#figDlg .figBody{grid-template-columns:1fr}}
+@media (max-width:1000px){#figDlg .figBody{grid-template-columns:1fr}}
+#figDlg .figInspect{overflow-y:auto;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px;border-left:1px solid var(--line);padding-left:12px}
+#figDlg .figInspect h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#figDlg .figInspect .irow{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+#figDlg .figInspect .irow label{font-size:11px;color:var(--muted)}
+#figDlg .figInspect input,#figDlg .figInspect select{font-size:12px;padding:3px 6px;max-width:100%}
+#figDlg .figInspect input[type=color]{width:60px;height:28px;padding:0 2px}
+#figDlg .figPreview [data-sel]{cursor:pointer}
+#figDlg .figPreview [data-sel]:hover{opacity:.75}
+#figDlg .figPreview [data-sel].sel{filter:drop-shadow(0 0 2px #1f6feb) drop-shadow(0 0 1px #1f6feb)}
+/* チャット内の図 */
+.figblock{position:relative;display:inline-block;max-width:100%;margin:6px 0;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px}
+.figblock svg{max-width:100%;height:auto;display:block}
+.figblock.waiting{display:flex;align-items:center;gap:8px;padding:10px 14px;color:var(--indigo2);font-size:12px}
+.figblock .figbtns{display:flex;gap:4px;margin-top:4px}
+.figblock .figbtns button{font-size:11px;padding:0 8px;height:22px;background:#fff;color:var(--indigo);border:1px solid #a8c9a3}
+.figblock pre{font-size:10px;max-height:120px;overflow:auto}
 /* ===== 整理ダイアログ ===== */
 #tidyDlg{width:min(760px,94vw)}
 #tidyDlg .trow{display:flex;gap:10px;align-items:center;margin-bottom:8px}
@@ -745,7 +761,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   <div class="btns"><button id="bkClose">閉じる</button></div>
 </dialog>
 <dialog id="figDlg">
-  <div class="figHead"><h2 style="margin:0">📊 Figure 作成（Prism 9 風）</h2><span class="spacer"></span><button id="figClose">閉じる</button></div>
+  <div class="figHead"><h2 style="margin:0">📊 Figure 作成</h2><span class="spacer"></span><button id="figClose">閉じる</button></div>
   <div class="figBody">
     <div class="figLeft">
       <label>データ（タブ・カンマ区切り、または Markdown の表を貼り付け）</label>
@@ -753,18 +769,17 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div class="figRow"><label>表の型</label><select id="figKind"><option value="column">Column（列＝群、行＝反復）</option><option value="grouped">Grouped（行＝カテゴリ、列＝群）</option><option value="xy">XY（1列目＝X、以降＝Y）</option></select></div>
       <div class="figRow"><label>グラフ</label><select id="figType"></select></div>
       <div class="figRow" id="figCmpRow"><label>有意差</label><select id="figCmp"><option value="none">なし</option><option value="all">全比較（Welch t / ANOVA+Tukey）</option><option value="dunnett">対照群と比較（Dunnett）</option></select><select id="figCtrl" style="display:none"></select></div>
-      <div class="figRow"><label>誤差</label><select data-fopt="errType"><option value="SD">SD</option><option value="SEM">SEM</option><option value="CI">95% CI</option><option value="none">なし</option></select><label>P の表示</label><select data-fopt="pStyle"><option value="GP">アスタリスク（GP）</option><option value="num">数値</option></select><label><input type="checkbox" data-fopt="showNs"> ns も表示</label></div>
-      <div class="figRow"><label>棒の塗り</label><select data-fopt="barFill"><option value="solid">塗り</option><option value="open">白抜き</option></select><label>ブラケット</label><select data-fopt="bracketShape"><option value="long">長脚</option><option value="short">短脚</option></select></div>
+      <div class="figRow"><label>誤差</label><select data-fopt="errType"><option value="SD">SD</option><option value="SEM">SEM</option><option value="CI">95% CI</option><option value="none">なし</option></select></div>
       <div class="figRow"><label>題名</label><input id="figTitle" type="text" placeholder="任意"></div>
-      <div class="figRow"><label>Y 軸の題</label><input data-fopt="yTitle" type="text" placeholder="例: Tumor volume (mm³)"><label>X 軸の題</label><input data-fopt="xTitle" type="text" placeholder="任意"></div>
-      <div class="figRow"><label>Y の範囲</label><input data-fopt="ymin" type="text" placeholder="最小（自動）" style="width:90px"><input data-fopt="ymax" type="text" placeholder="最大（自動）" style="width:90px"></div>
+      <div class="figRow"><label>Y 軸の題</label><input data-fopt="yTitle" type="text" placeholder="例: Tumor volume (mm³)"></div>
+      <div class="figRow"><label>X 軸の題</label><input data-fopt="xTitle" type="text" placeholder="任意"></div>
       <div id="figStats" class="figStats"></div>
     </div>
     <div class="figRight">
       <div id="figPreview" class="figPreview"></div>
-      <div class="figActs"><button class="primary" id="figAttach">チャットに添付して質問する</button><button id="figCopy">画像をコピー</button><button id="figPng">PNG（300 dpi）</button><button id="figSvg">SVG</button></div>
-      <div class="hint">既定値は Prism 9 に合わせています: Arial 太字 12 pt、L 字の軸 1 pt、外向きの目盛、誤差棒は SD・キャップ付き、色は Prism の既定、ブラケットは GP 書式（* &lt;0.05、** &lt;0.01、*** &lt;0.001、**** &lt;0.0001）。</div>
+      <div class="figActs"><button class="primary" id="figAttach">チャットに添付して質問する</button><button id="figUpdate" style="display:none">回答の図を更新</button><button id="figCopy">画像をコピー</button><button id="figPng">PNG（300 dpi）</button><button id="figSvg">SVG</button></div>
     </div>
+    <div class="figInspect" id="figInspect"></div>
   </div>
 </dialog>
 <dialog id="tplDlg">
@@ -814,11 +829,12 @@ function mdInline(s){ // 行内の装飾（入力は生テキスト）
   return s;
 }
 function mdBlocks(src){ // Markdown をブロック（行・表・コード）ごとのHTML配列にする。逐次表示で差分だけ描き足すため
-  const lines=String(src||'').replace(/\r/g,'').split('\n');const out=[];let i=0;
+  const lines=String(src||'').replace(/\r/g,'').split('\n');const out=[];let i=0;let figCount=0;
   const isRow=l=>/^\s*\|.*\|\s*$/.test(l);
   const cells=r=>r.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>mdInline(c.trim()));
   while(i<lines.length){
     const L=lines[i];let m;
+    if(/^\s*```\s*figure\b/.test(L)){const buf=[];let j=i+1;while(j<lines.length&&!/^\s*```/.test(lines[j])){buf.push(lines[j]);j++;}out.push(figBlockHTML(buf.join('\n'),'',figCount++));i=j+1;continue;}
     if(/^\s*```/.test(L)){const buf=[];let j=i+1;while(j<lines.length&&!/^\s*```/.test(lines[j])){buf.push(lines[j]);j++;}out.push('<div class="codewrap"><button class="ico cpy" data-copycode data-tip="この部分だけをコピー" aria-label="コードをコピー">⧉</button><pre>'+esc(buf.join('\n'))+'</pre></div>');i=j+1;continue;}
     if(isRow(L)&&i+1<lines.length&&/^\s*\|?\s*:?-{2,}/.test(lines[i+1])){
       const rows=[];let j=i;while(j<lines.length&&isRow(lines[j])){rows.push(lines[j]);j++;}
@@ -1003,7 +1019,9 @@ function buildContext(targetNodeId,opts={}){
 - 他ブランチの内容を持ち出すときは「（ブランチ「B」で決めた通り）」のように出典を示してください。
 - 現在ブランチに関係ない他ブランチの話題を、聞かれてもいないのに混ぜないでください。
 ${settings.extra?'\n追加指示: '+settings.extra+'\n':''}
-${templateInstr(cur)}## 会話マップ
+${templateInstr(cur)}${FIG_PROMPT}
+
+## 会話マップ
 現在位置: ${chain}
 ${cards}${sideChatCards()}${agendaCards()}`;
   const pinned=Object.values(conv.branches).filter(b=>b.pinned&&b.id!==cur);
@@ -1183,7 +1201,7 @@ function setStatus(s){$('#status').innerHTML=`<span>${esc(s)}</span>${settings.w
 let followTail=true,lastMsgsTop=0;
 // 逐次表示の描画は1フレームに1回にまとめる（文字が細かく速く届いても、レイアウトと描画を連打して画面が揺れないように）
 let streamRenderReq=0;
-function scheduleStreamRender(a){if(streamRenderReq)return;streamRenderReq=requestAnimationFrame(()=>{streamRenderReq=0;const el=document.getElementById('n-'+a.id);if(el){renderStream(el.querySelector('.body'),a.content);updateTailSpace();autoScroll();}});}
+function scheduleStreamRender(a){if(streamRenderReq)return;streamRenderReq=requestAnimationFrame(()=>{streamRenderReq=0;const el=document.getElementById('n-'+a.id);if(el){renderStream(el.querySelector('.body'),a.content);figHydrate();updateTailSpace();autoScroll();}});}
 function autoScroll(){if(!followTail)return;const m=$('#msgs');m.scrollTop=m.scrollHeight;lastMsgsTop=m.scrollTop;}
 function updateJumpBtn(){const b=$('#jumpBtn');if(b)b.classList.toggle('show',busy&&!followTail);}
 function stopFollow(){if(followTail){followTail=false;updateJumpBtn();}}
@@ -1278,7 +1296,7 @@ function renderFocus(){
   const d2=document.getElementById('demoBtn2');if(d2)d2.onclick=loadDemo;
   const tcb=document.getElementById('tutConnectBtn');if(tcb)tcb.onclick=()=>openTut(1);
   m.querySelectorAll('.badges .chip').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.b));
-  markNotes();
+  markNotes();figHydrate();
   if(stick)m.scrollTop=m.scrollHeight;else if(busy)m.scrollTop=keepTop; // 途中を読んでいるときは位置を保つ
   if(!busy)setStatus(`概算 ${buildContext(conv.activeNodeId).tokens} tok を次回送信`);
 }
@@ -2087,6 +2105,7 @@ $('#figBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on'
 $('#nwClose').onclick=()=>{noteCur=null;$('#noteWin').hidden=true;if(dropEmptyNotes()){persist();markNotes();}};
 $('#nwDel').onclick=async()=>{const n=noteCur&&notesOf()[noteCur];if(!n)return;if(noteBusy){toast('生成中は消せません');return;}if(!(await askConfirm(`「${excerpt(n.text,20)}」についてのこのチャット（${n.items.filter(i=>i.role==='user').length}件の質問）を消しますか？\n同じ言葉のほかのチャットは残ります。`,'消す')))return;delete notesOf()[n.id];noteCur=null;$('#noteWin').hidden=true;persist();renderAll();};
 // 表示中の回答の本文から、その言葉を探して黄色のマーカーを付ける。見つからないとき（装飾をまたいだ選択など）は末尾に小さな札を出す
+function figHydrate(){document.querySelectorAll('#msgs .msg').forEach(m=>{const id=m.id.replace(/^n-/,'');m.querySelectorAll('.figblock[data-figidx]').forEach(b=>{b.dataset.fignode=id;});});}
 function markNotes(){
   const m=$('#msgs');m.querySelectorAll('mark.note').forEach(k=>{k.replaceWith(document.createTextNode(k.textContent));});m.querySelectorAll('.noteChip').forEach(k=>k.remove());
   const groups=new Map();for(const n of Object.values(conv.notes||{}).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))){const k=n.nodeId+'\u0001'+n.text;if(!groups.has(k))groups.set(k,{nodeId:n.nodeId,text:n.text,ids:[]});groups.get(k).ids.push(n.id);}
@@ -2113,7 +2132,8 @@ $('#msgs').addEventListener('mouseout',e=>{const t=e.target.closest&&e.target.cl
 $('#notePop').addEventListener('mouseleave',hideNotePopSoon);
 $('#msgs').addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t&&!window.getSelection().toString()){const ids=String(t.dataset.note).split(',');if(ids.length===1){$('#notePop').classList.remove('on');openNote(ids[0]);}else showNotePop(t);}}); // 複数あるときは一覧から選ぶ
 $('#msgs').addEventListener('scroll',()=>$('#notePop').classList.remove('on'));
-$('#msgs').addEventListener('click',e=>{const f=e.target.closest&&e.target.closest('[data-figfrom]');if(f){figFromTable(f.parentElement.querySelector('table'));return;}const b=e.target.closest&&e.target.closest('[data-copycode]');if(b){const pre=b.parentElement.querySelector('pre');copyText(pre?pre.textContent:'',b);}});
+$('#msgs').addEventListener('click',e=>{const fb=e.target.closest&&e.target.closest('.figblock');if(fb){if(e.target.closest('[data-figedit]')){figOpenFromBlock(fb);return;}if(e.target.closest('[data-figpng]')){figBlockAction(fb,'png');return;}if(e.target.closest('[data-figsvg]')){figBlockAction(fb,'svg');return;}if(e.target.closest('[data-figcopy]')){figBlockAction(fb,'copy');return;}}
+  const f=e.target.closest&&e.target.closest('[data-figfrom]');if(f){figFromTable(f.parentElement.querySelector('table'));return;}const b=e.target.closest&&e.target.closest('[data-copycode]');if(b){const pre=b.parentElement.querySelector('pre');copyText(pre?pre.textContent:'',b);}});
 async function copyText(text,btn){try{await navigator.clipboard.writeText(text);}catch(e){toast('コピーできませんでした');return;}if(btn){const t=btn.textContent;btn.textContent='✓';btn.classList.add('done');setTimeout(()=>{btn.textContent=t;btn.classList.remove('done');},1200);}toast('コピーしました');}
 
 /* ========== デモ会話 ========== */
