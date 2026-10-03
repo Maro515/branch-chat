@@ -123,6 +123,23 @@ async function handle(request) {
     return new Response('method not allowed', { status: 405 });
   }
 
+  if (url.pathname === '/api/img' || url.pathname.startsWith('/api/img/')) { // Figure の画像パネル用の画像をこの端末に保存する（会話記録と同じ場所の images/）
+    const dir = path.join(app.getPath('userData'), 'conversations', 'images');
+    const okId = (id) => typeof id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(id);
+    if (request.method === 'POST') {
+      try {
+        const b = await request.json(); if (!okId(b.id) || typeof b.data !== 'string') return new Response('bad request', { status: 400 });
+        const m = /^data:image\/(png|jpeg);base64,(.+)$/.exec(b.data); if (!m) return new Response('bad image', { status: 400 });
+        fs.mkdirSync(dir, { recursive: true }); const file = path.join(dir, b.id + (m[1] === 'png' ? '.png' : '.jpg'));
+        fs.writeFileSync(file + '.tmp', Buffer.from(m[2], 'base64')); fs.renameSync(file + '.tmp', file);
+        return Response.json({ ok: true, file });
+      } catch (e) { return new Response('img store failed', { status: 500 }); }
+    }
+    const id = url.pathname.slice('/api/img/'.length); if (!okId(id)) return new Response('not found', { status: 404 });
+    for (const [ext, type] of [['.png', 'image/png'], ['.jpg', 'image/jpeg']]) { const f = path.join(dir, id + ext); if (fs.existsSync(f)) return new Response(fs.readFileSync(f), { headers: { 'Content-Type': type, 'Cache-Control': 'max-age=86400' } }); }
+    return new Response('not found', { status: 404 });
+  }
+
   // 静的ファイル（app/ の外へは出さない）
   const rel = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
   const file = path.normalize(path.join(APP_DIR, rel));
@@ -366,9 +383,30 @@ async function runSmoke(win) {
         const m2=document.getElementById('n-'+conv.activeNodeId);r.fig4.combineBtn=!!m2.querySelector('[data-figcombine]');m2.querySelector('[data-figcombine]').click();await new Promise(x=>setTimeout(x,500));
         const bl=figFindBlocks(N(conv.activeNodeId).content);r.fig4.combined=bl.length===1&&JSON.parse(bl[0].json).panels.length===2;
       }
+      if(${process.env.SMOKE_FIG5 === '1'}){ // Figure 画像パネル: 画像の保存→グリッドのブロック→注釈のクリック→書き戻し→PNG（画像を埋め込み）→ブロット
+        gotoBranch('main');await new Promise(x=>setTimeout(x,200));
+        const NL2=String.fromCharCode(10),F=String.fromCharCode(96).repeat(3);
+        const mk=(col,w,h)=>new Promise(res=>{const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle=col;g.fillRect(0,0,w,h);g.fillStyle='#fff';g.beginPath();g.arc(w/2,h/2,w/5,0,6.28);g.fill();c.toBlob(b=>res(new File([b],'cell_'+col.slice(1)+'.png',{type:'image/png'})),'image/png');});
+        const f1=await mk('#2030c0',400,300),f2=await mk('#20a020',400,300),f3=await mk('#808080',600,120);
+        const m1=await figImgStore(f1),m2=await figImgStore(f2),m3=await figImgStore(f3);r.fig5={stored:[m1,m2,m3].every(m=>/^im/.test(m.id)&&m.w>0),meta:conv.imgs&&Object.keys(conv.imgs).length};
+        r.fig5.fetchOk=(await fetch('/api/img/'+m1.id)).ok;
+        const spec={kind:'image',type:'grid',cols:2,rowLabels:['Control'],colLabels:['DAPI','GFP'],colColors:['#4040FF','#00C000'],images:[{img:m1.id,label:'DAPI'},{img:m2.id,label:'GFP'}],scale:{umPerPx:0.5,len:20,unit:'µm',labelOn:'first'}};
+        window.streamDummy=async function*(){yield {text:'画像パネルです。'+NL2+NL2+F+'figure'+NL2+JSON.stringify(spec)+NL2+F+NL2};};
+        await send('画像パネルを作って',{branchId:effectiveBranchForSend(),parentId:conv.activeNodeId});await new Promise(x=>setTimeout(x,600));
+        const nid=conv.activeNodeId;const fb=document.getElementById('n-'+nid).querySelector('.figblock');
+        r.fig5.block=!!(fb&&fb.classList.contains('image'));r.fig5.images=fb.querySelectorAll('image').length;r.fig5.scalebar=fb.querySelectorAll('[data-scalebar]').length;r.fig5.labelText=fb.innerHTML.includes('20 µm');r.fig5.promptHasImage=buildContext(nid).system.includes('kind "image"');
+        fb.querySelector('[data-figtool="arrow"]').click();const cb=fb.querySelector('[data-cellbox="1"]');const bx=cb.getBoundingClientRect();cb.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:bx.left+bx.width*0.3,clientY:bx.top+bx.height*0.6}));await new Promise(x=>setTimeout(x,400));
+        const j1=JSON.parse(figFindBlocks(N(nid).content)[0].json);r.fig5.annot=j1.annots&&j1.annots.length===1&&j1.annots[0].cell===1&&Math.abs(j1.annots[0].x-0.3)<0.03&&j1.annots[0].t==='arrow';
+        const fb2=document.getElementById('n-'+nid).querySelector('.figblock');r.fig5.annotDrawn=fb2.querySelectorAll('[data-annot]').length;
+        const sc=fb2.querySelector('[data-figimg="cols"]');sc.value='1';sc.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(x=>setTimeout(x,400));r.fig5.colsWritten=JSON.parse(figFindBlocks(N(nid).content)[0].json).cols===1;
+        const fb3=document.getElementById('n-'+nid).querySelector('.figblock');const svg=fb3.querySelector('svg');const c=await figToPng(svg.outerHTML,+svg.getAttribute('width'),+svg.getAttribute('height'),150);const g=c.getContext('2d');const px=g.getImageData(Math.round(c.width*0.5),Math.round(c.height*0.35),1,1).data;r.fig5.pngPx=c.width+'x'+c.height;r.fig5.pngHasImage=px[2]>150&&px[0]<100;r.fig5.png=c.toDataURL('image/png');
+        const blot={kind:'image',type:'blot',lanes:['1','2','3','4'],conds:[{name:'Zolmin',vals:['−','+','−','+']}],groups:[{name:'Raji',from:0,to:1},{name:'BC-1',from:2,to:3}],bands:[{img:m3.id,name:'CD20',kda:'35'},{img:m3.id,name:'β-actin',kda:'42'}]};
+        let rb=null,err='';try{rb=figRenderSpec(blot);}catch(e){err=e.message;}r.fig5.blot=err||!!(rb&&rb.blot&&rb.svg.includes('kDa')&&rb.svg.includes('Raji'));
+        const lay=figRenderSpec({kind:'layout',cols:2,panels:[spec,blot]});r.fig5.inLayout=!!(lay&&lay.n===2&&lay.svg.includes('/api/img/'));const cl=await figToPng(lay.svg,lay.w,lay.h,150);r.fig5.png2=cl.toDataURL('image/png');
+      }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
-    if (out.page && out.page.fig4 && out.page.fig4.png) { const f = path.join(process.env.SMOKE_OUT || require('node:os').tmpdir(), 'branchat-layout.png'); fs.writeFileSync(f, Buffer.from(out.page.fig4.png.split(',')[1], 'base64')); out.page.fig4.png = f; }
+    for (const k of ['fig4','fig5']) for (const kk of ['png','png2']) if (out.page && out.page[k] && out.page[k][kk]) { const f = path.join(process.env.SMOKE_OUT || require('node:os').tmpdir(), 'branchat-' + k + kk + '.png'); fs.writeFileSync(f, Buffer.from(out.page[k][kk].split(',')[1], 'base64')); out.page[k][kk] = f; }
     const img = await win.webContents.capturePage();
     const shot = path.join(process.env.SMOKE_OUT || require('node:os').tmpdir(), 'branchat-smoke.png');
     fs.writeFileSync(shot, img.toPNG()); out.screenshot = shot; out.ok = true;
