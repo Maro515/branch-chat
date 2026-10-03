@@ -82,7 +82,7 @@ function figSchDiagram(spec){const fs=(+spec.fontPt||FIG_SCH_DEF.fontPt)*FIG_PT;
     if(e.label){const off=fs*0.8;const px=bend?(mx+cx)/2:mx,py=bend?(my+cy)/2:my;const tw=figSchTW(e.label,fs*0.9);const horiz=Math.abs(ny)>0.7;const LX=horiz?px:px+off+tw/2,LY=horiz?py-off:py;s+=`<rect x="${LX-tw/2-fs*0.15}" y="${LY-fs*0.6}" width="${tw+fs*0.3}" height="${fs*1.15}" fill="#fff" opacity="0.85"/>`+figSchText(LX,LY+fs*0.32,e.label,{size:fs*0.9,fill:e.color||'#000'});}
     edgesSvg+=`<g data-edge="${i}">${s}</g>`;});
   const title=spec.title?figSchText(W/2,fs*1.3,spec.title,{size:fs*1.2,weight:'bold'}):'';const defs=`<defs>${Object.values(markers).join('')}</defs>`;
-  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${defs}<rect width="100%" height="100%" fill="#fff"/>${title}${groupsSvg}${edgesSvg}${nodesSvg}</svg>`,w:W,h:H,schematic:true,plot:{x0:0,y0:titleH,w:W,h:H-titleH},n:nodes.length};}
+  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${defs}<rect width="100%" height="100%" fill="#fff"/>${title}${groupsSvg}${edgesSvg}${nodesSvg}</svg>`,w:W,h:H,schematic:true,plot:{x0:0,y0:titleH,w:W,h:H-titleH},n:nodes.length,nodeLayout:{fs,offX:pad-minX,offY:pad+titleH-minY,nodes:nodes.map(n=>({id:n.id,cx:n.cx,cy:n.cy}))}};}
 
 /* ---------- pedigree（家系図、標準記法） ---------- */
 function figSchPedigree(spec){const fs=(+spec.fontPt||FIG_SCH_DEF.fontPt)*FIG_PT;const members=(spec.members||[]).filter(m=>m&&m.id!=null).map(m=>Object.assign({},m,{id:String(m.id)}));if(!members.length)return null;const byId={};members.forEach(m=>byId[m.id]=m);
@@ -165,6 +165,11 @@ function figSchTable(spec){const fs=(+spec.fontPt||FIG_SCH_DEF.fontPt)*FIG_PT;co
   return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${title}${s}</svg>`,w:W,h:H,schematic:true,plot:{x0:0,y0:titleH,w:W,h:H-titleH},n:rows.length};}
 
 function figRenderSchematic(spec){const t=spec.type||'diagram';if(t==='pedigree')return figSchPedigree(spec);if(t==='gene')return figSchGene(spec);if(t==='venn')return figSchVenn(spec);if(t==='timeline')return figSchTimeline(spec);if(t==='table')return figSchTable(spec);return figSchDiagram(spec);}
+
+// ノードのドラッグ終了: 全ノードの位置を x/y（文字高さ単位）として書き戻し、以後は固定配置にする
+function figSchDragEnd(fb,nodeId,dx,dy){const nid=fb.dataset.fignode,idx=+fb.dataset.figidx;const n=N(nid);if(!n)return;const b=figFindBlocks(n.content)[idx];if(!b)return;let j;try{j=JSON.parse(b.json);}catch(e){return;}if(!figIsSchematic(j)||(j.type&&j.type!=='diagram'))return;
+  const r=figRenderSpec(j);const L=r&&r.nodeLayout;if(!L)return;const pos={};L.nodes.forEach(nd=>pos[nd.id]=nd);(j.nodes||[]).forEach(nd=>{const p=pos[String(nd.id)];if(!p)return;const mx=String(nd.id)===String(nodeId)?dx:0,my=String(nd.id)===String(nodeId)?dy:0;nd.x=+((p.cx+mx-L.offX)/L.fs).toFixed(2);nd.y=+((p.cy+my-L.offY)/L.fs).toFixed(2);delete nd.col;delete nd.row;});
+  n.content=n.content.slice(0,b.start)+'```figure\n'+JSON.stringify(j)+'\n```'+n.content.slice(b.end);persist();renderAll();}
 
 /* ---------- ブロックと JSON 編集 ---------- */
 function figSchematicBlockHTML(j,r,nodeId,index){return `<div class="figblock schematic" data-fignode="${figEsc(nodeId||'')}" data-figidx="${index}">${r.svg}<div class="figbtns"><button class="small" data-figjson data-tip="指定（JSON）を直して回答に書き戻す">{} 編集</button><button class="small" data-figpng data-tip="PNG（300 dpi）で保存">PNG</button><button class="small" data-figsvg data-tip="SVG で保存">SVG</button><button class="small" data-figcopy data-tip="画像をコピー">⧉</button><span class="hint" style="margin-left:6px">${figEsc({diagram:'模式図',pedigree:'家系図',gene:'遺伝子構造',venn:'ベン図',timeline:'スケジュール',table:'表'}[j.type||'diagram']||j.type)}${r.n!=null?' ／ 要素 '+r.n:''}</span></div></div>`;}
