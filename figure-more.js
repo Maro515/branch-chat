@@ -74,7 +74,7 @@ function figFrame(spec,cfg){
   const padL=fs*(cfg.yTitle?4.2:2.8)+(cfg.padL||0),padB=fs*(cfg.xTitle?3.2:2)+(xrot?fs*2.2:0)+(legendPos==='bottom'?fs*1.8:0)+(cfg.padB||0),padT=fs*(spec.title?2.4:1.6)+(cfg.padT||0),padR=fs*1.2+(legendPos==='right'?fs*(cfg.legendW||8):0)+(cfg.padR||0);
   const W=padL+plotW+padR,H=padT+plotH+padB,x0=padL,y0=padT+plotH;const xs=cfg.x,ys=cfg.y;
   const xOf=v=>x0+(v-xs.lo)/(xs.hi-xs.lo)*plotW,yOf=v=>y0-(v-ys.lo)/(ys.hi-ys.lo)*plotH;
-  const yT=ys.ticks.length?yOf(ys.ticks[ys.ticks.length-1].v):padT,yB=ys.ticks.length?yOf(ys.ticks[0].v):y0;const xA=xs.ticks.length&&!xs.cat?xOf(xs.ticks[0].v):x0,xB=xs.ticks.length&&!xs.cat?xOf(xs.ticks[xs.ticks.length-1].v):x0+plotW;
+  const yT=ys.ticks.length&&!ys.cat?yOf(ys.ticks[ys.ticks.length-1].v):padT,yB=ys.ticks.length&&!ys.cat?yOf(ys.ticks[0].v):y0;const xA=xs.ticks.length&&!xs.cat?xOf(xs.ticks[0].v):x0,xB=xs.ticks.length&&!xs.cat?xOf(xs.ticks[xs.ticks.length-1].v):x0+plotW;
   let axes=`<line x1="${x0}" y1="${yB}" x2="${x0}" y2="${yT}" stroke="${ac}" stroke-width="${a}" stroke-linecap="square"/>`,grid='';
   if(o.frame==='box')axes+=`<rect x="${x0}" y="${padT}" width="${plotW}" height="${plotH}" fill="none" stroke="${ac}" stroke-width="${a}"/>`;
   for(const t of ys.ticks){const y=yOf(t.v);axes+=`<line x1="${x0}" y1="${y}" x2="${x0-tick}" y2="${y}" stroke="${ac}" stroke-width="${a}"/>`+(t.raw?raw(x0-Math.max(0,tick)-fs*0.3,y+h/2,t.raw,'end'):txt(x0-Math.max(0,tick)-fs*0.3,y+h/2,t.l,'end'));if(o.grid==='major')grid+=`<line x1="${x0}" y1="${y}" x2="${x0+plotW}" y2="${y}" stroke="#bbb" stroke-width="${FIG_PT*0.5}"/>`;}
@@ -85,7 +85,7 @@ function figFrame(spec,cfg){
   let titles='';if(cfg.yTitle)titles+=txt(x0-tick-fs*2.6,(yB+yT)/2,cfg.yTitle,'middle',`transform="rotate(-90 ${x0-tick-fs*2.6} ${(yB+yT)/2})"`,'ytitle');
   if(cfg.xTitle)titles+=txt(x0+plotW/2,y0+Math.max(0,tick)+(xs.ticks.length?fs*2.3:fs*1.2)+(xrot?fs*2:0),cfg.xTitle,'middle','','xtitle');
   let leg='';if(legendPos!=='none'){const bottom=legendPos==='bottom';const itemW=fs*7;const lx0=bottom?x0+plotW/2-itemW*legend.length/2:x0+plotW+fs*1.2;legend.forEach((it,k)=>{const lx=bottom?lx0+k*itemW:lx0;const ly=bottom?H-fs*0.6:padT+fs*(k*1.5+0.8);const so=S(it.i==null?k:it.i);const c=it.color||so.color;
-    if(it.kind==='rect')leg+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${so.fill==='open'?'#fff':c}" stroke="${c}"/>`;else if(it.kind==='line')leg+=`<line x1="${lx}" y1="${ly-fs*0.2}" x2="${lx+fs*1.1}" y2="${ly-fs*0.2}" stroke="${c}" stroke-width="${so.lineW*FIG_PT*1.5}"/>`;else leg+=sym(lx+fs*0.5,ly-fs*0.2,it.i==null?k:it.i,c,so.fill);
+    if(it.kind==='rect')leg+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${so.fill==='open'?'#fff':c}" stroke="${c}"/>`;else if(it.kind==='line')leg+=`<line x1="${lx}" y1="${ly-fs*0.2}" x2="${lx+fs*1.1}" y2="${ly-fs*0.2}" stroke="${c}" stroke-width="${so.lineW*FIG_PT*1.5}"/>`;else leg+=sym(lx+fs*0.5,ly-fs*0.2,it.i==null?k:it.i,c,it.fill||so.fill,it.shape);
     leg+=txt(lx+fs*1.5,ly,it.name,'start');});}
   const title=spec.title?txt(x0+plotW/2,padT-fs*0.9,spec.title,'middle','','title'):'';
   const wrap=(body,extra)=>({svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${body}${leg?`<g data-sel="legend">${leg}</g>`:''}${title}${extra||''}</svg>`,w:W,h:H});
@@ -152,12 +152,14 @@ const figLC=c=>String(c.name||'').toLowerCase();
 const figUniq=c=>[...new Set(c.raw.filter(v=>v!==''))];
 const figIsBin=c=>{const u=figUniq(c);return u.length>0&&u.length<=2&&u.every(v=>/^(0|1|yes|no|true|false|dead|alive|death|event|censored?|died|y|n|あり|なし|有|無|死亡|生存|打ち切り)$/i.test(v));};
 function figAutoKindMore(parsed){const cols=parsed.cols;
+  if(typeof figAutoKindP3==='function'){const k=figAutoKindP3(parsed);if(k)return k;} // figure-more2.js
   const hasT=cols.some(c=>/^(time|day|days|month|months|week|weeks|year|years|os|pfs|dfs|生存期間|期間|日数|月数)$|time/.test(figLC(c))&&c.vals.some(v=>v!==null));const hasE=cols.some(c=>/event|status|death|dead|died|イベント|死亡|転帰|censor/.test(figLC(c))&&figIsBin(c));
   if(hasT&&hasE)return 'survival';
   if(cols.some(c=>/^(class|outcome|label|disease|truth|diagnosis|結果|疾患|陽性|正解|診断)$/.test(figLC(c))&&figUniq(c).length===2)&&cols.some(c=>c.vals.filter(v=>v!==null).length>=3&&figUniq(c).length>2))return 'roc';
   if(parsed.firstColText&&cols.some(c=>/lower|lcl|lci|下限/.test(figLC(c)))&&cols.some(c=>/upper|ucl|uci|上限/.test(figLC(c))))return 'forest';
   return null;}
 function figBuildDataMore(parsed,kind){
+  if(typeof figBuildDataP3==='function'){const r=figBuildDataP3(parsed,kind);if(r!==undefined)return r;}
   if(kind==='survival')return figBuildSurvival(parsed);if(kind==='roc')return figBuildROC(parsed);if(kind==='heatmap')return figBuildHeatmap(parsed);if(kind==='forest')return figBuildForest(parsed);if(kind==='waterfall')return figBuildWaterfall(parsed);
   return undefined;}
 function figBuildSurvival(parsed){const cols=parsed.cols;
@@ -191,6 +193,7 @@ function figBuildWaterfall(parsed){const cols=parsed.cols;const num=cols.filter(
 
 /* ---------- 描画 ---------- */
 function figRenderMore(spec){const d=spec.data,t=spec.type;
+  if(typeof figRenderP3==='function'){const r=figRenderP3(spec);if(r)return r;}
   if(d.kind==='survival')return figRenderSurvival(spec);if(d.kind==='roc')return figRenderROC(spec);if(d.kind==='heatmap')return figRenderHeatmap(spec);if(d.kind==='forest')return figRenderForest(spec);if(d.kind==='waterfall')return figRenderWaterfall(spec);
   if(t==='before-after')return figRenderBA(spec);if(t==='histogram')return figRenderHist(spec);if(t==='stacked-bar'||t==='stacked-100')return figRenderStacked(spec);
   if(t==='xy-regression')return figRenderReg(spec);if(t==='xy-dose')return figRenderDose(spec);if(t==='xy-mm')return figRenderMM(spec);
@@ -384,7 +387,7 @@ function figRenderWaterfall(spec){const d=spec.data;const o=Object.assign({},FIG
   const r=F.wrap(lines+`<g data-sel="series:0">${bars}</g>`);const cnt={};items.forEach(it=>{if(it.resp)cnt[it.resp]=(cnt[it.resp]||0)+1;});r.res={n,cnt,orr:items.filter(it=>it.resp?/^(CR|PR)$/.test(it.resp):it.v<=-30).length};return r;}
 
 /* ---------- 左下の結果表 ---------- */
-function figStatsMore(data,st){if(!data)return null;const res=st.res||{};const t=st.type;const P=p=>p<0.0001?'<0.0001':p.toFixed(4);const esc=figEsc;
+function figStatsMore(data,st){if(!data)return null;if(typeof figStatsP3==='function'){const h=figStatsP3(data,st);if(h!=null)return h;}const res=st.res||{};const t=st.type;const P=p=>p<0.0001?'<0.0001':p.toFixed(4);const esc=figEsc;
   if(data.kind==='survival'){const km=res.km||[];let s='<table><tr><th>群</th><th>n</th><th>イベント</th><th>中央値</th></tr>'+data.groups.map((g,i)=>`<tr><td>${esc(g.name)}</td><td>${g.times.length}</td><td>${g.events.reduce((a,b)=>a+b,0)}</td><td>${km[i]&&km[i].median!=null?figFmt(km[i].median):'未到達'}</td></tr>`).join('')+'</table>';
     if(res.lr)s+=`<div class="hint">Log-rank（Mantel–Cox）χ² = ${res.lr.chi2.toFixed(3)}, df = ${res.lr.df}, P = ${P(res.lr.p)}${res.hr?` ／ HR（${esc(data.groups[0].name)} / ${esc(data.groups[1].name)}、Mantel–Haenszel）= ${res.hr.hr.toFixed(3)}（95% CI ${res.hr.lo.toFixed(3)}–${res.hr.hi.toFixed(3)}）`:''}</div>`;
     s+='<div class="hint">同時刻はイベント→打ち切りの順。CI は Greenwood の分散と log-log 変換。</div>';return s;}

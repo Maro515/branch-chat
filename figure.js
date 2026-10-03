@@ -347,7 +347,7 @@ function figSync(reset){
   const types=FIG_TYPES[st.kind]||FIG_TYPES.column;if(!types.some(t=>t[0]===st.type))st.type=types[0][0];
   $('#figType').innerHTML=types.map(t=>`<option value="${t[0]}"${t[0]===st.type?' selected':''}>${t[1]}</option>`).join('');
   const data=figBuildData(parsed,st.kind);st.data=data;
-  $('#figCmpRow').style.display=(st.kind==='column'||st.kind==='grouped')?'':'none';
+  $('#figCmpRow').style.display=(st.kind==='column'||st.kind==='grouped'||st.kind==='nested')?'':'none';
   let compare=null,note='';
   if(data&&(st.kind==='column'||st.kind==='grouped')&&st.cmp!=='none'){compare=st.kind==='grouped'?figCompareGrouped(data,st.cmp,st.ctrl):figCompare(data.groups,st.cmp,st.ctrl);note=compare.note||'';
     $('#figCtrl').innerHTML=data.groups.map((g,i)=>`<option value="${i}"${i===st.ctrl?' selected':''}>${g.name}</option>`).join('');$('#figCtrl').style.display=st.cmp==='dunnett'?'':'none';}

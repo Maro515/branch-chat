@@ -315,6 +315,29 @@ async function runSmoke(win) {
         r.fig2.autoKind={roc:figAutoKind(figParseTable(specs.roc.data)),forest:figAutoKind(figParseTable(specs.forest.data)),km:figAutoKind(figParseTable(km.data))};
         r.fig2.kindOptions=[...document.querySelectorAll('#figKind option')].map(o=>o.value);
       }
+      if(${process.env.SMOKE_FIG3 === '1'}){ // Figure P3: 推定プロット・PCA・スイマーなどをチャットのブロックと作成画面で描く
+        gotoBranch('main');await new Promise(x=>setTimeout(x,200));
+        const TB=String.fromCharCode(9),NL2=String.fromCharCode(10),F=String.fromCharCode(96).repeat(3);
+        const sw={title:'Swimmer',kind:'swimmer',type:'swimmer',data:['Patient'+TB+'Duration'+TB+'Response'+TB+'Ongoing'+TB+'Progression','P1'+TB+'12'+TB+'PR'+TB+'1'+TB+'','P2'+TB+'8'+TB+'PD'+TB+'0'+TB+'8','P3'+TB+'15'+TB+'CR'+TB+'1'+TB+'','P4'+TB+'5'+TB+'SD'+TB+'0'+TB+'5'].join(NL2)};
+        window.streamDummy=async function*(){const t='スイマープロットです。'+NL2+NL2+F+'figure'+NL2+JSON.stringify(sw)+NL2+F+NL2;for(let i=0;i<t.length;i+=9){await new Promise(r=>setTimeout(r,4));yield {text:t.slice(i,i+9)};}};
+        await send('スイマープロットを作って',{branchId:effectiveBranchForSend(),parentId:conv.activeNodeId});await new Promise(x=>setTimeout(x,500));
+        const fb=document.getElementById('n-'+conv.activeNodeId).querySelector('.figblock');
+        r.fig3={swBlock:!!(fb&&fb.querySelector('svg')),swLegend:!!(fb&&fb.innerHTML.includes('Ongoing')),promptHasSwimmer:buildContext(conv.activeNodeId).system.includes('kind "swimmer"')};
+        fb.querySelector('[data-figedit]').click();await new Promise(x=>setTimeout(x,300));
+        r.fig3.kindSel=document.querySelector('#figKind').value;r.fig3.stats=document.querySelector('#figStats').textContent.slice(0,60);
+        const tb=document.querySelector('#figToolbar');tb.querySelector('[data-ftm="kind"] > button').click();await new Promise(x=>setTimeout(x,100));r.fig3.kindMenu=[...document.querySelectorAll('#ftp-kind [data-tk]')].map(e=>e.dataset.tk);
+        const so=document.querySelector('#ftp-kind [data-tk="swSort"]');so.value='group';so.dispatchEvent(new Event('change'));await new Promise(x=>setTimeout(x,100));
+        document.body.click();document.querySelector('#figUpdate').click();await new Promise(x=>setTimeout(x,300));r.fig3.writtenBack=N(conv.activeNodeId).content.includes('"swSort":"group"');
+        const pcaData=['S'+TB+'Group'+TB+'a'+TB+'b'+TB+'c',...Array.from({length:10},(_,i)=>'s'+i+TB+(i<5?'X':'Y')+TB+(i+(i%3))+TB+(10-i)+TB+((i*7)%5))].join(NL2);
+        const specs={est:{kind:'column',type:'estimation',data:['A'+TB+'B','1'+TB+'3','2'+TB+'4','1.5'+TB+'3.8','2.2'+TB+'4.4'].join(NL2)},qq:{kind:'column',type:'qq',data:['A','1','2','3','4','5','6'].join(NL2)},bland:{kind:'column',type:'bland-altman',data:['A'+TB+'B','1'+TB+'1.2','2'+TB+'2.1','3'+TB+'2.8','4'+TB+'4.3'].join(NL2)},gl:{kind:'grouped',type:'grouped-line',data:['C'+TB+'A'+TB+'B','c1'+TB+'1'+TB+'3','c2'+TB+'2'+TB+'2'].join(NL2)},band:{kind:'xy',type:'xy-band',data:['X'+TB+'Y'+TB+'Y','1'+TB+'2'+TB+'2.5','2'+TB+'4'+TB+'4.5','3'+TB+'5'+TB+'6'].join(NL2)},
+          bub:{kind:'multi',type:'bubble',data:['Id'+TB+'X'+TB+'Y'+TB+'Size'+TB+'G','a'+TB+'1'+TB+'2'+TB+'10'+TB+'p','b'+TB+'2'+TB+'3'+TB+'40'+TB+'q','c'+TB+'3'+TB+'1'+TB+'20'+TB+'p'].join(NL2)},pcaS:{kind:'multi',type:'pca-scores',data:pcaData,style:{pcaEllipse:true}},pcaB:{kind:'multi',type:'pca-biplot',data:pcaData},pcaSc:{kind:'multi',type:'pca-scree',data:pcaData},pcaV:{kind:'multi',type:'pca-variance',data:pcaData},
+          sup:{kind:'nested',type:'superplot',compare:'all',data:['Group'+TB+'Mouse'+TB+'Value','A'+TB+'m1'+TB+'1','A'+TB+'m1'+TB+'1.2','A'+TB+'m2'+TB+'1.5','A'+TB+'m2'+TB+'1.4','B'+TB+'m3'+TB+'3','B'+TB+'m3'+TB+'3.2','B'+TB+'m4'+TB+'3.5','B'+TB+'m4'+TB+'3.4'].join(NL2)},
+          sp:{kind:'spider',type:'spider',data:['Patient'+TB+'Week'+TB+'Change','p1'+TB+'0'+TB+'0','p1'+TB+'6'+TB+'-20','p1'+TB+'12'+TB+'-35','p2'+TB+'0'+TB+'0','p2'+TB+'6'+TB+'10','p2'+TB+'12'+TB+'25'].join(NL2)},cm:{kind:'heatmap',type:'confusion',data:['A'+TB+'x'+TB+'y','x'+TB+'10'+TB+'2','y'+TB+'3'+TB+'12'].join(NL2),style:{cmNorm:'row'}},
+          vol:{kind:'feature',type:'volcano',data:['Gene'+TB+'log2FC'+TB+'pvalue',...Array.from({length:40},(_,i)=>'g'+i+TB+((i%7)-3)+TB+(i<10?0.001:0.3))].join(NL2)},ma:{kind:'feature',type:'ma',data:['Gene'+TB+'baseMean'+TB+'log2FoldChange'+TB+'padj','g1'+TB+'100'+TB+'2'+TB+'0.01','g2'+TB+'10'+TB+'-1'+TB+'0.5','g3'+TB+'1000'+TB+'0.2'+TB+'0.9'].join(NL2)},imp:{kind:'importance',type:'importance',data:['Feature'+TB+'Importance','f1'+TB+'0.3','f2'+TB+'0.1','f3'+TB+'0.5'].join(NL2)}};
+        r.fig3.render={};for(const [k,sp] of Object.entries(specs)){let ok=false,err='';try{const x=figRenderSpec(sp);ok=!!(x&&x.svg&&x.svg.length>500);}catch(e){err=e.message;}r.fig3.render[k]=err||ok;}
+        r.fig3.autoKind={sw:figAutoKind(figParseTable(sw.data)),sp:figAutoKind(figParseTable(specs.sp.data)),vol:figAutoKind(figParseTable(specs.vol.data)),sup:figAutoKind(figParseTable(specs.sup.data)),imp:figAutoKind(figParseTable(specs.imp.data))};
+        r.fig3.kindOptions=[...document.querySelectorAll('#figKind option')].map(o=>o.value).filter(v=>['multi','nested','swimmer','spider','feature','importance'].includes(v));
+      }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     const img = await win.webContents.capturePage();
