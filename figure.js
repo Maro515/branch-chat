@@ -39,11 +39,13 @@ function figParseTable(text){
 // 表の型を決める: 1列目が文字→grouped（行=カテゴリ、列=群。同名の列は反復）/ 1列目が数値で列が2本以上→xy / それ以外→column（列=群、行=反復）
 function figBuildData(parsed,kind){
   if(!parsed)return null;const {cols,firstColText,rowLabels}=parsed;
-  kind=kind||(firstColText?'grouped':(cols.length>=2?'column':'column'));
+  kind=kind||figAutoKind(parsed);
+  if(typeof figBuildDataMore==='function'){const r=figBuildDataMore(parsed,kind);if(r!==undefined)return r;} // figure-more.js の図種
+
   const groupsOf=cs=>{const g=[];for(const c of cs){let e=g.find(x=>x.name===c.name);if(!e){e={name:c.name,reps:[]};g.push(e);}e.reps.push(c);}return g;};
   if(kind==='column'){ // 列=群、行=反復（同名列は結合）
     const gs=groupsOf(cols.filter(c=>c.vals.some(v=>v!==null)));
-    return {kind,groups:gs.map(g=>({name:g.name,values:g.reps.flatMap(c=>c.vals).filter(v=>v!==null)}))};
+    return {kind,groups:gs.map(g=>({name:g.name,values:g.reps.flatMap(c=>c.vals).filter(v=>v!==null),raw:g.reps[0].vals}))}; // raw は行の対応を保った値（前後プロット用）
   }
   if(kind==='grouped'){ // 行=カテゴリ、列=群（同名列は反復）
     const cats=rowLabels;const gs=groupsOf(cols.slice(1).filter(c=>c.vals.some(v=>v!==null)));
@@ -53,6 +55,9 @@ function figBuildData(parsed,kind){
   const xs=cols[0].vals;const gs=groupsOf(cols.slice(1).filter(c=>c.vals.some(v=>v!==null)));
   return {kind:'xy',xname:cols[0].name,groups:gs.map(g=>({name:g.name,points:xs.map((x,ri)=>({x,ys:g.reps.map(c=>c.vals[ri]).filter(v=>v!==null)})).filter(p=>p.x!==null&&p.ys.length)}))};
 }
+
+// 表の型の自動判定（figure-more.js が生存・ROC・フォレストを先に判定する）
+function figAutoKind(parsed){if(typeof figAutoKindMore==='function'){const k=figAutoKindMore(parsed);if(k)return k;}return parsed.firstColText?'grouped':'column';}
 
 /* ---------- 解析 ---------- */
 function figErr(vals,type){const n=vals.length;if(!n)return {m:NaN,e:0};const m=mean(vals);if(n<2)return {m,e:0};const s=sd(vals);if(type==='SEM')return {m,e:s/Math.sqrt(n)};if(type==='CI'){const t=tQuantile(0.975,n-1);return {m,e:t*s/Math.sqrt(n)};}if(type==='none')return {m,e:0};return {m,e:s};}
@@ -102,6 +107,7 @@ function figArrangeDots(vals,yOf,r,maxW){
 function figSeriesOpt(o,i){const ov=(o.series&&o.series[i])||{};const colors=o.colors||FIG_DEF.colors,symbols=o.symbols||FIG_DEF.symbols;return {color:ov.color||colors[i%colors.length],symbol:ov.symbol||symbols[i%symbols.length],symPt:+(ov.symPt||o.symPt||FIG_DEF.symPt),fill:ov.fill||'solid',lineW:+(ov.lineW||o.linePt||1)};}
 function figRender(spec){
   const d=spec.data;if(!d)return {svg:'',w:0,h:0};
+  if(typeof figRenderMore==='function'){const r=figRenderMore(spec);if(r)return r;} // figure-more.js の図種
   const o=Object.assign({},FIG_DEF,spec.opts||{});if(FIG_FONTS[o.fontFamily])o.font=FIG_FONTS[o.fontFamily];const fs=(+o.fontPt||12)*FIG_PT,h=fs*0.72,a=(+o.axisPt||1)*FIG_PT,tick=h*(+o.tickLen||0.7)*(o.tickDir==='in'?-1:1);
   const plotW=(+o.wIn||3)*FIG_IN,plotH=(+o.hIn||2)*FIG_IN;const legendPos=o.legendPos||(o.legend==='none'?'none':'right');const showLegend=legendPos!=='none'&&d.groups.length>1&&d.kind!=='column';const ac=o.axisColor||'#000';
   const xrot=+o.xRot||0;const padL=fs*4.2,padB=fs*3.2+(xrot?fs*2.2:0)+(showLegend&&legendPos==='bottom'?fs*1.8:0),padT=fs*(spec.title?2.4:1.6),padR=fs*1.2+(showLegend&&legendPos==='right'?fs*8:0);
@@ -206,15 +212,16 @@ function figToPng(svg,w,h,dpi){return new Promise((res,rej)=>{const scale=(dpi||
 /* ---------- 仕様（チャットとの受け渡し） ---------- */
 // ```figure の中の JSON: {title, kind, type, err, compare, ctrl, ytitle, xtitle, ymin, ymax, data(TSV), style:{...}}
 function figSpecFromState(st){return {title:st.title||'',kind:st.kind,type:st.type,err:st.opts.errType,compare:st.cmp||'none',ctrl:st.ctrl||0,ytitle:st.opts.yTitle||'',xtitle:st.opts.xTitle||'',ymin:st.opts.ymin||'',ymax:st.opts.ymax||'',data:st.text,style:figStyleOf(st.opts)};}
-function figStyleOf(o){const st={};for(const k of ['fontPt','bold','axisPt','tickLen','wIn','hIn','symPt','linePt','barFill','bracketShape','pStyle','showNs','legend','scheme','series','barDots','legendPos','frame','grid','tickDir','ylog','xRot','barEdge','fontFamily','refLine','errDir','fillAlpha','capW','axisColor'])if(o[k]!==undefined&&o[k]!==''&&o[k]!==null)st[k]=o[k];return st;}
+const FIG_STYLE_KEYS=['fontPt','bold','axisPt','tickLen','wIn','hIn','symPt','linePt','barFill','bracketShape','pStyle','showNs','legend','scheme','series','barDots','legendPos','frame','grid','tickDir','ylog','xRot','barEdge','fontFamily','refLine','errDir','fillAlpha','capW','axisColor'];
+function figStyleOf(o){const st={};for(const k of FIG_STYLE_KEYS)if(o[k]!==undefined&&o[k]!==''&&o[k]!==null)st[k]=o[k];return st;}
 function figStateFromSpec(j){j=j||{};const opts=Object.assign({errType:j.err||'SD',pThr:0.05,pStyle:'GP',showNs:false,yTitle:j.ytitle||'',xTitle:j.xtitle||'',ymin:j.ymin==null?'':j.ymin,ymax:j.ymax==null?'':j.ymax,barFill:'solid',bracketShape:'long'},j.style||{});
   if(opts.scheme&&FIG_SCHEMES[opts.scheme])opts.colors=FIG_SCHEMES[opts.scheme];
   return {text:String(j.data||'').trim(),kind:j.kind||'',type:j.type||'',opts,title:j.title||'',cmp:j.compare||'none',ctrl:+(j.ctrl||0)};}
-function figRenderSpec(j){const st=figStateFromSpec(j);const parsed=figParseTable(st.text);if(!parsed)return null;const kind=st.kind||(parsed.firstColText?'grouped':'column');const data=figBuildData(parsed,kind);if(!data)return null;const types=FIG_TYPES[kind]||FIG_TYPES.column;const type=types.some(t=>t[0]===st.type)?st.type:types[0][0];
-  const compare=st.cmp!=='none'?(kind==='column'?figCompare(data.groups,st.cmp,st.ctrl):kind==='grouped'?figCompareGrouped(data,st.cmp,st.ctrl):null):null;return figRender({data,type,opts:st.opts,title:st.title,compare,legend:st.opts.legend||'right'});}
+function figRenderSpec(j){const st=figStateFromSpec(j);const parsed=figParseTable(st.text);if(!parsed)return null;const kind=st.kind||figAutoKind(parsed);const data=figBuildData(parsed,kind);if(!data)return null;const types=FIG_TYPES[kind]||FIG_TYPES.column;const type=types.some(t=>t[0]===st.type)?st.type:types[0][0];
+  const compare=st.cmp!=='none'?(kind==='column'?figCompare(data.groups,st.cmp,st.ctrl):kind==='grouped'?figCompareGrouped(data,st.cmp,st.ctrl):null):null;return figRender({data,type,opts:st.opts,title:st.title,compare,cmp:st.cmp,ctrl:st.ctrl,legend:st.opts.legend||'right'});}
 const FIG_SCHEMES={prism:['#0000FF','#FF0000','#00C000','#A000E0','#FF8000','#000000','#906020','#000080','#600050'],colorblind:['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#F0E442','#000000'],gray:['#000000','#707070','#B0B0B0','#404040','#909090','#D0D0D0'],nature:['#E64B35','#4DBBD5','#00A087','#3C5488','#F39B7F','#8491B4','#91D1C2','#DC0000']};
 // AI に渡す書き方の説明（buildContext から参照）
-const FIG_PROMPT=`## 図（Figure）の作り方
+let FIG_PROMPT=`## 図（Figure）の作り方
 利用者に図・グラフを求められたら、説明のあとに次の形の \`\`\`figure ブロックを1つ出してください（アプリがその場で描画します）。データは利用者が示した数値を使い、無ければ仮の数値だと明記します。
 \`\`\`figure
 {"title":"任意","kind":"column|grouped|xy","type":"scatter|bar|box|violin|grouped-bar|grouped-scatter|xy-line|xy-points","err":"SD|SEM|CI","compare":"none|all|dunnett","ytitle":"Y 軸の題","xtitle":"X 軸の題","data":"A\\tB\\tC\\n1\\t2\\t3\\n..."}
@@ -286,6 +293,7 @@ function figDoRedo(){if(!figRedo.length)return;const s=figRedo.pop();figUndo.pus
 function figToolsHTML(){return `<div class="figTools"><button class="small" id="figUndoBtn" data-tip="元に戻す">↶</button><button class="small" id="figRedoBtn" data-tip="やり直す">↷</button><span class="sep"></span>${FIG_TOOLS.map(g=>`<div class="ftm" data-ftm="${g.id}"><button class="small">${g.l} ▾</button><div class="ftp" id="ftp-${g.id}"></div></div>`).join('')}<span class="sep"></span><button class="small" data-fact="copy" data-tip="画像をコピー">⧉ コピー</button><button class="small" data-fact="png" data-tip="PNG 300 dpi">PNG</button><button class="small" data-fact="png600" data-tip="PNG 600 dpi">PNG 600</button><button class="small" data-fact="svg" data-tip="SVG">SVG</button></div>`;}
 function figToolPanel(g){
   const st=figState,o=st.opts;const val=k=>k==='__type'?st.type:k==='__title'?st.title:k==='__cmp'?st.cmp:k==='__preset'?(Object.entries(FIG_PRESETS).find(([n,v])=>v[0]==+(o.wIn||3)&&v[1]==+(o.hIn||2))||['custom'])[0]:(o[k]===undefined?(FIG_DEF[k]===undefined?'':FIG_DEF[k]):o[k]);
+  if(!g.items.length)return '<div class="hint">この図種に固有の設定はありません</div>';
   return g.items.map(it=>{if(it.t==='series'){const gs=(st.data&&st.data.groups)||[];return gs.map((gr,i)=>{const so=figSeriesOpt(o,i);return `<div class="irow"><label>${figEsc(gr.name)}</label><span class="srow"><input type="color" data-tk="series.${i}.color" value="${so.color}"><select data-tk="series.${i}.symbol">${FIG_SYMBOLS.map(([a,b])=>`<option value="${a}"${a===so.symbol?' selected':''}>${b}</option>`).join('')}</select><select data-tk="series.${i}.fill"><option value="solid"${so.fill==='solid'?' selected':''}>塗り</option><option value="open"${so.fill==='open'?' selected':''}>白抜き</option></select></span></div>`;}).join('')||'<div class="hint">データを入れると系列ごとの色が出ます</div>';}
     const v=val(it.k);const opts=typeof it.o==='function'?it.o():it.o;
     if(it.t==='select')return `<div class="irow"><label>${it.l}</label><select data-tk="${it.k}">${(opts||[]).map(([a,b])=>`<option value="${a}"${String(a)===String(v)?' selected':''}>${b}</option>`).join('')}</select></div>`;
@@ -333,29 +341,34 @@ function figOpen(init){
 }
 function figSync(reset){
   const $=s=>document.querySelector(s);const st=figState;st.text=$('#figData').value;st.title=$('#figTitle').value.trim();
-  const parsed=figParseTable(st.text);const autoKind=parsed?(parsed.firstColText?'grouped':'column'):'column';
+  const parsed=figParseTable(st.text);const autoKind=parsed?figAutoKind(parsed):'column';
   if(reset||!st.kind){st.kind=st.kind||autoKind;}
   const kindSel=$('#figKind');if(kindSel.value!==st.kind)kindSel.value=st.kind;
   const types=FIG_TYPES[st.kind]||FIG_TYPES.column;if(!types.some(t=>t[0]===st.type))st.type=types[0][0];
   $('#figType').innerHTML=types.map(t=>`<option value="${t[0]}"${t[0]===st.type?' selected':''}>${t[1]}</option>`).join('');
   const data=figBuildData(parsed,st.kind);st.data=data;
-  $('#figCmpRow').style.display=st.kind==='xy'?'none':'';
+  $('#figCmpRow').style.display=(st.kind==='column'||st.kind==='grouped')?'':'none';
   let compare=null,note='';
   if(data&&(st.kind==='column'||st.kind==='grouped')&&st.cmp!=='none'){compare=st.kind==='grouped'?figCompareGrouped(data,st.cmp,st.ctrl):figCompare(data.groups,st.cmp,st.ctrl);note=compare.note||'';
     $('#figCtrl').innerHTML=data.groups.map((g,i)=>`<option value="${i}"${i===st.ctrl?' selected':''}>${g.name}</option>`).join('');$('#figCtrl').style.display=st.cmp==='dunnett'?'':'none';}
   else{$('#figCtrl').style.display='none';}
   if(st.opts.scheme&&FIG_SCHEMES[st.opts.scheme])st.opts.colors=FIG_SCHEMES[st.opts.scheme];
-  const spec={data,type:st.type,opts:st.opts,title:st.title,compare,legend:st.opts.legend||'right'};st.spec=spec;
-  try{const r=figRender(spec);st.svg=r.svg;st.w=r.w;st.h=r.h;$('#figPreview').innerHTML=r.svg||'<div class="hint">データを貼り付けてください</div>';}
+  const spec={data,type:st.type,opts:st.opts,title:st.title,compare,cmp:st.cmp,ctrl:st.ctrl,legend:st.opts.legend||'right'};st.spec=spec;
+  try{const r=figRender(spec);st.svg=r.svg;st.w=r.w;st.h=r.h;st.res=r.res||null;$('#figPreview').innerHTML=r.svg||'<div class="hint">データを貼り付けてください</div>';}
   catch(e){$('#figPreview').innerHTML='<div class="hint">描画できませんでした: '+figEsc(e.message)+'</div>';st.svg='';}
   figMarkSel();figInspector();
+  $('#figStats').innerHTML=figStatsHTML(data,compare,note,st);
+  clearTimeout(figUndoTimer);figUndoTimer=setTimeout(figPushUndo,400);
+}
+// 左下の結果表（figure-more.js の図種は figStatsMore が先に返す）
+function figStatsHTML(data,compare,note,st){
+  if(typeof figStatsMore==='function'){const h=figStatsMore(data,st);if(h!=null)return h;}
   let stat='';
   if(data){if(data.kind==='column'){stat='<table><tr><th>群</th><th>n</th><th>平均</th><th>SD</th><th>SEM</th><th>中央値</th></tr>'+data.groups.map(g=>{const v=g.values;const e=figErr(v,'SD');return `<tr><td>${figEsc(g.name)}</td><td>${v.length}</td><td>${v.length?e.m.toFixed(3):''}</td><td>${v.length>1?e.e.toFixed(3):''}</td><td>${v.length>1?(e.e/Math.sqrt(v.length)).toFixed(3):''}</td><td>${v.length?median(v).toFixed(3):''}</td></tr>`;}).join('')+'</table>';
       if(compare&&compare.pairs){stat+=`<div class="hint">${figEsc(compare.test)}${compare.anova&&isFinite(compare.anova.p)?` ／ 分散分析 P = ${compare.anova.p<0.0001?'<0.0001':compare.anova.p.toFixed(4)}`:''}</div>`;if(compare.pairs.length)stat+='<table><tr><th>比較</th><th>P 値</th><th>要約</th></tr>'+compare.pairs.map(p=>`<tr><td>${figEsc(data.groups[p.a].name)} vs ${figEsc(data.groups[p.b].name)}</td><td>${p.p<0.0001?'<0.0001':p.p.toFixed(4)}</td><td>${figStars(p.p,'GP')}</td></tr>`).join('')+'</table>';if(note)stat+=`<div class="hint">${figEsc(note)}</div>`;}}
     else if(data.kind==='grouped'){stat=`<div class="hint">カテゴリ ${data.cats.length} × 群 ${data.groups.length}（同名の列を反復として平均±${figEsc(st.opts.errType)}）</div>`;if(compare&&compare.pairs){stat+=`<div class="hint">${figEsc(compare.test)}</div><table><tr><th>カテゴリ</th><th>比較</th><th>P 値</th><th>要約</th></tr>`+compare.pairs.map(p=>`<tr><td>${figEsc(data.cats[p.ci])}</td><td>${figEsc(data.groups[p.a].name)} vs ${figEsc(data.groups[p.b].name)}</td><td>${p.p<0.0001?'<0.0001':p.p.toFixed(4)}</td><td>${figStars(p.p,'GP')}</td></tr>`).join('')+'</table>';}}
     else{stat=`<div class="hint">X: ${figEsc(data.xname)} ／ 系列 ${data.groups.length}（同名の列を反復として平均±${figEsc(st.opts.errType)}）</div>`;}}
-  $('#figStats').innerHTML=stat;
-  clearTimeout(figUndoTimer);figUndoTimer=setTimeout(figPushUndo,400);
+  return stat;
 }
 // プレビューの要素を選ぶ → 右の「選んだ要素」欄に細かい設定を出す
 function figMarkSel(){document.querySelectorAll('#figPreview [data-sel]').forEach(el=>el.classList.toggle('sel',el.dataset.sel===figState.sel));}

@@ -297,6 +297,24 @@ async function runSmoke(win) {
         r.fig.grouped={brackets:(figState.svg.match(/<polyline/g)||[]).length,dots:(figState.svg.match(/<circle/g)||[]).length,legendBottom:figState.svg.includes('Group')||/Cond/.test(figState.svg),box:(figState.svg.match(/<rect /g)||[]).length,pairs:figState.spec.compare.pairs.length};
         const before=figState.opts.frame;figDoUndo();await new Promise(x=>setTimeout(x,100));r.fig.undo={before,after:figState.opts.frame};
       }
+      if(${process.env.SMOKE_FIG2 === '1'}){ // Figure P2: 生存・ROC・ヒートマップ・フォレスト・ウォーターフォール・回帰・用量反応をチャットのブロックと作成画面で描く
+        gotoBranch('main');await new Promise(x=>setTimeout(x,200));
+        const TB=String.fromCharCode(9),NL2=String.fromCharCode(10),F=String.fromCharCode(96).repeat(3);
+        const km={title:'OS',kind:'survival',type:'km',xtitle:'Months',data:['Time'+TB+'Event'+TB+'Group','3'+TB+'1'+TB+'A','5'+TB+'1'+TB+'A','6'+TB+'0'+TB+'A','8'+TB+'1'+TB+'A','9'+TB+'1'+TB+'A','12'+TB+'1'+TB+'A','7'+TB+'1'+TB+'B','10'+TB+'0'+TB+'B','13'+TB+'1'+TB+'B','16'+TB+'0'+TB+'B','19'+TB+'1'+TB+'B','22'+TB+'0'+TB+'B'].join(NL2)};
+        window.streamDummy=async function*(){const t='生存曲線です。'+NL2+NL2+F+'figure'+NL2+JSON.stringify(km)+NL2+F+NL2;for(let i=0;i<t.length;i+=9){await new Promise(r=>setTimeout(r,4));yield {text:t.slice(i,i+9)};}};
+        await send('生存曲線を作って',{branchId:effectiveBranchForSend(),parentId:conv.activeNodeId});await new Promise(x=>setTimeout(x,500));
+        const fb=document.getElementById('n-'+conv.activeNodeId).querySelector('.figblock');
+        r.fig2={kmBlock:!!(fb&&fb.querySelector('svg')),kmRisk:!!(fb&&fb.innerHTML.includes('Number at risk')),kmLogrank:!!(fb&&fb.innerHTML.includes('Log-rank')),promptHasSurvival:buildContext(conv.activeNodeId).system.includes('kind "survival"')};
+        fb.querySelector('[data-figedit]').click();await new Promise(x=>setTimeout(x,300));
+        r.fig2.kindSel=document.querySelector('#figKind').value;r.fig2.typeOpts=[...document.querySelectorAll('#figType option')].map(o=>o.value);r.fig2.stats=document.querySelector('#figStats').textContent.slice(0,80);r.fig2.cmpHidden=document.querySelector('#figCmpRow').style.display==='none';
+        const tb=document.querySelector('#figToolbar');tb.querySelector('[data-ftm="kind"] > button').click();await new Promise(x=>setTimeout(x,100));r.fig2.kindMenu=[...document.querySelectorAll('#ftp-kind [data-tk]')].map(e=>e.dataset.tk);
+        const ci=document.querySelector('#ftp-kind [data-tk="survCI"]');ci.checked=true;ci.dispatchEvent(new Event('change'));await new Promise(x=>setTimeout(x,100));r.fig2.ciBand=(figState.svg.match(/fill-opacity="0.15"/g)||[]).length;
+        document.body.click();document.querySelector('#figUpdate').click();await new Promise(x=>setTimeout(x,300));r.fig2.writtenBack=N(conv.activeNodeId).content.includes('"survCI":true');
+        const specs={roc:{kind:'roc',type:'roc',data:['M'+TB+'Class',...Array.from({length:20},(_,i)=>(i<8?6+i%4:3+i%5)+TB+(i<8?1:0))].join(NL2)},hm:{kind:'heatmap',type:'heatmap',data:['G'+TB+'a'+TB+'b'+TB+'c','g1'+TB+'1'+TB+'2'+TB+'3','g2'+TB+'3'+TB+'2'+TB+'1','g3'+TB+'2'+TB+'2'+TB+'2'].join(NL2),style:{hmCluster:'rows',hmValues:true}},forest:{kind:'forest',type:'forest',data:['Study'+TB+'HR'+TB+'Lower'+TB+'Upper','S1'+TB+'0.7'+TB+'0.5'+TB+'0.9','S2'+TB+'0.8'+TB+'0.6'+TB+'1.1','Overall'+TB+'0.75'+TB+'0.6'+TB+'0.9'].join(NL2)},wf:{kind:'waterfall',type:'waterfall',data:['P'+TB+'Change'+TB+'Resp','p1'+TB+'30'+TB+'PD','p2'+TB+'-10'+TB+'SD','p3'+TB+'-45'+TB+'PR'].join(NL2)},reg:{kind:'xy',type:'xy-regression',data:['X'+TB+'Y','1'+TB+'2','2'+TB+'4.1','3'+TB+'5.9','4'+TB+'8.2'].join(NL2)},dose:{kind:'xy',type:'xy-dose',data:['C'+TB+'Y','1e-9'+TB+'99','1e-8'+TB+'97','1e-7'+TB+'85','1e-6'+TB+'45','1e-5'+TB+'10','1e-4'+TB+'5'].join(NL2)},ba:{kind:'column',type:'before-after',compare:'all',data:['Pre'+TB+'Post','1'+TB+'3','2'+TB+'4','1.5'+TB+'3.8'].join(NL2)},stack:{kind:'grouped',type:'stacked-100',data:['C'+TB+'A'+TB+'B','c1'+TB+'1'+TB+'3','c2'+TB+'2'+TB+'2'].join(NL2)}};
+        r.fig2.render={};for(const [k,sp] of Object.entries(specs)){let ok=false,err='';try{const x=figRenderSpec(sp);ok=!!(x&&x.svg&&x.svg.length>500);}catch(e){err=e.message;}r.fig2.render[k]=err||ok;}
+        r.fig2.autoKind={roc:figAutoKind(figParseTable(specs.roc.data)),forest:figAutoKind(figParseTable(specs.forest.data)),km:figAutoKind(figParseTable(km.data))};
+        r.fig2.kindOptions=[...document.querySelectorAll('#figKind option')].map(o=>o.value);
+      }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     const img = await win.webContents.capturePage();
