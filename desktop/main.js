@@ -338,8 +338,37 @@ async function runSmoke(win) {
         r.fig3.autoKind={sw:figAutoKind(figParseTable(sw.data)),sp:figAutoKind(figParseTable(specs.sp.data)),vol:figAutoKind(figParseTable(specs.vol.data)),sup:figAutoKind(figParseTable(specs.sup.data)),imp:figAutoKind(figParseTable(specs.imp.data))};
         r.fig3.kindOptions=[...document.querySelectorAll('#figKind option')].map(o=>o.value).filter(v=>['multi','nested','swimmer','spider','feature','importance'].includes(v));
       }
+      if(${process.env.SMOKE_FIG4 === '1'}){ // Figure レイアウト: 複数パネルのブロック→パネル編集→書き戻し→設定変更→PNG
+        gotoBranch('main');await new Promise(x=>setTimeout(x,200));
+        const TB=String.fromCharCode(9),NL2=String.fromCharCode(10),F=String.fromCharCode(96).repeat(3);
+        const A={title:'Tumor volume',kind:'column',type:'scatter',compare:'all',ytitle:'Volume',data:['Control'+TB+'Zolmin'+TB+'Combo','120'+TB+'80'+TB+'40','130'+TB+'85'+TB+'50','110'+TB+'70'+TB+'45','125'+TB+'90'+TB+'38'].join(NL2)};
+        const B={title:'OS',kind:'survival',type:'km',xtitle:'Months',data:['Time'+TB+'Event'+TB+'Group','3'+TB+'1'+TB+'C','5'+TB+'1'+TB+'C','8'+TB+'1'+TB+'C','12'+TB+'0'+TB+'C','7'+TB+'1'+TB+'Z','10'+TB+'0'+TB+'Z','16'+TB+'1'+TB+'Z','22'+TB+'0'+TB+'Z'].join(NL2)};
+        const C={title:'Dose',kind:'xy',type:'xy-dose',xtitle:'[Zolmin] (M)',ytitle:'Viability (%)',data:['C'+TB+'Y'+TB+'Y','1e-9'+TB+'99'+TB+'101','1e-8'+TB+'97'+TB+'95','1e-7'+TB+'85'+TB+'82','1e-6'+TB+'45'+TB+'50','1e-5'+TB+'10'+TB+'12','1e-4'+TB+'5'+TB+'4'].join(NL2)};
+        const D={title:'Expression',kind:'heatmap',type:'heatmap',data:['Gene'+TB+'C1'+TB+'C2'+TB+'Z1'+TB+'Z2','MS4A1'+TB+'10'+TB+'11'+TB+'3'+TB+'2','SPIB'+TB+'2'+TB+'3'+TB+'9'+TB+'10','CD19'+TB+'8'+TB+'9'+TB+'5'+TB+'4'].join(NL2),style:{hmZ:true}};
+        const lay={kind:'layout',cols:2,labels:'A',panels:[A,B,C,D]};
+        window.streamDummy=async function*(){const t='4 枚をまとめました。'+NL2+NL2+F+'figure'+NL2+JSON.stringify(lay)+NL2+F+NL2;for(let i=0;i<t.length;i+=40){await new Promise(r=>setTimeout(r,2));yield {text:t.slice(i,i+40)};}};
+        await send('4 枚を 1 つの Figure に',{branchId:effectiveBranchForSend(),parentId:conv.activeNodeId});await new Promise(x=>setTimeout(x,600));
+        const fb=document.getElementById('n-'+conv.activeNodeId).querySelector('.figblock');const nid=conv.activeNodeId;
+        r.fig4={layoutBlock:!!(fb&&fb.classList.contains('layout')),panels:fb?fb.querySelectorAll('svg svg').length:0,labels:fb?[...fb.querySelectorAll('[data-label]')].map(t=>t.textContent).join(''):'',editBtns:fb?fb.querySelectorAll('[data-figedit]').length:0,promptHasLayout:buildContext(nid).system.includes('"kind":"layout"')};
+        // 軸の位置揃え: 同じ列の 2 枚のプロット領域の左端（SVG 内の x0 + パネルの x）が一致する
+        const sv=[...fb.querySelectorAll('svg svg')];const left=k=>+sv[k].getAttribute('x')+(+sv[k].querySelector('[data-sel="axes"] line').getAttribute('x1'));r.fig4.alignedLeft=Math.abs(left(0)-left(2))<0.01;
+        fb.querySelectorAll('[data-figedit]')[1].click();await new Promise(x=>setTimeout(x,300));r.fig4.editKind=document.querySelector('#figKind').value;
+        document.querySelector('#figTitle').value='OS (edited)';document.querySelector('#figTitle').dispatchEvent(new Event('input'));await new Promise(x=>setTimeout(x,200));document.querySelector('#figUpdate').click();await new Promise(x=>setTimeout(x,400));
+        const j1=JSON.parse(figFindBlocks(N(nid).content)[0].json);r.fig4.panelEdited=j1.panels[1].title==='OS (edited)'&&j1.panels.length===4&&j1.kind==='layout';
+        const fb2=document.getElementById('n-'+nid).querySelector('.figblock');const selCols=fb2.querySelector('[data-figlay="cols"]');selCols.value='3';selCols.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(x=>setTimeout(x,400));
+        r.fig4.colsWritten=JSON.parse(figFindBlocks(N(nid).content)[0].json).cols===3;
+        const fb3=document.getElementById('n-'+nid).querySelector('.figblock');const selPage=fb3.querySelector('[data-figlay="page"]');selPage.value='2col';selPage.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(x=>setTimeout(x,400));
+        const fb4=document.getElementById('n-'+nid).querySelector('.figblock');const svg=fb4.querySelector('svg');r.fig4.pageWidthPt=+svg.getAttribute('width');r.fig4.hint=fb4.querySelector('.hint').textContent;
+        const c=await figToPng(svg.outerHTML,+svg.getAttribute('width'),+svg.getAttribute('height'),200);r.fig4.pngPx=c.width+'x'+c.height;r.fig4.png=c.toDataURL('image/png');
+        // 2 つの図を 1 枚にまとめるボタン
+        window.streamDummy=async function*(){const t='2 枚です。'+NL2+F+'figure'+NL2+JSON.stringify(A)+NL2+F+NL2+'と'+NL2+F+'figure'+NL2+JSON.stringify(C)+NL2+F+NL2;yield {text:t};};
+        await send('2 枚',{branchId:effectiveBranchForSend(),parentId:conv.activeNodeId});await new Promise(x=>setTimeout(x,500));
+        const m2=document.getElementById('n-'+conv.activeNodeId);r.fig4.combineBtn=!!m2.querySelector('[data-figcombine]');m2.querySelector('[data-figcombine]').click();await new Promise(x=>setTimeout(x,500));
+        const bl=figFindBlocks(N(conv.activeNodeId).content);r.fig4.combined=bl.length===1&&JSON.parse(bl[0].json).panels.length===2;
+      }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
+    if (out.page && out.page.fig4 && out.page.fig4.png) { const f = path.join(process.env.SMOKE_OUT || require('node:os').tmpdir(), 'branchat-layout.png'); fs.writeFileSync(f, Buffer.from(out.page.fig4.png.split(',')[1], 'base64')); out.page.fig4.png = f; }
     const img = await win.webContents.capturePage();
     const shot = path.join(process.env.SMOKE_OUT || require('node:os').tmpdir(), 'branchat-smoke.png');
     fs.writeFileSync(shot, img.toPNG()); out.screenshot = shot; out.ok = true;

@@ -203,7 +203,7 @@ function figRender(spec){
     legend+=txt(lx+fs*1.5,ly,gr.name,'start');});}
   const title=spec.title?txt(x0+plotW/2,padT-fs*0.9,spec.title,'middle','','title'):'';
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${series.map((s,i)=>`<g data-sel="series:${i}">${s||''}</g>`).join('')}${brackets?`<g data-sel="brackets">${brackets}</g>`:''}${legend?`<g data-sel="legend">${legend}</g>`:''}${title}</svg>`;
-  return {svg,w:W,h:H};
+  return {svg,w:W,h:H,plot:{x0,y0:padT,w:plotW,h:plotH}}; // plot はレイアウトで軸を揃えるための プロット領域
 }
 
 /* ---------- 書き出し ---------- */
@@ -217,7 +217,8 @@ function figStyleOf(o){const st={};for(const k of FIG_STYLE_KEYS)if(o[k]!==undef
 function figStateFromSpec(j){j=j||{};const opts=Object.assign({errType:j.err||'SD',pThr:0.05,pStyle:'GP',showNs:false,yTitle:j.ytitle||'',xTitle:j.xtitle||'',ymin:j.ymin==null?'':j.ymin,ymax:j.ymax==null?'':j.ymax,barFill:'solid',bracketShape:'long'},j.style||{});
   if(opts.scheme&&FIG_SCHEMES[opts.scheme])opts.colors=FIG_SCHEMES[opts.scheme];
   return {text:String(j.data||'').trim(),kind:j.kind||'',type:j.type||'',opts,title:j.title||'',cmp:j.compare||'none',ctrl:+(j.ctrl||0)};}
-function figRenderSpec(j){const st=figStateFromSpec(j);const parsed=figParseTable(st.text);if(!parsed)return null;const kind=st.kind||figAutoKind(parsed);const data=figBuildData(parsed,kind);if(!data)return null;const types=FIG_TYPES[kind]||FIG_TYPES.column;const type=types.some(t=>t[0]===st.type)?st.type:types[0][0];
+function figRenderSpec(j){if(typeof figRenderLayout==='function'&&figIsLayout(j))return figRenderLayout(j); // figure-layout.js
+  const st=figStateFromSpec(j);const parsed=figParseTable(st.text);if(!parsed)return null;const kind=st.kind||figAutoKind(parsed);const data=figBuildData(parsed,kind);if(!data)return null;const types=FIG_TYPES[kind]||FIG_TYPES.column;const type=types.some(t=>t[0]===st.type)?st.type:types[0][0];
   const compare=st.cmp!=='none'?(kind==='column'?figCompare(data.groups,st.cmp,st.ctrl):kind==='grouped'?figCompareGrouped(data,st.cmp,st.ctrl):null):null;return figRender({data,type,opts:st.opts,title:st.title,compare,cmp:st.cmp,ctrl:st.ctrl,legend:st.opts.legend||'right'});}
 const FIG_SCHEMES={prism:['#0000FF','#FF0000','#00C000','#A000E0','#FF8000','#000000','#906020','#000080','#600050'],colorblind:['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#F0E442','#000000'],gray:['#000000','#707070','#B0B0B0','#404040','#909090','#D0D0D0'],nature:['#E64B35','#4DBBD5','#00A087','#3C5488','#F39B7F','#8491B4','#91D1C2','#DC0000']};
 // AI に渡す書き方の説明（buildContext から参照）
@@ -415,7 +416,8 @@ function figInit(){
 }
 // 編集した内容を、元の回答の ```figure ブロックに書き戻す
 function figUpdateSource(){const src=figState.src;if(!src)return;const n=N(src.nodeId);if(!n)return;const blocks=figFindBlocks(n.content);const b=blocks[src.index];if(!b){toast('元の図が見つかりません');return;}
-  const json=JSON.stringify(figSpecFromState(figState));n.content=n.content.slice(0,b.start)+'```figure\n'+json+'\n```'+n.content.slice(b.end);persist();renderAll();document.querySelector('#figDlg').close();toast('回答の図を更新しました');}
+  let spec=figSpecFromState(figState);if(src.panel!=null){let lay;try{lay=JSON.parse(b.json);}catch(e){toast('レイアウトを読めませんでした');return;}if(!lay.panels||!lay.panels[src.panel]){toast('パネルが見つかりません');return;}lay.panels[src.panel]=spec;spec=lay;} // レイアウトのパネルを差し替え
+  const json=JSON.stringify(spec);n.content=n.content.slice(0,b.start)+'```figure\n'+json+'\n```'+n.content.slice(b.end);persist();renderAll();document.querySelector('#figDlg').close();toast('回答の図を更新しました');}
 function figFindBlocks(text){const out=[];const re=/```figure[ \t]*\n([\s\S]*?)\n```/g;let m;while((m=re.exec(String(text||''))))out.push({start:m.index,end:m.index+m[0].length,json:m[1]});return out;}
 async function figAttach(){const $=s=>document.querySelector(s);if(!figState.svg)return;if(!imagesSupported){toast('この接続方式では画像を送れません');return;}
   const c=await figToPng(figState.svg,figState.w,figState.h,200);const full=c.toDataURL('image/jpeg',.9);const tc=document.createElement('canvas');const r=256/Math.max(c.width,c.height);tc.width=Math.round(c.width*r);tc.height=Math.round(c.height*r);tc.getContext('2d').drawImage(c,0,0,tc.width,tc.height);
@@ -427,10 +429,12 @@ function figBlockHTML(json,nodeId,index){
   let j=null;try{j=JSON.parse(json);}catch(e){return `<div class="figblock waiting"><span class="spin4 mini"><i></i><i></i><i></i><i></i></span><span class="ui">図を作成中…</span></div>`;}
   let r=null;try{r=figRenderSpec(j);}catch(e){r=null;}
   if(!r||!r.svg)return `<div class="figblock"><div class="hint">図を描けませんでした（データの形を確認してください）</div><pre>${figEsc(json)}</pre></div>`;
+  if(r.layout)return figLayoutBlockHTML(j,r,nodeId,index);
   return `<div class="figblock" data-fignode="${figEsc(nodeId||'')}" data-figidx="${index}">${r.svg}<div class="figbtns"><button class="small" data-figedit data-tip="この図を作成画面で編集する">✎ 編集</button><button class="small" data-figpng data-tip="PNG（300 dpi）で保存">PNG</button><button class="small" data-figsvg data-tip="SVG で保存">SVG</button><button class="small" data-figcopy data-tip="画像をコピー">⧉</button></div></div>`;
 }
-function figOpenFromBlock(el){const nid=el.dataset.fignode,idx=+el.dataset.figidx;const n=N(nid);if(!n)return;const b=figFindBlocks(n.content)[idx];if(!b)return;let j;try{j=JSON.parse(b.json);}catch(e){toast('図の指定を読めませんでした');return;}
-  const st=figStateFromSpec(j);st.src={nodeId:nid,index:idx};figOpen(st);}
+function figOpenFromBlock(el,panel){const nid=el.dataset.fignode,idx=+el.dataset.figidx;const n=N(nid);if(!n)return;const b=figFindBlocks(n.content)[idx];if(!b)return;let j;try{j=JSON.parse(b.json);}catch(e){toast('図の指定を読めませんでした');return;}
+  const src={nodeId:nid,index:idx};if(typeof figIsLayout==='function'&&figIsLayout(j)){const k=panel==null?0:+panel;j=(j.panels||[])[k];if(!j){toast('パネルが見つかりません');return;}src.panel=k;} // レイアウトの中の 1 パネルを編集
+  const st=figStateFromSpec(j);st.src=src;figOpen(st);}
 async function figBlockAction(el,act){const svgEl=el.querySelector('svg');if(!svgEl)return;const svg=svgEl.outerHTML;const w=+svgEl.getAttribute('width'),h=+svgEl.getAttribute('height');
   if(act==='svg'){saveTextFile(`figure_${Date.now()}.svg`,svg);return;}
   const c=await figToPng(svg,w,h,300);if(act==='png'){const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=`figure_${Date.now()}.png`;a.click();toast('PNG（300 dpi）を保存しました');}

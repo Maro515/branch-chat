@@ -528,6 +528,7 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 .figblock svg{max-width:100%;height:auto;display:block}
 .figblock.waiting{display:flex;align-items:center;gap:8px;padding:10px 14px;color:var(--indigo2);font-size:12px}
 .figblock .figbtns{display:flex;gap:4px;margin-top:4px}
+.figblock .figbtns{flex-wrap:wrap;align-items:center}.figblock .figbtns select{font-size:11px;height:22px;padding:0 4px;border:1px solid #a8c9a3;border-radius:6px;background:#fff}.figblock .figbtns .ui{font-size:11px;color:var(--muted)}.figblock .figbtns .hint{font-size:10px}
 .figblock .figbtns button{font-size:11px;padding:0 8px;height:22px;background:#fff;color:var(--indigo);border:1px solid #a8c9a3}
 .figblock pre{font-size:10px;max-height:120px;overflow:auto}
 /* ===== 整理ダイアログ ===== */
@@ -823,6 +824,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 <script src="figure.js"></script>
 <script src="figure-more.js"></script>
 <script src="figure-more2.js"></script>
+<script src="figure-layout.js"></script>
 <script>
 /* ========== 基本ユーティリティ ========== */
 const $=s=>document.querySelector(s);
@@ -2121,7 +2123,9 @@ $('#figBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on'
 $('#nwClose').onclick=()=>{noteCur=null;$('#noteWin').hidden=true;if(dropEmptyNotes()){persist();markNotes();}};
 $('#nwDel').onclick=async()=>{const n=noteCur&&notesOf()[noteCur];if(!n)return;if(noteBusy){toast('生成中は消せません');return;}if(!(await askConfirm(`「${excerpt(n.text,20)}」についてのこのチャット（${n.items.filter(i=>i.role==='user').length}件の質問）を消しますか？\n同じ言葉のほかのチャットは残ります。`,'消す')))return;delete notesOf()[n.id];noteCur=null;$('#noteWin').hidden=true;persist();renderAll();};
 // 表示中の回答の本文から、その言葉を探して黄色のマーカーを付ける。見つからないとき（装飾をまたいだ選択など）は末尾に小さな札を出す
-function figHydrate(){document.querySelectorAll('#msgs .msg').forEach(m=>{const id=m.id.replace(/^n-/,'');m.querySelectorAll('.figblock[data-figidx]').forEach(b=>{b.dataset.fignode=id;});});}
+function figHydrate(){document.querySelectorAll('#msgs .msg').forEach(m=>{const id=m.id.replace(/^n-/,'');const bs=m.querySelectorAll('.figblock[data-figidx]');bs.forEach(b=>{b.dataset.fignode=id;});
+  if(bs.length>=2&&![...bs].some(b=>b.classList.contains('layout'))){const bar=bs[bs.length-1].querySelector('.figbtns');if(bar&&!bar.querySelector('[data-figcombine]')){const bt=document.createElement('button');bt.className='small';bt.dataset.figcombine='1';bt.dataset.tip='この発言の図を 1 枚の Figure（A, B, C…）にまとめる';bt.textContent='⊞ 1 枚にまとめる';bar.appendChild(bt);}}});}
+$('#msgs').addEventListener('change',e=>{const el=e.target.closest&&e.target.closest('[data-figlay]');const fb=el&&el.closest('.figblock');if(el&&fb)figLayoutSet(fb,el.dataset.figlay,el.type==='checkbox'?el.checked:el.value);});
 function markNotes(){
   const m=$('#msgs');m.querySelectorAll('mark.note').forEach(k=>{k.replaceWith(document.createTextNode(k.textContent));});m.querySelectorAll('.noteChip').forEach(k=>k.remove());
   const groups=new Map();for(const n of Object.values(conv.notes||{}).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))){const k=n.nodeId+'\u0001'+n.text;if(!groups.has(k))groups.set(k,{nodeId:n.nodeId,text:n.text,ids:[]});groups.get(k).ids.push(n.id);}
@@ -2148,7 +2152,7 @@ $('#msgs').addEventListener('mouseout',e=>{const t=e.target.closest&&e.target.cl
 $('#notePop').addEventListener('mouseleave',hideNotePopSoon);
 $('#msgs').addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-note]');if(t&&!window.getSelection().toString()){const ids=String(t.dataset.note).split(',');if(ids.length===1){$('#notePop').classList.remove('on');openNote(ids[0]);}else showNotePop(t);}}); // 複数あるときは一覧から選ぶ
 $('#msgs').addEventListener('scroll',()=>$('#notePop').classList.remove('on'));
-$('#msgs').addEventListener('click',e=>{const fb=e.target.closest&&e.target.closest('.figblock');if(fb){if(e.target.closest('[data-figedit]')){figOpenFromBlock(fb);return;}if(e.target.closest('[data-figpng]')){figBlockAction(fb,'png');return;}if(e.target.closest('[data-figsvg]')){figBlockAction(fb,'svg');return;}if(e.target.closest('[data-figcopy]')){figBlockAction(fb,'copy');return;}}
+$('#msgs').addEventListener('click',e=>{const fb=e.target.closest&&e.target.closest('.figblock');if(fb){if(e.target.closest('[data-figedit]')){figOpenFromBlock(fb,e.target.closest('[data-figedit]').dataset.figpanel);return;}if(e.target.closest('[data-figcombine]')){figCombineBlocks(fb.dataset.fignode);return;}if(e.target.closest('[data-figpng]')){figBlockAction(fb,'png');return;}if(e.target.closest('[data-figsvg]')){figBlockAction(fb,'svg');return;}if(e.target.closest('[data-figcopy]')){figBlockAction(fb,'copy');return;}}
   const f=e.target.closest&&e.target.closest('[data-figfrom]');if(f){figFromTable(f.parentElement.querySelector('table'));return;}const b=e.target.closest&&e.target.closest('[data-copycode]');if(b){const pre=b.parentElement.querySelector('pre');copyText(pre?pre.textContent:'',b);}});
 async function copyText(text,btn){try{await navigator.clipboard.writeText(text);}catch(e){toast('コピーできませんでした');return;}if(btn){const t=btn.textContent;btn.textContent='✓';btn.classList.add('done');setTimeout(()=>{btn.textContent=t;btn.classList.remove('done');},1200);}toast('コピーしました');}
 

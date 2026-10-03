@@ -88,7 +88,7 @@ function figFrame(spec,cfg){
     if(it.kind==='rect')leg+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${so.fill==='open'?'#fff':c}" stroke="${c}"/>`;else if(it.kind==='line')leg+=`<line x1="${lx}" y1="${ly-fs*0.2}" x2="${lx+fs*1.1}" y2="${ly-fs*0.2}" stroke="${c}" stroke-width="${so.lineW*FIG_PT*1.5}"/>`;else leg+=sym(lx+fs*0.5,ly-fs*0.2,it.i==null?k:it.i,c,it.fill||so.fill,it.shape);
     leg+=txt(lx+fs*1.5,ly,it.name,'start');});}
   const title=spec.title?txt(x0+plotW/2,padT-fs*0.9,spec.title,'middle','','title'):'';
-  const wrap=(body,extra)=>({svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${body}${leg?`<g data-sel="legend">${leg}</g>`:''}${title}${extra||''}</svg>`,w:W,h:H});
+  const wrap=(body,extra)=>({svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${body}${leg?`<g data-sel="legend">${leg}</g>`:''}${title}${extra||''}</svg>`,w:W,h:H,plot:{x0,y0:padT,w:plotW,h:plotH}});
   return Object.assign(st,{x0,y0,plotW,plotH,W,H,padT,padL,padB,padR,xOf,yOf,wrap,xAxisY});
 }
 // 有意差ブラケット（figure.js と同じ見た目）。pairs: [{a,b,p}]、centers: [{cx,top}]
@@ -270,7 +270,7 @@ function figRenderDose(spec){const d=spec.data;const o=Object.assign({},FIG_DEF,
   ser.forEach((pts,i)=>{const so=S(i),c=so.color;let s='';const f=fits[i];
     if(f){const N=150;const cv=[];for(let k=0;k<=N;k++){const x=xs.lo+(xs.hi-xs.lo)*k/N;cv.push(`${xOf(x)},${yOf(Math.max(ys.lo,Math.min(ys.hi,f.at(x))))}`);}s+=`<polyline points="${cv.join(' ')}" fill="none" stroke="${c}" stroke-width="${so.lineW*FIG_PT}"/>`;
       const E=f.p[2],y50=(f.p[0]+f.p[1])/2;if(o.doseGuide&&E>=xs.lo&&E<=xs.hi)s+=`<polyline points="${F.x0},${yOf(y50)} ${xOf(E)},${yOf(y50)} ${xOf(E)},${F.y0}" fill="none" stroke="${c}" stroke-width="${a*0.75}" stroke-dasharray="${dash}"/>`;
-      if(o.doseText){const lab=f.p[3]<0?'IC50':'EC50';const val=conc?figSci(Math.pow(10,E)):'10^'+E.toFixed(2);const dec=f.p[3]<0;texts+=txt(dec?F.x0+F.plotW-fs*0.4:F.x0+fs*0.5,F.padT+fs*(i+1)*1.15,`${d.groups.length>1?d.groups[i].name+': ':''}${lab} = ${val}, Hill = ${f.p[3].toFixed(2)}, R² = ${f.r2.toFixed(3)}`,dec?'end':'start',`fill="${c}"`,null,fs*0.85);}}
+      if(o.doseText){const lab=f.p[3]<0?'IC50':'EC50';const val=conc?figSci(Math.pow(10,E)):'10^'+E.toFixed(2);const dec=f.p[3]<0;texts+=txt(F.x0+fs*0.5,dec?F.y0-fs*(ser.length-i)*1.15-fs*0.3:F.padT+fs*(i+1)*1.15,`${d.groups.length>1?d.groups[i].name+': ':''}${lab} = ${val}, Hill = ${f.p[3].toFixed(2)}, R² = ${f.r2.toFixed(3)}`,'start',`fill="${c}"`,null,fs*0.85);}}
     pts.forEach(p=>{const e=figErr(p.ys,o.errType);const cx=xOf(p.lx);s+=errBar(cx,e.m,e.e,so.symPt*FIG_PT*1.2,c)+sym(cx,yOf(e.m),i,c,so.fill);});body+=`<g data-sel="series:${i}">${s}</g>`;});
   const r=F.wrap(body+(texts?`<g data-sel="text">${texts}</g>`:''));r.res={fits,mode,skipped};return r;}
 
