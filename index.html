@@ -102,6 +102,12 @@ textarea:focus{outline:none;border-color:var(--glow);box-shadow:0 0 12px rgba(18
 .card .sum{margin:6px 0;white-space:pre-wrap}
 .card .sum b{display:block;color:var(--muted);font-size:11px;font-weight:700;margin-top:4px;letter-spacing:.08em}
 .card .act{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.card h3 .fold{flex:none;width:20px;height:20px;padding:0;border-radius:6px;font-size:12px;line-height:1;display:inline-flex;align-items:center;justify-content:center;margin-right:2px}
+.card.folded{padding:6px 10px}
+.card.folded h3{margin:0;cursor:pointer}
+.card.folded .from,.card.folded .sum,.card.folded .act{display:none}
+.card.folded .curBadge{margin-bottom:4px}
+.cardsHead .foldAll{margin-top:6px;display:flex;gap:6px}
 .card.pinned{box-shadow:0 0 0 1px var(--bc) inset,0 0 18px -4px var(--bc)}
 .card.plans{--bc:var(--yellow)}
 .card.plans .item{display:flex;gap:6px;align-items:center;justify-content:space-between;padding:4px 0;border-top:1px dashed rgba(255,217,61,.3);font-size:12px}
@@ -1426,12 +1432,13 @@ function renderOverview(){
   const plans=plannedNodes();
   const planCard=plans.length?`<div class="card plans"><h3 class="ui">★ 分岐予定 <span class="hint">${plans.length}件</span></h3>${plans.map(n=>`<div class="item"><span>${esc(label(n))}「${esc(excerpt(n.content,18))}」</span><span><button class="small plan" data-forkp="${n.id}">分岐する</button><button class="small" data-unplan="${n.id}">解除</button></span></div>`).join('')}</div>`:'';
   const cardsHead=`<div class="cardsHead"><h2 class="ui">各ブランチの要約</h2><p>左の図の枝を、1本ずつ文章でまとめた一覧です。<b>AI には質問のたびにこの要約が渡されます</b>（回答のあとに自動で更新）。枝の色は左の図と同じです。</p>
-    <details class="cardsHelp"><summary class="ui">ボタンの説明</summary><dl><dt>移動</dt><dd>その枝のチャットを開く</dd><dt>📌 全文を参照</dt><dd>ほかの枝で送信するとき、この枝の要約だけでなく全文も AI に渡す。要約では足りない細かい内容を参照させたいときに使う（長い枝では送る量が大きく増える）</dd><dt>現在ブランチに合流</dt><dd>その枝の結論を、今いる枝へ取り込む</dd><dt>名前</dt><dd>枝の名前を変える</dd><dt>要約更新</dt><dd>要約を今すぐ作り直す</dd></dl></details></div>`;
+    <div class="foldAll"><button class="small" id="foldAllBtn">すべて畳む</button><button class="small" id="unfoldAllBtn">すべて開く</button></div><details class="cardsHelp"><summary class="ui">ボタンの説明</summary><dl><dt>移動</dt><dd>その枝のチャットを開く</dd><dt>📌 全文を参照</dt><dd>ほかの枝で送信するとき、この枝の要約だけでなく全文も AI に渡す。要約では足りない細かい内容を参照させたいときに使う（長い枝では送る量が大きく増える）</dd><dt>現在ブランチに合流</dt><dd>その枝の結論を、今いる枝へ取り込む</dd><dt>名前</dt><dd>枝の名前を変える</dd><dt>要約更新</dt><dd>要約を今すぐ作り直す</dd></dl></details></div>`;
   $('#cards').innerHTML=cardsHead+(planCard?`<div class="cardsSec ui">あとで分岐する予定の回答</div>`+planCard:'')+`<div class="cardsSec ui">ブランチごとの要約（${bs.length}本）</div>`+bs.map(b=>{
     const from=b.forkFromNodeId?`${esc(label(N(b.forkFromNodeId)))}「${esc(excerpt(N(b.forkFromNodeId).content,24))}」から`:'ルート';
     const toks=branchNodes(b.id).reduce((a,n)=>a+tokensOf(n),0);
     const sum=b.summary?`<div class="sum"><b>話題 <span class="var" style="font-weight:400">— 何を話したか</span></b>${esc(b.summary.topic)}<b>結論 <span class="var" style="font-weight:400">— 決まったこと</span></b>${esc(b.summary.conclusions)}<b>未解決 <span class="var" style="font-weight:400">— 残っている問い</span></b>${esc(b.summary.open)}</div>`:`<div class="sum hint ui">要約未作成（AIの回答後に自動生成）</div>`;
-    return `<div class="card${b.pinned?' pinned':''}" style="--bc:${b.color}">${b.id===cur?'<span class="curBadge ui">現在のブランチ</span>':''}<h3>${esc(b.name)}</h3>
+    const folded=!!(conv._foldCards&&conv._foldCards[b.id]);
+    return `<div class="card${b.pinned?' pinned':''}${folded?' folded':''}" style="--bc:${b.color}" data-card="${b.id}">${b.id===cur?'<span class="curBadge ui">現在のブランチ</span>':''}<h3><button class="fold" data-fold="${b.id}" data-tip="${folded?'開く':'小さく畳む'}" aria-label="${folded?'開く':'畳む'}">${folded?'▸':'▾'}</button>${esc(b.name)}</h3>
       <div class="from">${from} / ${branchNodes(b.id).length} <span class="ui">発言</span> / ${toks} tok${(validModel(b.model)||validEffort(b.effort))?` / <span title="このブランチ専用のモデル設定">⚙ ${esc(effLabel(b.id))}</span>`:''}</div>${sum}
       <div class="act">
         <button class="small" title="その枝のチャットを開く" data-go="${b.id}">移動</button>
@@ -1445,6 +1452,9 @@ function renderOverview(){
   c.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>gotoBranch(el.dataset.go));
   c.querySelectorAll('[data-pin]').forEach(el=>el.onclick=()=>{const b=B(el.dataset.pin);b.pinned=!b.pinned;persist();renderAll();});
   c.querySelectorAll('[data-rename]').forEach(el=>el.onclick=()=>renameBranch(el.dataset.rename));
+  const fa=$('#foldAllBtn'),ua=$('#unfoldAllBtn');if(fa)fa.onclick=()=>{conv._foldCards={};for(const b of bs)conv._foldCards[b.id]=true;persist();renderOverview();};if(ua)ua.onclick=()=>{conv._foldCards={};persist();renderOverview();};
+  c.querySelectorAll('[data-fold]').forEach(el=>el.onclick=e=>{e.stopPropagation();const f=conv._foldCards=conv._foldCards||{};if(f[el.dataset.fold])delete f[el.dataset.fold];else f[el.dataset.fold]=true;persist();renderOverview();});
+  c.querySelectorAll('.card.folded h3').forEach(el=>el.onclick=()=>{const id=el.closest('.card').dataset.card;delete conv._foldCards[id];persist();renderOverview();});
   c.querySelectorAll('[data-resum]').forEach(el=>el.onclick=()=>{toast('要約を更新中…');const bb=B(el.dataset.resum);if(bb&&bb.summary)delete bb.summary.upto;updateSummary(el.dataset.resum);branchNodes(el.dataset.resum).forEach(n=>{if(n.content.length>20)delete n.gist;});ensureGists();});
   c.querySelectorAll('[data-merge]').forEach(el=>el.onclick=()=>mergeBranch(el.dataset.merge));
   c.querySelectorAll('[data-delbr]').forEach(el=>el.onclick=()=>{const id=el.dataset.delbr;const wasPending=conv._pendingBranch===id;const b=B(id);if(!b||!isEmptyBranch(b))return;if(wasPending){cancelBranch(id);showOverview();}else{const name=b.name;delete conv.branches[id];persist();renderAll();toast(`分岐「${name}」を取り消しました`);}});
