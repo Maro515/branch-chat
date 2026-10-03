@@ -437,6 +437,47 @@ details.cardsHelp dl{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;
 details.cardsHelp dt{font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;color:var(--indigo);white-space:nowrap}
 details.cardsHelp dd{margin:0}
 
+/* ===== アジェンダ・進捗パネル ===== */
+#agenda{width:300px;flex:none;display:flex;flex-direction:column;border-left:2px solid var(--line);background:#f3f8f0;color:var(--indigo);min-height:0;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif}
+#agenda{--line:#c3dbbf;--indigo:#0f2f18;--indigo2:#2c5236}
+body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
+#agenda .agHead{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1.5px solid var(--line);font-size:13px}
+#agenda .agHead button{background:#fff;color:var(--indigo);border:1px solid #a8c9a3;padding:0 7px;height:22px}
+#agenda .agBody{flex:1;overflow-y:auto;padding:8px 10px 14px;font-size:12.5px;line-height:1.55}
+#agenda h4{margin:10px 0 4px;font-size:11px;letter-spacing:.1em;color:var(--indigo2);display:flex;align-items:center;gap:6px}
+#agenda h4:first-child{margin-top:0}
+#agenda h4 .cnt{font-weight:400}
+#agenda .now{background:#fff;border:1.5px solid var(--line);border-left:4px solid var(--curbc,var(--line));border-radius:8px;padding:6px 8px;color:#111}
+#agenda .ag{display:flex;gap:6px;align-items:flex-start;padding:4px 4px 4px 2px;border-radius:6px}
+#agenda .ag:hover{background:#fff}
+#agenda .ag .ck{flex:none;width:18px;height:18px;border:1.5px solid #a8c9a3;border-radius:5px;background:#fff;padding:0;font-size:11px;line-height:1;display:inline-flex;align-items:center;justify-content:center;color:var(--c1);margin-top:1px}
+#agenda .ag.done .ck{background:var(--c1);color:#fff;border-color:var(--c1)}
+#agenda .ag .tx{flex:1;min-width:0;color:#111;word-break:break-word}
+#agenda .ag.done .tx{color:var(--indigo2);text-decoration:line-through;text-decoration-color:#a8c9a3}
+#agenda .ag .src{display:inline-block;margin-left:4px;font-size:10px;padding:0 6px;border-radius:999px;border:1px solid var(--bc,#a8c9a3);color:var(--bc,var(--indigo2));cursor:pointer;white-space:nowrap;vertical-align:1px}
+#agenda .ag .ops{flex:none;display:none;gap:2px}
+#agenda .ag:hover .ops{display:inline-flex}
+#agenda .ag .ops button{width:18px;height:18px;padding:0;font-size:10px;border-radius:4px;background:#fff;border:1px solid #a8c9a3;color:var(--indigo)}
+#agenda .add{display:flex;gap:4px;margin-top:4px}
+#agenda .add input{flex:1;min-width:0;font-size:12px;padding:3px 7px;border:1px solid #a8c9a3;border-radius:6px;background:#fff;color:#111}
+#agenda .add button{padding:0 8px;background:#fff;border:1px solid #a8c9a3;color:var(--indigo)}
+#agenda .memo{background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px 8px;margin:3px 0;color:#111;white-space:pre-wrap;position:relative}
+#agenda .memo .src{font-size:10px;color:var(--indigo2);margin-left:4px;cursor:pointer}
+#agenda .memo .del{position:absolute;right:4px;top:3px;display:none;width:18px;height:18px;padding:0;font-size:10px;border-radius:4px;background:#fff;border:1px solid #a8c9a3;color:var(--indigo)}
+#agenda .memo:hover .del{display:inline-flex}
+#agenda .empty{color:var(--indigo2);font-size:11.5px;padding:2px 4px}
+#agendaBtn.on{border-color:var(--glow);color:#fff}
+#selPop button.memo{border-color:#5a7d2a;color:#3f6b1a;background:#f3f8e8}
+@media (max-width:1100px){#agenda{width:250px}}
+/* ===== テンプレート選択 ===== */
+#tplDlg{width:min(760px,94vw)}
+.tplList{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;max-height:62vh;overflow:auto;padding:2px}
+.tpl{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;background:rgba(255,255,255,.04);text-align:left;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;color:var(--ink);display:flex;flex-direction:column;gap:4px;min-height:110px}
+.tpl:hover{border-color:var(--glow);background:rgba(181,232,107,.08)}
+.tpl b{font-size:14px}
+.tpl .d{font-size:11.5px;color:var(--muted);line-height:1.5}
+.tpl .br{font-size:10.5px;color:var(--glow);margin-top:auto}
+.tpl.blank{border-style:dashed}
 /* ===== 整理ダイアログ ===== */
 #tidyDlg{width:min(760px,94vw)}
 #tidyDlg .trow{display:flex;gap:10px;align-items:center;margin-bottom:8px}
@@ -527,6 +568,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <button class="ui" data-view="know"><i></i>知識マップ<small>全会話の関連</small></button>
     </div>
   </div>
+  <button class="small" id="agendaBtn" title="右側のアジェンダ・進捗表を表示／隠す">📋 進捗</button>
   <button class="small" id="bkBtn" title="すべての会話をファイルに書き出す・別の端末から読み込む">バックアップ・引継ぎ</button>
   <button class="small" id="helpBtn" title="チュートリアルを開く">？ 使い方</button>
   <button class="small" id="settingsBtn">⚙ 設定</button>
@@ -556,6 +598,10 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div id="status"></div>
     </div>
   </section>
+  <aside id="agenda">
+    <div class="agHead"><b class="ui">アジェンダ・進捗</b><span class="spacer"></span><button class="small" id="agExport" data-tip="進捗表を Markdown でコピー">⧉</button><button class="small" id="agHide" data-tip="パネルを隠す（ヘッダーの「進捗」で戻せます）">✕</button></div>
+    <div class="agBody" id="agBody"></div>
+  </aside>
   <section id="overview">
     <div id="graphWrap"><div id="legend"></div><div id="graphSvg"></div></div>
     <div id="cards"></div>
@@ -577,7 +623,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   </div>
   </div>
 </main>
-<div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selExplain">説明してもらう</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button><button class="small side" id="selSide" hidden>サイドチャットで質問</button><button class="small side" id="selEx1" hidden>簡単な説明</button><button class="small side" id="selEx2" hidden>一般的な説明</button><button class="small side" id="selEx3" hidden>詳細な説明</button></div>
+<div id="selPop"><span class="q" id="selQ"></span><button class="small" id="selAsk">これについて質問する</button><button class="small" id="selExplain">説明してもらう</button><button class="small" id="selHere" hidden>本線で質問</button><button class="small fork" id="selFork" hidden>分岐して質問</button><button class="small side" id="selSide" hidden>サイドチャットで質問</button><button class="small side" id="selEx1" hidden>簡単な説明</button><button class="small side" id="selEx2" hidden>一般的な説明</button><button class="small side" id="selEx3" hidden>詳細な説明</button><button class="small memo" id="selMemo">議事録に残す</button></div>
 <div id="notePop"></div>
 <div id="noteWin" hidden>
   <div class="nwGrip c" data-g="c" title="ドラッグで大きさを変更。ダブルクリックで元の大きさ"></div><div class="nwGrip l" data-g="l"></div><div class="nwGrip t" data-g="t"></div>
@@ -674,6 +720,11 @@ table.md tr:nth-child(even) td{background:#f8fafd}
     </ul>
   </div>
   <div class="btns"><button id="bkClose">閉じる</button></div>
+</dialog>
+<dialog id="tplDlg">
+  <h2>新しい会話</h2>
+  <div class="tplList" id="tplList"></div>
+  <div class="btns"><button id="tplCancel">キャンセル</button></div>
 </dialog>
 <dialog id="qDlg">
   <h2 id="qTitle">確認</h2>
@@ -777,7 +828,7 @@ let convs=JSON.parse(localStorage.getItem(CONVS_KEY)||'{}');
 let conv=null;
 function newConversation(title){
   const id=uid();
-  const c={id,title:title||'新しい会話',createdAt:Date.now(),nodes:{},branches:{},activeNodeId:null,order:[]};
+  const c={id,title:title||'新しい会話',createdAt:Date.now(),nodes:{},branches:{},activeNodeId:null,order:[],agenda:{items:[],memo:[]}};
   c.branches.main={id:'main',name:'本線',color:COLORS[1],forkFromNodeId:null,headNodeId:null,summary:null,pinned:false,status:'open',createdAt:Date.now(),autoNamed:false,seq:0};
   convs[id]=c;return c;
 }
@@ -873,7 +924,7 @@ function branchCard(b,cur){
     head.push(`  未解決: ${b.summary.open||'—'}`);
   }else{
     const ns=branchNodes(b.id);
-    if(ns.length)head.push(`  （要約未作成）冒頭: ${excerpt(ns[0].content,80)}`);else head.push('  （まだ発言なし）');
+    if(ns.length)head.push(`  （要約未作成）冒頭: ${excerpt(ns[0].content,80)}`);else head.push('  （まだ発言なし）'+(b.instr?` 役割: ${excerpt(b.instr,80)}`:''));
   }
   return head.join('\n');
 }
@@ -904,9 +955,9 @@ function buildContext(targetNodeId,opts={}){
 - 他ブランチの内容を持ち出すときは「（ブランチ「B」で決めた通り）」のように出典を示してください。
 - 現在ブランチに関係ない他ブランチの話題を、聞かれてもいないのに混ぜないでください。
 ${settings.extra?'\n追加指示: '+settings.extra+'\n':''}
-## 会話マップ
+${templateInstr(cur)}## 会話マップ
 現在位置: ${chain}
-${cards}${sideChatCards()}`;
+${cards}${sideChatCards()}${agendaCards()}`;
   const pinned=Object.values(conv.branches).filter(b=>b.pinned&&b.id!==cur);
   const extraPins=(opts.pinIds||[]).map(B).filter(b=>b&&!pinned.includes(b));
   for(const b of pinned.concat(extraPins)){
@@ -1004,27 +1055,29 @@ function provider(){return settings.provider==='api'?streamAPI:settings.provider
 
 /* ========== 要約（Layer2の更新） ========== */
 const SUM_SYS=`あなたは会話ブランチの要約係です。与えられた会話ログを読み、次のJSONだけを出力してください（前後に説明を付けない）:
-{"title":"会話の題名（15字以内。内容が一目で分かる名詞句。「相談」「について」などの語尾は不要）","topic":"何を話したか（80字以内）","conclusions":"得られた結論・決定事項（120字以内、無ければ「なし」）","open":"未解決の問い（80字以内、無ければ「なし」）"}`;
+{"title":"会話の題名（15字以内。内容が一目で分かる名詞句。「相談」「について」などの語尾は不要）","topic":"何を話したか（80字以内）","conclusions":"得られた結論・決定事項（120字以内、無ければ「なし」）","open":"未解決の問い（80字以内、無ければ「なし」）","resolved_ids":[解決した未解決項目のid（数値）の配列。無ければ[]],"new_open":["新たに生じた未解決項目・やるべきこと（各40字以内、最大5件。既存の項目と重なるものは入れない）"]}`;
 const summarizing=new Set();
 async function updateSummary(bid){
-  if(summarizing.has(bid))return;const b=B(bid);const ns=branchNodes(bid);if(!ns.length)return;const cid=conv.id;
+  if(summarizing.has(bid))return;const b=B(bid);const ns=branchNodes(bid).filter(n=>n.model!=='template');if(!ns.length)return;const cid=conv.id; // テンプレートの骨組みの説明は要約の対象にしない
   summarizing.add(bid);
   try{
     let out='';
     if(settings.provider==='dummy'){
-      out=JSON.stringify({title:excerpt(ns[0].content,10),topic:excerpt(ns[0].content,60),conclusions:'（ダミー）'+excerpt(ns[ns.length-1].content,50),open:'なし'});
+      const op=(conv.agenda&&conv.agenda.items||[]).filter(x=>x.status==='open');out=JSON.stringify({title:excerpt(ns[0].content,10),topic:excerpt(ns[0].content,60),conclusions:'（ダミー）'+excerpt(ns[ns.length-1].content,50),open:'なし',resolved_ids:op.length?[op[0].n]:[],new_open:['（ダミー）'+excerpt(ns[ns.length-2]?ns[ns.length-2].content:ns[0].content,30)+' を詰める']});
     }else{
       // 長いブランチでも要約が失敗しないよう、送る量に上限を設ける。前回の要約があれば、それ以降の発言だけを渡して更新する
       const LIM=36000;let tx;
       if(b.summary&&b.summary.upto){const idx=ns.findIndex(n=>n.id===b.summary.upto);const rest=idx>=0?ns.slice(idx+1):ns;tx=rest.map(n=>`${n.role==='user'?'ユーザー':'AI'}: ${n.content}`).join('\n\n');}
       else tx=branchTranscript(bid);
       if(tx.length>LIM)tx='（前半は省略）…\n\n'+tx.slice(-LIM);
-      const log=(b.summary?`前回の要約: ${JSON.stringify({topic:b.summary.topic,conclusions:b.summary.conclusions,open:b.summary.open})}\n\n`:'')+`${b.summary?'前回の要約より後の':''}会話ログ:\n${tx}\n\n${b.summary?'前回の要約を土台に、新しいログの内容を反映して':'上記の会話ログを、'}指定のJSON形式（title/topic/conclusions/open）だけで要約してください。JSON以外は書かないでください。`;
+      const openItems=(conv.agenda&&conv.agenda.items||[]).filter(x=>x.status==='open');const agTxt=openItems.length?`現在の未解決項目（id: 内容）:\n${openItems.map((x,i)=>`${x.n}: ${x.text}`).join('\n')}\n\n`:'';
+      const log=agTxt+(b.summary?`前回の要約: ${JSON.stringify({topic:b.summary.topic,conclusions:b.summary.conclusions,open:b.summary.open})}\n\n`:'')+`${b.summary?'前回の要約より後の':''}会話ログ:\n${tx}\n\n${b.summary?'前回の要約を土台に、新しいログの内容を反映して':'上記の会話ログを、'}指定のJSON形式（title/topic/conclusions/open）だけで要約してください。JSON以外は書かないでください。`;
       for await(const ev of provider()(SUM_SYS,[{role:'user',content:log}],settings.sumModel,{raw:true}))if(ev.text)out+=ev.text;
     }
     const m=out.match(/\{[\s\S]*\}/);if(!m)throw new Error('要約JSONなし');
     const j=JSON.parse(m[0]);
     b.summary={topic:j.topic,conclusions:j.conclusions,open:j.open,updatedAt:Date.now(),upto:ns[ns.length-1].id};
+    applyAgendaFromSummary(cid,bid,j,ns[ns.length-1].id);
     const tc=convs[cid];if(tc&&bid==='main'&&(tc.titleAuto||tc.title==='新しい会話')&&j.title&&String(j.title).trim()){tc.title=String(j.title).trim().slice(0,30);tc.titleAuto=true;} // 最初の要約で AI が題名を付ける。以後も本線の要約ごとに更新（手で名前を付けるまで）
     persist();renderAll();
     updateLinks(cid,bid); // 関連度の AI 判定（3往復ごと・裏で）
@@ -1096,7 +1149,7 @@ function stopFollow(){if(followTail){followTail=false;updateJumpBtn();}}
 })();
 
 /* ========== 描画: フォーカス ========== */
-function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderMini();renderModelBtn();renderWebBtn();renderMcpBtn();if($('#overview').classList.contains('on'))renderOverview();if($('#know').classList.contains('on'))renderKnow();}
+function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderMini();renderModelBtn();renderWebBtn();renderMcpBtn();renderAgenda();if($('#overview').classList.contains('on'))renderOverview();if($('#know').classList.contains('on'))renderKnow();}
 function convLastTs(c){const id=c.order&&c.order[c.order.length-1];return (id&&c.nodes[id]&&c.nodes[id].ts)||c.createdAt||0;}
 function renderConvSel(){ // 左の会話一覧（名前は以前のプルダウンのまま）
   const list=Object.values(convs).sort((a,b)=>convLastTs(b)-convLastTs(a));
@@ -1130,12 +1183,12 @@ async function deleteConvById(id){
 }
 function setSide(open){document.body.classList.toggle('sideHidden',!open);settings.sideHidden=!open;saveSettings();}
 function renderBranchBar(){
-  const cur=currentBranchId();
+  const cur=effectiveBranchForSend();
   $('#branchBar').innerHTML=Object.values(conv.branches).sort((a,b)=>a.createdAt-b.createdAt).map(b=>`<span class="chip${b.id===cur?' on':''}" style="--bc:${b.color}" data-b="${b.id}" title="${b.id===cur?'今開いているブランチ（クリックで名前を変更）':'このブランチへ移動'}"><span class="dot"></span><span>${esc(b.name)}${isEmptyBranch(b)?'（未開始）':''}${b.pinned?' 📌':''}</span></span>`).join('');
   $('#branchBar').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{if(el.dataset.b===currentBranchId()){renameBranch(el.dataset.b);}else gotoBranch(el.dataset.b);});
 }
 async function renameBranch(bid){const b=B(bid);const v=await askPrompt('ブランチ名を変更',b.name);if(v&&v.trim()){b.name=v.trim().slice(0,30);b.autoNamed=false;persist();renderAll();}}
-function gotoBranch(bid){delete conv._anchor;const b=B(bid);if(isEmptyBranch(b)&&b.forkFromNodeId){openFork(b.forkFromNodeId);return;}conv.activeNodeId=b.headNodeId;persist();showFocus();}
+function gotoBranch(bid){delete conv._anchor;const b=B(bid);if(isEmptyBranch(b)&&b.forkFromNodeId){if(conv._pendingBranch!==bid)conv._returnNode=conv.activeNodeId;conv.activeNodeId=b.forkFromNodeId;conv._pendingBranch=bid;conv._anchor=b.forkFromNodeId;persist();showFocus();scrollAnchorToTop(false);toast(`「${b.name}」はまだ発言がありません。ここで送信すると、この枝の最初の発言になります`);$('#input').focus();return;}conv.activeNodeId=b.headNodeId;persist();showFocus();}
 function gotoNode(nid){conv.activeNodeId=nid;conv._anchor=nid;persist();showFocus();scrollAnchorToTop(true);}
 function renderFocus(){
   const cur=currentBranchId();
@@ -1157,9 +1210,9 @@ function renderFocus(){
     const outside=n.branchId!==cur||after;
     if(after&&path.indexOf(n)===actIdx+1)html+=`<div class="divider ui" style="--bc:${b.color}">ここまでを文脈にして続けます。ここから送信すると新しい枝になります（末尾から続けるには <a href="#" data-gohead="${cur}">この枝の最後へ</a>）</div>`;
     html+=`<div class="msg ${n.role}${outside?' outside':''}${n.planned?' planned':''}${n.id===conv.activeNodeId&&after!==undefined&&actIdx>=0&&actIdx<path.length-1?' cursor':''}" id="n-${n.id}" style="--bc:${b.color}">
-      ${n.role==='user'?'':'<div class="meta">'}${n.role==='user'?'':`<span class="tag">${esc(B(n.branchId).name)}</span><span class="ui">AI</span>`}${n.role==='assistant'&&n.model?`<span title="この回答を生成したモデルと思考量">${esc(modelLabel(n.model))}${n.modelUsed&&n.modelUsed!==n.model?` <span class="var">(${esc(n.modelUsed)})</span>`:''}${n.effort?' · '+esc(n.effort):''}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="spin4 mini"><i></i><i></i><i></i><i></i></span>':''}${n.role==='user'?'':'</div>'}
+      ${n.role==='user'?'':'<div class="meta">'}${n.role==='user'?'':`<span class="tag">${esc(B(n.branchId).name)}</span><span class="ui">AI</span>`}${n.role==='assistant'&&n.model&&n.model!=='template'?`<span title="この回答を生成したモデルと思考量">${esc(modelLabel(n.model))}${n.modelUsed&&n.modelUsed!==n.model?` <span class="var">(${esc(n.modelUsed)})</span>`:''}${n.effort?' · '+esc(n.effort):''}</span>`:''}${n.planned?'<span class="ptag ui">★ 分岐予定</span>':''}${n.mergedFrom&&B(n.mergedFrom)?`<span class="ui">（「<span class="var">${esc(B(n.mergedFrom).name)}</span>」から合流）</span>`:''}${n.streaming?'<span class="spin4 mini"><i></i><i></i><i></i><i></i></span>':''}${n.role==='user'?'':'</div>'}
       ${imgsHTML(n)}<div class="toolsUsed">${toolsHTML(n)}</div><div class="body">${n.streaming&&!n.content?`<div class="waiting"><span class="spin4"><i></i><i></i><i></i><i></i></span><span class="ui">${n.role==='assistant'?'回答を生成中…':''}</span></div>`:md(n.content)}</div>
-      <div class="tools">${n.role==='assistant'&&!n.streaming&&isDeadNode(n)?`<span class="hint ui ico dead" data-tip="中止した回答からは分岐できません">⑂ ✕</span>`:''}${n.role==='assistant'&&!n.streaming&&!isDeadNode(n)?`<button class="ico" data-copyall="${n.id}" data-tip="この回答をすべてコピー" aria-label="回答をコピー">⧉</button><button class="ico" data-fork="${n.id}" aria-label="ここから分岐" data-tip="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">⑂</button><button class="ico plan${n.planned?' on':''}" data-plan="${n.id}" data-tip="${n.planned?'分岐予定の印を外す':'分岐予定の印を付ける（迷っているとき。俯瞰図で黄色く表示）'}" aria-label="分岐予定">${n.planned?'★':'☆'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="ico edit" data-edit="${n.id}" data-tip="この質問を書き直して送り直す" aria-label="質問を編集する">✎</button>`:''}${(()=>{const kids=childBranchesOf(n.id);return kids.length?`<span class="badges"><span class="ui">分岐した会話:</span> ${kids.map(k=>`<span class="chip" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}${isEmptyBranch(k)?'（未開始）':''}</span>${isEmptyBranch(k)?`<button class="small" data-cancelbr="${k.id}" title="この未開始の分岐を取り消す">✕ 取り消す</button>`:''}`).join('')}</span>`:'';})()}</div>
+      <div class="tools">${n.role==='assistant'&&!n.streaming&&isDeadNode(n)?`<span class="hint ui ico dead" data-tip="中止した回答からは分岐できません">⑂ ✕</span>`:''}${n.role==='assistant'&&!n.streaming&&!isDeadNode(n)?`<button class="ico" data-copyall="${n.id}" data-tip="この回答をすべてコピー" aria-label="回答をコピー">⧉</button><button class="ico" data-fork="${n.id}" aria-label="ここから分岐" data-tip="${emptyBranchFrom(n.id)?'未開始の分岐があるため、先にそこで発言してください':'この回答から新しいブランチを始める'}">⑂</button><button class="ico plan${n.planned?' on':''}" data-plan="${n.id}" data-tip="${n.planned?'分岐予定の印を外す':'分岐予定の印を付ける（迷っているとき。俯瞰図で黄色く表示）'}" aria-label="分岐予定">${n.planned?'★':'☆'}</button>`:''}${n.role==='user'&&!n.streaming?`<button class="ico edit" data-edit="${n.id}" data-tip="この質問を書き直して送り直す" aria-label="質問を編集する">✎</button>`:''}${(()=>{const kids=childBranchesOf(n.id);return kids.length?`<span class="badges"><span class="ui">分岐した会話:</span> ${kids.map(k=>`<span class="chip" style="--bc:${k.color}" data-b="${k.id}"><span class="dot"></span>${esc(k.name)}${isEmptyBranch(k)?'（未開始）':''}</span>${isEmptyBranch(k)&&!k.instr?`<button class="small" data-cancelbr="${k.id}" title="この未開始の分岐を取り消す">✕ 取り消す</button>`:''}`).join('')}</span>`:'';})()}</div>
     </div>`;
   }
   if(!path.length)html=`<div class="msg" style="--bc:var(--c1)"><div class="body">最初のメッセージを送ると本線が始まります。AIの回答の下にある「⑂ ここから分岐」で話題を分けられます。<div class="editBtns"><span class="hint ui">使い方を試すなら</span><button class="small" id="demoBtn2">デモ会話を読み込む</button></div>${IS_DESKTOP&&!bridgeOk?`<div style="margin-top:10px;padding:10px 12px;border:1.5px solid var(--ystroke);border-radius:10px;background:#fffbe6"><b class="ui">AIに接続する準備が必要です</b><br>Claude か ChatGPT（Codex）のどちらかにログインすると使えます。手順は画面の案内に沿って進められます。<div class="editBtns"><button class="small primary" id="tutConnectBtn">接続の手順を見る</button></div></div>`:''}</div></div>`;
@@ -1717,6 +1770,110 @@ $('#bkImport').onclick=()=>$('#bkFile').click();
 $('#bkFile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const r=new FileReader();r.onload=()=>importBackupText(String(r.result||''));r.onerror=()=>toast('ファイルを読めませんでした');r.readAsText(f);};
 
 async function saveTextFile(fn,data){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=fn;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('ファイルを保存しました: '+fn);}
+/* ========== アジェンダ・進捗表（右側のパネル） ========== */
+/* 未解決項目は各ブランチの要約の更新時に AI が出し入れし、手でも足せる。議事録は選択テキストや手入力。すべて AI にも渡す */
+function agendaOf(){if(!conv.agenda)conv.agenda={items:[],memo:[]};if(!conv.agenda.items)conv.agenda.items=[];if(!conv.agenda.memo)conv.agenda.memo=[];return conv.agenda;}
+function agNextN(ag){return ag.items.reduce((m,x)=>Math.max(m,x.n||0),0)+1;}
+const agNorm=t=>String(t||'').replace(/[\s　、。・「」（）()]/g,'').toLowerCase();
+function addAgendaItem(text,by,src){const ag=agendaOf();const t=String(text||'').trim().slice(0,80);if(!t)return null;const k=agNorm(t);if(ag.items.some(x=>agNorm(x.text)===k||(k.length>=8&&(agNorm(x.text).includes(k)||k.includes(agNorm(x.text))))))return null;const it={id:uid(),n:agNextN(ag),text:t,status:'open',by:by||'user',src:src||null,ts:Date.now()};ag.items.push(it);return it;}
+function applyAgendaFromSummary(cid,bid,j,lastNodeId){
+  const c=convs[cid];if(!c)return;const ag=(c.agenda=c.agenda||{items:[],memo:[]});ag.items=ag.items||[];
+  const ids=Array.isArray(j.resolved_ids)?j.resolved_ids.map(Number):[];
+  for(const it of ag.items)if(it.status==='open'&&ids.includes(it.n)){it.status='done';it.doneTs=Date.now();it.doneSrc={bid,nodeId:lastNodeId};}
+  if(c===conv)for(const t of (Array.isArray(j.new_open)?j.new_open:[]).slice(0,5))addAgendaItem(t,'ai',{bid,nodeId:lastNodeId});
+  persist();if(c===conv)renderAgenda();
+}
+function agendaCards(){
+  const ag=conv.agenda;if(!ag||(!ag.items.length&&!ag.memo.length))return '';
+  const open=ag.items.filter(x=>x.status==='open'),done=ag.items.filter(x=>x.status==='done');
+  let t='\n\n## アジェンダ（進捗表。利用者が常に見ている一覧。番号で指示されることがある）';
+  t+='\n未解決項目:'+(open.length?'\n'+open.map(x=>`${x.n}. ${x.text}${x.src&&B(x.src.bid)?`（${B(x.src.bid).name}）`:''}`).join('\n'):' なし');
+  if(done.length)t+='\n解決済み:\n'+done.slice(-12).map(x=>`- ${x.text}${x.doneSrc&&B(x.doneSrc.bid)?`（${B(x.doneSrc.bid).name} で解決）`:''}`).join('\n');
+  if(ag.memo.length)t+='\n議事録:\n'+ag.memo.slice(-15).map(m=>`- ${excerpt(m.text,120)}`).join('\n');
+  return t;
+}
+function renderAgenda(){
+  const box=$('#agBody');if(!box)return;const ag=agendaOf();const cur=effectiveBranchForSend();const b=B(cur);
+  $('#agenda').style.setProperty('--curbc',b?b.color:'');$('#agendaBtn').classList.toggle('on',!document.body.classList.contains('agendaOff'));
+  const open=ag.items.filter(x=>x.status==='open'),done=ag.items.filter(x=>x.status==='done').sort((a,c)=>(c.doneTs||0)-(a.doneTs||0));
+  const src=(sr)=>sr&&B(sr.bid)?`<span class="src" style="--bc:${B(sr.bid).color}" data-go="${esc(sr.nodeId||'')}" data-gob="${esc(sr.bid)}">${esc(B(sr.bid).name)}</span>`:'';
+  const row=x=>`<div class="ag${x.status==='done'?' done':''}" data-ag="${x.id}"><button class="ck" data-toggle="${x.id}" data-tip="${x.status==='done'?'未解決に戻す':'解決済みにする'}">${x.status==='done'?'✓':''}</button><span class="tx"><span class="n">${x.n}.</span> ${esc(x.text)}${src(x.status==='done'?(x.doneSrc||x.src):x.src)}</span><span class="ops"><button data-edit="${x.id}" data-tip="文言を直す">✎</button><button data-del="${x.id}" data-tip="消す">✕</button></span></div>`;
+  const now=b?(b.summary?b.summary.topic:(branchNodes(b.id).length?'要約の更新を待っています':(b.instr?'この枝の役割: '+excerpt(b.instr,60):'まだ発言がありません'))):'';
+  box.innerHTML=`<h4 class="ui">進行中 <span class="cnt var">— ${esc(b?b.name:'')}</span></h4><div class="now">${esc(now)}</div>
+    <h4 class="ui">未解決項目 <span class="cnt">${open.length}</span></h4>${open.length?open.map(row).join(''):'<div class="empty">まだありません。AI の回答のあとに自動で加わります。手でも足せます。</div>'}
+    <div class="add"><input id="agNew" placeholder="項目を足す（Enter）"><button id="agAdd">＋</button></div>
+    <h4 class="ui">解決済み <span class="cnt">${done.length}</span></h4>${done.length?done.map(row).join(''):'<div class="empty">まだありません</div>'}
+    <h4 class="ui">議事録 <span class="cnt">${ag.memo.length}</span></h4>${ag.memo.length?ag.memo.map(m=>`<div class="memo" data-memo="${m.id}">${esc(m.text)}${src(m.src)}<button class="del" data-mdel="${m.id}" data-tip="消す">✕</button></div>`).join(''):'<div class="empty">回答の一部を選んで「議事録に残す」か、下の欄から書き足せます。</div>'}
+    <div class="add"><input id="agMemoNew" placeholder="議事録に書き足す（Enter）"><button id="agMemoAdd">＋</button></div>`;
+  box.querySelectorAll('[data-toggle]').forEach(el=>el.onclick=()=>{const it=ag.items.find(x=>x.id===el.dataset.toggle);if(!it)return;if(it.status==='done'){it.status='open';delete it.doneTs;delete it.doneSrc;}else{it.status='done';it.doneTs=Date.now();it.doneSrc={bid:cur,nodeId:conv.activeNodeId};}persist();renderAgenda();});
+  box.querySelectorAll('[data-del]').forEach(el=>el.onclick=()=>{ag.items=ag.items.filter(x=>x.id!==el.dataset.del);persist();renderAgenda();});
+  box.querySelectorAll('[data-edit]').forEach(el=>el.onclick=async()=>{const it=ag.items.find(x=>x.id===el.dataset.edit);if(!it)return;const v=await askPrompt('項目の文言',it.text);if(v&&v.trim()){it.text=v.trim().slice(0,80);it.by='user';persist();renderAgenda();}});
+  box.querySelectorAll('[data-mdel]').forEach(el=>el.onclick=()=>{ag.memo=ag.memo.filter(x=>x.id!==el.dataset.mdel);persist();renderAgenda();});
+  box.querySelectorAll('.src').forEach(el=>el.onclick=()=>{if(busy)return;if(el.dataset.go&&N(el.dataset.go))gotoNode(el.dataset.go);else if(B(el.dataset.gob))gotoBranch(el.dataset.gob);});
+  const add=(inp,fn)=>{const i=box.querySelector(inp);const go=()=>{const v=i.value.trim();if(!v)return;fn(v);i.value='';persist();renderAgenda();box.querySelector(inp).focus();};i.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();go();}});return go;};
+  $('#agAdd').onclick=add('#agNew',v=>{if(!addAgendaItem(v,'user',{bid:cur,nodeId:conv.activeNodeId}))toast('同じ項目がすでにあります');});
+  $('#agMemoAdd').onclick=add('#agMemoNew',v=>ag.memo.push({id:uid(),text:v.slice(0,500),src:{bid:cur,nodeId:conv.activeNodeId},ts:Date.now()}));
+}
+function addMemo(text,src){const ag=agendaOf();ag.memo.push({id:uid(),text:String(text).replace(/\s+/g,' ').trim().slice(0,500),src,ts:Date.now()});persist();renderAgenda();toast('議事録に残しました');}
+$('#selMemo').onclick=()=>{const nid=sel.nodeId,text=sel.text;hideSelPop();window.getSelection().removeAllRanges();addMemo(text,{bid:N(nid).branchId,nodeId:nid});};
+function setAgenda(on){document.body.classList.toggle('agendaOff',!on);settings.agendaOff=!on;saveSettings();renderAgenda();}
+$('#agendaBtn').onclick=()=>setAgenda(document.body.classList.contains('agendaOff'));
+$('#agHide').onclick=()=>setAgenda(false);
+document.body.classList.toggle('agendaOff',!!settings.agendaOff);
+$('#agExport').onclick=()=>{const ag=agendaOf();const open=ag.items.filter(x=>x.status==='open'),done=ag.items.filter(x=>x.status==='done');
+  const md=`# ${conv.title} — 進捗表\n\n## 未解決項目\n${open.length?open.map(x=>`- [ ] ${x.text}`).join('\n'):'- なし'}\n\n## 解決済み\n${done.length?done.map(x=>`- [x] ${x.text}${x.doneSrc&&B(x.doneSrc.bid)?`（${B(x.doneSrc.bid).name}）`:''}`).join('\n'):'- なし'}\n\n## 議事録\n${ag.memo.length?ag.memo.map(m=>`- ${m.text}`).join('\n'):'- なし'}\n`;copyText(md);};
+
+/* ========== テンプレート（学生・研究者向け） ========== */
+/* 本線＝全体の設計と仕上げ、分岐＝部品の作り込み。どの枝からでも始められる。迷ったら本線で方針を決めてから */
+const TPL_COMMON='回答は日本語。利用者は専門職または学生で、専門用語はそのまま使ってよい。結論を先に、根拠と選択肢を続ける。';
+const TEMPLATES=[
+ {id:'paper',name:'論文',desc:'投稿先に合わせた構成づくりから、各セクションの執筆、投稿直前の全体修正まで',
+  main:'この会話は「論文」のテンプレートです。本線（この枝）は全体を監視する場所です。投稿先の形式・字数・構成を決め、各分岐（Introduction / Methods / Results / Discussion）の結論を見渡して整合を取り、投稿直前には全体に修正をかけます。各セクションの本文は分岐で詰めるよう促し、本線では方針・構成・整合に集中してください。',
+  branches:[['Introduction','この枝では Introduction だけを扱う。背景→既知→未知→本研究の問い、の流れで、本線で決めた投稿先の形式と字数に合わせる。'],['Methods','この枝では Methods だけを扱う。再現できる粒度（対象、期間、定義、解析、倫理）で書き、本線で決めた研究の問いに沿う。'],['Results','この枝では Results だけを扱う。Figure/Table ごとに何を示すかを決め、解釈は入れず事実だけを書く。本線の構成に沿う。'],['Discussion','この枝では Discussion だけを扱う。主要な知見→既報との比較→限界→意義の順で、Results の内容と矛盾しないようにする。']],
+  agenda:['投稿先と形式（字数・図表数・引用形式）を決める','研究の問いと主要な知見を1文で決める','Figure/Table の構成を決める'],
+  seed:'# 論文テンプレート\n\nこの会話は論文を書くための骨組みです。\n\n- **本線**（この枝）: 全体の監視。投稿先に合わせて構成を考え、各分岐の結論を見渡し、投稿直前に全体を修正します。\n- **分岐**: Introduction / Methods / Results / Discussion。上のタブからどこからでも始められます。\n\n何から手を付けるか迷ったら、まずここ（本線）で「投稿先」「研究の問い」「主要な知見」を決めてから、分岐で内容を詰めてください。右の「進捗」に未解決項目が並びます。'},
+ {id:'abstract',name:'学会抄録',desc:'字数制限の中で主張を通す。背景・方法・結果・結論を分けて詰める',
+  main:'この会話は「学会抄録」のテンプレートです。本線では学会の字数制限、主張、各部の字数配分、タイトル案を決め、分岐の結論を組み合わせて最終版を整えます。',
+  branches:[['背景・目的','背景と目的だけを扱う。2〜3文で問いに至る。'],['方法','方法だけを扱う。対象・期間・評価項目・解析を簡潔に。'],['結果','結果だけを扱う。数値を主語にして事実だけ。'],['結論','結論だけを扱う。結果から言える範囲で、言い過ぎない。'],['タイトル案','タイトル案を複数出し、字数と訴求で比較する。']],
+  agenda:['学会名・字数制限・締切を決める','抄録で一番伝えたい主張を1文で決める'],
+  seed:'# 学会抄録テンプレート\n\n本線では字数制限・主張・配分を決め、分岐（背景・目的 / 方法 / 結果 / 結論 / タイトル案）で各部を詰めます。最後に本線で全体を字数内に整えます。'},
+ {id:'talk',name:'学会発表',desc:'持ち時間に合わせたストーリー設計と、スライドごとの作り込み、想定質問',
+  main:'この会話は「学会発表」のテンプレートです。本線では持ち時間、聴衆、ストーリー（1枚で言うなら何か）、スライド構成を決め、分岐の内容を通しで確認します。',
+  branches:[['イントロ','導入のスライドだけを扱う。聴衆が知っている前提から問いへ。'],['症例提示・方法','症例提示または方法のスライドだけを扱う。要点を絞る。'],['結果','結果のスライドだけを扱う。1枚1メッセージ。'],['考察・結語','考察と結語のスライドだけを扱う。持ち帰ってほしい1点を明確に。'],['想定質問','質疑で聞かれそうな質問と回答案を作る。']],
+  agenda:['持ち時間・スライド枚数・聴衆を決める','発表で持ち帰ってほしい1点を決める'],
+  seed:'# 学会発表テンプレート\n\n本線でストーリーと構成を決め、分岐（イントロ / 症例提示・方法 / 結果 / 考察・結語 / 想定質問）でスライドを作り込みます。'},
+ {id:'study',name:'試験勉強',desc:'範囲と計画を本線で、単元ごとの要点整理・問題演習・間違いノートを分岐で',
+  main:'この会話は「試験勉強」のテンプレートです。本線では試験の範囲・日程・弱点を把握し、学習計画を立て、進み具合を見ます。分岐では単元ごとの要点整理と演習を行います。学習者が自分で考える余地を残し、答えを先に全部書かないでください。',
+  branches:[['要点整理','単元ごとの要点を整理する。覚えるべき事項を優先順に。'],['問題演習','問題を出し、解答を待ってから解説する。難易度は徐々に上げる。'],['間違いノート','間違えた問題と理由を記録し、後で出し直す。']],
+  agenda:['試験日と範囲を決める','弱い単元を3つ挙げる'],
+  seed:'# 試験勉強テンプレート\n\n本線で範囲・日程・計画を決め、分岐（要点整理 / 問題演習 / 間違いノート）で進めます。間違いノートに溜めた問題は、後でそこから出し直してもらえます。'},
+ {id:'app',name:'アプリ開発',desc:'目的と要件を本線で、画面・データ・API・テスト・公開を分岐で',
+  main:'この会話は「アプリ開発」のテンプレートです。本線では目的、利用者、要件、全体設計、優先順位を決め、分岐の結論（画面、データ、API、テスト、公開）の整合を取ります。',
+  branches:[['画面','画面と操作の流れだけを扱う。'],['データ','データの構造と保存だけを扱う。'],['API・外部連携','API と外部サービスの連携だけを扱う。'],['テスト','テストの方針と項目だけを扱う。'],['公開・運用','配布、更新、監視だけを扱う。']],
+  agenda:['目的と利用者を1文で決める','最初に作る最小の機能を決める'],
+  seed:'# アプリ開発テンプレート\n\n本線で目的・要件・全体設計を決め、分岐（画面 / データ / API・外部連携 / テスト / 公開・運用）で詰めます。'},
+];
+function templateInstr(cur){
+  const m=B('main'),b=B(cur);let t='';
+  if(m&&m.instr)t+=`## この会話の進め方（テンプレート）\n${m.instr}\n${TPL_COMMON}\n\n`;
+  if(b&&b.id!=='main'&&b.instr)t+=`## この枝の役割\n${b.instr}\n\n`;
+  return t;
+}
+function applyTemplate(t){
+  conv=newConversation(t.name);conv.template=t.id;conv.titleAuto=true;
+  const seed=addNode('assistant',t.seed,null,'main');seed.gist=t.name+'の骨組み';seed.model='template';
+  B('main').instr=t.main;
+  for(const [name,instr] of t.branches){const b=createBranch(seed.id,name);b.instr=instr;}
+  for(const a of (t.agenda||[]))addAgendaItem(a,'template',{bid:'main',nodeId:seed.id});
+  conv.activeNodeId=seed.id;persist();showFocus();$('#input').focus();toast(`「${t.name}」の骨組みを作りました。どの枝からでも始められます`);
+}
+function openTplDlg(){
+  $('#tplList').innerHTML=`<button class="tpl blank" data-tpl=""><b>空の会話</b><span class="d">テンプレートなし。本線だけで始めて、必要なときに分岐します。</span></button>`+TEMPLATES.map(t=>`<button class="tpl" data-tpl="${t.id}"><b>${esc(t.name)}</b><span class="d">${esc(t.desc)}</span><span class="br">本線 ＋ ${t.branches.map(b=>esc(b[0])).join(' / ')}</span></button>`).join('');
+  $('#tplList').querySelectorAll('[data-tpl]').forEach(el=>el.onclick=()=>{$('#tplDlg').close();const t=TEMPLATES.find(x=>x.id===el.dataset.tpl);if(t)applyTemplate(t);else{conv=newConversation();persist();showFocus();$('#input').focus();}});
+  $('#tplDlg').showModal();
+}
+$('#tplCancel').onclick=()=>$('#tplDlg').close();
+
 /* ========== イベント ========== */
 $('#sendBtn').onclick=()=>{if(busy){if(abortCtl)abortCtl.abort();return;}const t=$('#input').value;if(!t.trim()&&!pendingImgs.length)return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';fitInput();const imgs=pendingImgs;pendingImgs=[];renderPlus();send(t.trim()||'（画像を添付）',{branchId:bid,parentId:conv.activeNodeId,images:imgs});};
 $('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!busy)$('#sendBtn').click();}});
@@ -1726,8 +1883,7 @@ $('#input').addEventListener('input',fitInput);$('#input').addEventListener('foc
 $('#newConv').onclick=async()=>{
   if(busy){toast('生成中は新しい会話を作れません');return;}
   if(!conv.order.length){if($('#focus').classList.contains('off'))showFocus();toast('今の会話はまだ空です。そのまま使えます');$('#input').focus();return;}
-  if(!(await askConfirm('新規のチャットを作成しますか？','作成する')))return;
-  conv=newConversation();persist();showFocus();$('#input').focus();
+  openTplDlg();
 };
 $('#sideToggle').onclick=()=>setSide(document.body.classList.contains('sideHidden'));
 $('#sideHide').onclick=()=>setSide(false);
@@ -1775,7 +1931,7 @@ $('#ctxClose').onclick=()=>$('#ctxDlg').close();
 /* ========== 選択テキストから質問 ========== */
 let sel={nodeId:null,text:''};
 const selPop=$('#selPop');
-const SEL_STEP={top:['selAsk','selExplain'],ask:['selHere','selFork','selSide'],explain:['selEx1','selEx2','selEx3']};
+const SEL_STEP={top:['selAsk','selExplain','selMemo'],ask:['selHere','selFork','selSide'],explain:['selEx1','selEx2','selEx3']};
 function selStep(k){for(const ids of Object.values(SEL_STEP))for(const id of ids)$('#'+id).hidden=!SEL_STEP[k].includes(id);}
 function hideSelPop(){selPop.classList.remove('on');selStep('top');}
 function quoteFor(text){return '> '+text.replace(/\s+/g,' ').trim().slice(0,500)+'\n\n';}

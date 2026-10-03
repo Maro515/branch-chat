@@ -263,6 +263,17 @@ async function runSmoke(win) {
         r.flicker={follow:await run('A',()=>{}),stopped:await run('B',()=>{m.dispatchEvent(new WheelEvent('wheel',{deltaY:-60}));m.scrollTop-=200;}),anchored:await run('C',()=>{conv._anchor=conv.activeNodeId;updateTailSpace();m.dispatchEvent(new WheelEvent('wheel',{deltaY:-60}));m.scrollTop-=200;})};
       }
       if(${process.env.SMOKE_COPY === '1'}){gotoBranch('main');await new Promise(x=>setTimeout(x,300));const F=String.fromCharCode(96).repeat(3),NL=String.fromCharCode(10);window.streamDummy=async function*(){yield {text:'前置き'+NL+F+NL+'print(1)'+NL+'print(2)'+NL+F+NL+'後書き'};};await send('コピーのテスト');await new Promise(x=>setTimeout(x,400));const el=document.getElementById('n-'+conv.activeNodeId);let clip='';navigator.clipboard.writeText=async t=>{clip=t;};el.querySelector('[data-copycode]').click();await new Promise(x=>setTimeout(x,100));const c1=clip;el.querySelector('[data-copyall]').click();await new Promise(x=>setTimeout(x,100));r.copy={code:c1,all:clip.slice(0,20),order:[...el.querySelectorAll('.tools button')].map(b=>b.textContent).join(' ')};}
+      if(${process.env.SMOKE_TPL === '1'}){ // テンプレートとアジェンダ
+        applyTemplate(TEMPLATES.find(t=>t.id==='paper'));await new Promise(x=>setTimeout(x,300));
+        const tabs=[...document.querySelectorAll('#branchBar .chip')].map(c=>c.textContent.trim());
+        const me=Object.values(conv.branches).find(b=>b.name==='Methods');gotoBranch(me.id);await new Promise(x=>setTimeout(x,300));
+        const sendTo=effectiveBranchForSend();const sys0=buildContext(conv.activeNodeId,{branchId:sendTo}).system;
+        await send('対象と期間を決めたい',{branchId:effectiveBranchForSend(),parentId:conv.activeNodeId});await new Promise(x=>setTimeout(x,900));
+        const ag=conv.agenda;const inM=branchNodes(me.id).length;
+        document.querySelector('#agNew').value='手で足した項目';document.querySelector('#agAdd').click();await new Promise(x=>setTimeout(x,100));
+        const sys=buildContext(conv.activeNodeId).system;
+        r.tpl={tabs,sendTo:B(sendTo).name,methodsMsgs:inM,roleInSys:sys0.includes('この枝の役割')&&sys0.includes('Methods だけ'),mainInSys:sys0.includes('テンプレート'),agendaOpen:ag.items.filter(x=>x.status==='open').map(x=>x.text),agendaDone:ag.items.filter(x=>x.status==='done').map(x=>x.text),agendaInSys:sys.includes('## アジェンダ')&&sys.includes('手で足した項目'),panelRows:document.querySelectorAll('#agenda .ag').length,panelVisible:getComputedStyle(document.querySelector('#agenda')).display!=='none',title:conv.title};
+      }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);
     const img = await win.webContents.capturePage();

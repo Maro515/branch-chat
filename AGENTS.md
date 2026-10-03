@@ -79,6 +79,11 @@ conv = { id, title, createdAt, order:[nodeId...], activeNodeId,
 - **会話の題名は自動。** 最初の発言で仮の題名（先頭20字、`conv.titleAuto=true`）、本線の要約ができるたびに AI の `title`（15字以内の名詞句）で付け直す。利用者が名前を変えたら `titleAuto=false` にして以後は触らない。
 - 状態を変えたら `persist()`、画面は `renderAll()`。
 
+### アジェンダ・進捗表（右側パネル）とテンプレート
+
+- **アジェンダ**（`#agenda`、`conv.agenda={items:[{id,n,text,status:'open'|'done',by,src,doneSrc}],memo:[]}`、`renderAgenda()`）: チャット画面の右側に常時表示（ヘッダー「📋 進捗」で開閉、`settings.agendaOff`）。区分は 進行中（現在の枝の要約の話題）／未解決項目／解決済み／議事録。未解決項目は `updateSummary` の JSON に足した `resolved_ids`（番号 `n`）と `new_open` で AI が出し入れし（`applyAgendaFromSummary`）、手でも追加・編集・解決・削除できる。各項目は出どころの枝（`src`）を持ち、押すとその発言へ移動。議事録は選択メニューの「議事録に残す」か手入力。`agendaCards()` が会話マップの末尾に「## アジェンダ」として AI に渡す（番号で指示できる）。⧉ で Markdown をコピー。
+- **テンプレート**（`TEMPLATES`、`applyTemplate`、`#tplDlg`）: 「＋ 新しい会話」はテンプレート選択から。本線＝全体の設計と仕上げ、分岐＝部品の作り込み。適用すると、本線に骨組みの説明の発言（`model:'template'` の assistant ノード。要約の対象外）を1つ置き、そこから各分岐を空のまま作る（`branch.instr` に役割）。`B('main').instr` と `B(cur).instr` は `templateInstr()` が system の先頭に入れる。空の枝のタブを押すとその枝が「次の送信先」になる（`gotoBranch` が `_pendingBranch` をその枝に設定、タブは `effectiveBranchForSend()` を選択中として表示）。テンプレート由来の空の枝には「✕ 取り消す」を出さない。収録: 論文（本線＋Introduction/Methods/Results/Discussion）、学会抄録、学会発表、試験勉強、アプリ開発。初期の未解決項目は `t.agenda`。
+
 ### 会話一覧・知識マップ・会話記録のファイル保存
 
 - 「記憶の引き継ぎ」（他のAIのメモリを貼り付けて全会話の前提にする機能）は**利用者の指示で不採用**。再導入しない。以前の版で保存された `settings.memory` は起動時に破棄する。
