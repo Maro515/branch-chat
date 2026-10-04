@@ -23,6 +23,13 @@ const FIG_IN=96;    // 1in → px
 
 /* ---------- データ表 ---------- */
 // 文字列（TSV/CSV/Markdown表）→ {kind:'column'|'grouped'|'xy', cols:[{name,vals}]}
+// 文字幅の見積もり（和文 1.0、欧文 0.58 × 文字高さ）と、題名を幅に収める（縮小 → 2 行）
+function figTW(s,fs){let w=0;for(const ch of String(s||''))w+=/[\u3000-\u9fff\uff00-\uffef]/.test(ch)?fs*1.0:fs*0.58;return w;}
+function figTitleLines(title,maxW,fs){const t=String(title||'');if(!t)return {lines:[],size:fs};const w=figTW(t,fs);if(w<=maxW)return {lines:[t],size:fs};if(w*0.8<=maxW)return {lines:[t],size:fs*maxW/w};
+  // 2 行に分ける（空白か読点の近くで）
+  const half=t.length/2;let cut=-1;for(let i=0;i<t.length;i++){if(/[ 、，,。：:／/]/.test(t[i])&&Math.abs(i-half)<Math.abs(cut-half))cut=i;}if(cut<0)cut=Math.floor(half);const a=t.slice(0,cut+1).trim(),b=t.slice(cut+1).trim();const w2=Math.max(figTW(a,fs),figTW(b,fs));return {lines:[a,b],size:w2<=maxW?fs:fs*Math.max(0.6,maxW/w2)};}
+function figTitle1(txt,cx,y,title,maxW,fs){if(!title)return '';const w=figTW(title,fs);const size=w>maxW?fs*Math.max(0.55,maxW/w):fs;return txt(cx,y,title,'middle','','title',size);}
+function figTitleSVG(txt,cx,yBase,title,maxW,fs){const tl=figTitleLines(title,maxW,fs);if(!tl.lines.length)return '';const lh=tl.size*1.2;return tl.lines.map((l,i)=>txt(cx,yBase-(tl.lines.length-1-i)*lh,l,'middle','','title',tl.size)).join('');}
 function figParseTable(text){
   let lines=String(text||'').replace(/\r/g,'').split('\n').map(l=>l.replace(/^\s*\|/,'').replace(/\|\s*$/,'')).filter(l=>l.trim()&&!/^\s*[:\-| ]+\s*$/.test(l));
   if(!lines.length)return null;
@@ -110,9 +117,9 @@ function figRender(spec){
   if(typeof figRenderMore==='function'){const r=figRenderMore(spec);if(r)return r;} // figure-more.js の図種
   const o=Object.assign({},FIG_DEF,spec.opts||{});if(FIG_FONTS[o.fontFamily])o.font=FIG_FONTS[o.fontFamily];const fs=(+o.fontPt||12)*FIG_PT,h=fs*0.72,a=(+o.axisPt||1)*FIG_PT,tick=h*(+o.tickLen||0.7)*(o.tickDir==='in'?-1:1);
   const plotW=(+o.wIn||3)*FIG_IN,plotH=(+o.hIn||2)*FIG_IN;const legendPos=o.legendPos||(o.legend==='none'?'none':'right');const showLegend=legendPos!=='none'&&d.groups.length>1&&d.kind!=='column';const ac=o.axisColor||'#000';
-  const xrot=+o.xRot||0;const padL=fs*4.2,padB=fs*3.2+(xrot?fs*2.2:0)+(showLegend&&legendPos==='bottom'?fs*1.8:0),padT=fs*(spec.title?2.4:1.6),padR=fs*1.2+(showLegend&&legendPos==='right'?fs*8:0);
+  const xrot=+o.xRot||0;const legW=showLegend&&legendPos==='right'?Math.max(fs*5,Math.max(...d.groups.map(g=>figTW(g.name,fs)))+fs*2.2):0;const padL=fs*4.2,padB=fs*3.2+(xrot?fs*2.2:0)+(showLegend&&legendPos==='bottom'?fs*1.8:0),padR=fs*1.2+legW;const titleL=figTitleLines(spec.title,padL+plotW+padR-fs,fs);const padT=fs*1.6+(titleL.lines.length?fs*0.8+titleL.lines.length*titleL.size*1.2*0.85:0);
   const W=padL+plotW+padR,H=padT+plotH+padB;const x0=padL,y0=padT+plotH;
-  const fw=o.bold?'bold':'normal';const txt=(x,y,s,anchor,extra,sel)=>`<text ${sel?`data-sel="${sel}" `:''}x="${x}" y="${y}" font-family="${o.font}" font-size="${fs}" font-weight="${fw}" text-anchor="${anchor||'middle'}" ${extra||''}>${figEsc(s)}</text>`;
+  const fw=o.bold?'bold':'normal';const txt=(x,y,s,anchor,extra,sel,size)=>`<text ${sel?`data-sel="${sel}" `:''}x="${x}" y="${y}" font-family="${o.font}" font-size="${size||fs}" font-weight="${fw}" text-anchor="${anchor||'middle'}" ${extra||''}>${figEsc(s)}</text>`;
   const type=spec.type;const S=i=>figSeriesOpt(o,i);
   const sym=(x,y,i,shape,color,fill)=>figSymbol(x,y,S(i).symPt*FIG_PT/2,shape||S(i).symbol,fill==='open'?'#fff':color,color);
   const allY=[];const yTitle=o.yTitle||'',xTitle=o.xTitle||'';
@@ -151,12 +158,12 @@ function figRender(spec){
         b+=`<line x1="${cx}" y1="${yOf(hi)}" x2="${cx}" y2="${yOf(q3)}" stroke="${c}" stroke-width="${a}"/><line x1="${cx}" y1="${yOf(q1)}" x2="${cx}" y2="${yOf(lo)}" stroke="${c}" stroke-width="${a}"/>`;
         b+=`<line x1="${cx-w2*0.27}" y1="${yOf(hi)}" x2="${cx+w2*0.27}" y2="${yOf(hi)}" stroke="${c}" stroke-width="${a}"/><line x1="${cx-w2*0.27}" y1="${yOf(lo)}" x2="${cx+w2*0.27}" y2="${yOf(lo)}" stroke="${c}" stroke-width="${a}"/>`;
         b+=`<rect x="${cx-w2/2}" y="${yOf(q3)}" width="${w2}" height="${yOf(q1)-yOf(q3)}" fill="${so.fill==='open'?'#fff':figHalf(c)}" stroke="${c}" stroke-width="${a}"/><line x1="${cx-w2/2}" y1="${yOf(q2)}" x2="${cx+w2/2}" y2="${yOf(q2)}" stroke="${c}" stroke-width="${a}"/>`;
-        v.filter(x=>x<q1-1.5*iqr||x>q3+1.5*iqr).forEach(x=>{b+=sym(cx,yOf(x),i,null,c,so.fill);});top=Math.max(...v);}}
+        if(o.barDots){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(v,yOf,r,w2*0.9);v.forEach((val,k)=>{b+=sym(cx+pos[k].dx,pos[k].y,i,null,o.barEdge==='black'?'#000':c,so.fill);});}else v.filter(x=>x<q1-1.5*iqr||x>q3+1.5*iqr).forEach(x=>{b+=sym(cx,yOf(x),i,null,c,so.fill);});top=Math.max(...v);}}
       else if(type==='violin'){if(v.length>=2){const lo=Math.min(...v),hi=Math.max(...v);const k=kde(v,lo,hi,40);const mx=Math.max(...k.map(p=>p[1]))||1;const w2=bw*o.violinWidth/2;
         const left=k.map(p=>`${cx-p[1]/mx*w2},${yOf(p[0])}`),right=k.slice().reverse().map(p=>`${cx+p[1]/mx*w2},${yOf(p[0])}`);
         b+=`<polygon points="${left.concat(right).join(' ')}" fill="${so.fill==='open'?'#fff':figHalf(c)}" stroke="${c}" stroke-width="${a}"/>`;
         const q1=quantile(v,0.25),q2=quantile(v,0.5),q3=quantile(v,0.75);const wAt=y=>{const p=k.reduce((bb,p)=>Math.abs(p[0]-y)<Math.abs(bb[0]-y)?p:bb);return p[1]/mx*w2;};
-        b+=`<line x1="${cx-wAt(q2)}" y1="${yOf(q2)}" x2="${cx+wAt(q2)}" y2="${yOf(q2)}" stroke="${c}" stroke-width="${a}"/><line x1="${cx-wAt(q1)}" y1="${yOf(q1)}" x2="${cx+wAt(q1)}" y2="${yOf(q1)}" stroke="${c}" stroke-width="${a}" stroke-dasharray="${a*2} ${a*2}"/><line x1="${cx-wAt(q3)}" y1="${yOf(q3)}" x2="${cx+wAt(q3)}" y2="${yOf(q3)}" stroke="${c}" stroke-width="${a}" stroke-dasharray="${a*2} ${a*2}"/>`;top=hi;}}
+        b+=`<line x1="${cx-wAt(q2)}" y1="${yOf(q2)}" x2="${cx+wAt(q2)}" y2="${yOf(q2)}" stroke="${c}" stroke-width="${a}"/><line x1="${cx-wAt(q1)}" y1="${yOf(q1)}" x2="${cx+wAt(q1)}" y2="${yOf(q1)}" stroke="${c}" stroke-width="${a}" stroke-dasharray="${a*2} ${a*2}"/><line x1="${cx-wAt(q3)}" y1="${yOf(q3)}" x2="${cx+wAt(q3)}" y2="${yOf(q3)}" stroke="${c}" stroke-width="${a}" stroke-dasharray="${a*2} ${a*2}"/>`;if(o.barDots){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(v,yOf,r,w2*1.6);v.forEach((val,k)=>{b+=sym(cx+pos[k].dx,pos[k].y,i,null,o.barEdge==='black'?'#000':c,so.fill);});}top=hi;}}
       addS(i,b);centers.push({cx,top:yOf(top),name:gr.name});});
     axes+=xAxis;if(xTitle)titles+=txt(x0+plotW/2,y0+Math.max(0,tick)+fs*2.3+(xrot?fs*2:0),xTitle,'middle','','xtitle');
   }else if(d.kind==='grouped'){
@@ -201,12 +208,18 @@ function figRender(spec){
   if(showLegend){const bottom=legendPos==='bottom';const itemW=fs*7;const lx0=bottom?x0+plotW/2-itemW*d.groups.length/2:x0+plotW+fs*1.2;d.groups.forEach((gr,i)=>{const lx=bottom?lx0+i*itemW:lx0;const ly=bottom?H-fs*0.6:padT+fs*(i*1.5+0.8);const so=S(i),c=so.color;
     if(d.kind==='grouped'&&type!=='grouped-scatter')legend+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${so.fill==='open'?'#fff':c}" stroke="${c}"/>`;else legend+=sym(lx+fs*0.5,ly-fs*0.2,i,null,c,so.fill);
     legend+=txt(lx+fs*1.5,ly,gr.name,'start');});}
-  const title=spec.title?txt(x0+plotW/2,padT-fs*0.9,spec.title,'middle','','title'):'';
+  const title=figTitleSVG(txt,x0+plotW/2,padT-fs*0.9,spec.title,W-fs,fs);
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${series.map((s,i)=>`<g data-sel="series:${i}">${s||''}</g>`).join('')}${brackets?`<g data-sel="brackets">${brackets}</g>`:''}${legend?`<g data-sel="legend">${legend}</g>`:''}${title}</svg>`;
   return {svg,w:W,h:H,plot:{x0,y0:padT,w:plotW,h:plotH}}; // plot はレイアウトで軸を揃えるための プロット領域
 }
 
 /* ---------- 書き出し ---------- */
+// PNG に解像度（pHYs チャンク、dpi）を書き込む。canvas.toDataURL は解像度を持たないため
+const figCrcTable=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function figCrc32(bytes){let c=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)c=figCrcTable[(c^bytes[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function figPngDataURL(canvas,dpi){const url=canvas.toDataURL('image/png');try{const b64=url.split(',')[1];const bin=atob(b64);const src=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)src[i]=bin.charCodeAt(i);
+  const ppm=Math.round((dpi||300)/0.0254);const chunk=new Uint8Array(4+4+9+4);const dv=new DataView(chunk.buffer);dv.setUint32(0,9);chunk.set([0x70,0x48,0x59,0x73],4);dv.setUint32(8,ppm);dv.setUint32(12,ppm);chunk[16]=1;dv.setUint32(17,figCrc32(chunk.subarray(4,17)));
+  const ihdrEnd=8+4+4+13+4;const out=new Uint8Array(src.length+chunk.length);out.set(src.subarray(0,ihdrEnd),0);out.set(chunk,ihdrEnd);out.set(src.subarray(ihdrEnd),ihdrEnd+chunk.length);let s='';for(let i=0;i<out.length;i+=0x8000)s+=String.fromCharCode.apply(null,out.subarray(i,i+0x8000));return 'data:image/png;base64,'+btoa(s);}catch(e){return url;}}
 async function figToPng(svg,w,h,dpi){if(typeof figInlineImages==='function'&&svg.includes('/api/img/'))svg=await figInlineImages(svg); // 画像パネルの画像を埋め込む
   return new Promise((res,rej)=>{const scale=(dpi||300)/96;const c=document.createElement('canvas');c.width=Math.round(w*scale);c.height=Math.round(h*scale);const g=c.getContext('2d');const im=new Image();im.onload=()=>{g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);res(c);};im.onerror=e=>rej(new Error('描画に失敗しました'));im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);});}
 
@@ -231,7 +244,10 @@ let FIG_PROMPT=`## 図（Figure）の作り方
 \`\`\`figure
 {"title":"任意","kind":"column|grouped|xy","type":"scatter|bar|box|violin|grouped-bar|grouped-scatter|xy-line|xy-points","err":"SD|SEM|CI","compare":"none|all|dunnett","ytitle":"Y 軸の題","xtitle":"X 軸の題","data":"A\\tB\\tC\\n1\\t2\\t3\\n..."}
 \`\`\`
-data はタブ区切り。column は列＝群・行＝反復、grouped は1列目＝カテゴリで同名の列が反復、xy は1列目＝X。compare は column のときだけ（all=全比較、dunnett=1列目を対照群として比較）。`;
+data はタブ区切り。column は列＝群・行＝反復、grouped は1列目＝カテゴリで同名の列が反復、xy は1列目＝X。compare は column と grouped で使える（all=全比較: 2 群なら Welch t、3 群以上は ANOVA+Tukey。dunnett=対照群と比較。grouped はカテゴリごとに群を比較してブラケットを付ける）。
+"style" で指定できる主な項目（利用者が「点も重ねて」「幅を広く」などと言ったら使う。編集画面の設定と同じもの）: wIn/hIn（プロット領域の幅・高さ in、既定 3×2）, fontPt（文字 pt、既定 12）, barDots:true（棒・箱・バイオリンに個々の点を重ねる）, legendPos:"right|bottom|none", scheme:"prism|colorblind|gray|nature", series:[{color,symbol,symPt,fill:"open"}], ylog:true, refLine（基準線の Y）, xRot（X ラベルの角度）, grid:"major", frame:"box", stackLabels:"percent|value"（積み上げ棒の区分の文字）, errDir, capW。
+図種固有の項目は「図種の設定」と同じキー: survCI/survMedian/survRisk（生存）, rocFill/rocCutoff, forestLog:"true|false"/forestNull（フォレスト: OR/HR/RR なら対数軸）, pcaEllipse:true（PCA の 95% 楕円）, hmCluster:"rows|cols|both"/hmZ（ヒートマップ）, regBand:"ci|pi", doseBand/doseCI（用量反応）, spColor:"subject"（SuperPlot を個体ごとに色分け）, pieLabels:"percent|value|both", volLabels, mhLabels。
+注意: できないと決めつけない。幅・高さ・文字サイズ・点の重ね描き・楕円・HR・at-risk 表・対数軸はすべて指定できる。bland-altman の差は 1 列目 − 2 列目（ytitle もその向きで書く）。列名は意味が伝わるもの（例: OR, Lower, Upper, P）にする。`;
 
 
 /* ---------- ツールメニュー（Prism のリボンにならった編集ボタン） ---------- */
@@ -242,7 +258,7 @@ const FIG_TOOLS=[
    {k:'errType',t:'select',l:'誤差',o:[['SD','SD'],['SEM','SEM'],['CI','95% CI'],['none','なし']]},
    {k:'errDir',t:'select',l:'誤差棒の向き',o:[['auto','自動（棒は上のみ）'],['both','上下'],['up','上のみ']]},
    {k:'capW',t:'num',l:'キャップ幅（棒幅×）',min:0,max:1.5,step:0.1},
-   {k:'barDots',t:'check',l:'棒に点を重ねる'},
+   {k:'barDots',t:'check',l:'棒・箱・バイオリンに点を重ねる'},
    {k:'barFill',t:'select',l:'棒の塗り',o:[['solid','塗り'],['open','白抜き']]},
    {k:'fillAlpha',t:'num',l:'塗りの濃さ (0–1)',min:0.1,max:1,step:0.1},
    {k:'barEdge',t:'select',l:'棒・点の縁',o:[['series','系列の色'],['black','黒']]},
@@ -328,7 +344,7 @@ function figToolsInit(){
   document.addEventListener('keydown',e=>{if(!document.querySelector('#figDlg').open)return;const mod=e.metaKey||e.ctrlKey;if(mod&&e.key==='z'&&!e.shiftKey){e.preventDefault();figDoUndo();}else if(mod&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){e.preventDefault();figDoRedo();}});
 }
 function figBindTools(panel){panel.querySelectorAll('[data-tk]').forEach(el=>{el.addEventListener(el.type==='checkbox'||el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.tk;let v=el.type==='checkbox'?el.checked:el.value;if(k==='bold'||k==='showNs'||k==='ylog'||k==='barDots')v=!!v;figApplyTool(k,v);const g=FIG_TOOLS.find(x=>x.id===panel.id.replace('ftp-',''));if(g&&g.id==='graph'&&k==='__type'){panel.innerHTML=figToolPanel(g);figBindTools(panel);}});});}
-async function figSavePng(dpi){if(!figState.svg)return;const c=await figToPng(figState.svg,figState.w,figState.h,dpi);const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=`figure_${Date.now()}_${dpi}dpi.png`;a.click();toast(`PNG（${dpi} dpi）を保存しました`);}
+async function figSavePng(dpi){if(!figState.svg)return;const c=await figToPng(figState.svg,figState.w,figState.h,dpi);const a=document.createElement('a');a.href=figPngDataURL(c,dpi);a.download=`figure_${Date.now()}_${dpi}dpi.png`;a.click();toast(`PNG（${dpi} dpi）を保存しました`);}
 
 /* ---------- 画面 ---------- */
 const FIG_TYPES={column:[['scatter','散布ドット＋平均±誤差'],['bar','棒＋誤差'],['box','箱ひげ'],['violin','バイオリン']],grouped:[['grouped-bar','集合棒＋誤差'],['grouped-scatter','集合散布']],xy:[['xy-line','折れ線＋記号＋誤差'],['xy-points','散布（全点）']]};
@@ -413,7 +429,7 @@ function figInit(){
   $('#figPreview').addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-sel]');figState.sel=t?t.dataset.sel:null;figMarkSel();figInspector();});
   $('#figClose').onclick=()=>$('#figDlg').close();
   $('#figSvg').onclick=()=>{if(!figState.svg)return;saveTextFile(`figure_${Date.now()}.svg`,figState.svg);};
-  $('#figPng').onclick=async()=>{if(!figState.svg)return;const c=await figToPng(figState.svg,figState.w,figState.h,300);const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=`figure_${Date.now()}.png`;a.click();toast('PNG（300 dpi）を保存しました');};
+  $('#figPng').onclick=async()=>{if(!figState.svg)return;const c=await figToPng(figState.svg,figState.w,figState.h,300);const a=document.createElement('a');a.href=figPngDataURL(c,300);a.download=`figure_${Date.now()}.png`;a.click();toast('PNG（300 dpi）を保存しました');};
   $('#figCopy').onclick=async()=>{if(!figState.svg)return;try{const c=await figToPng(figState.svg,figState.w,figState.h,300);const blob=await new Promise(r=>c.toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);toast('画像をコピーしました');}catch(e){toast('コピーできませんでした');}};
   $('#figAttach').onclick=()=>figAttach().catch(e=>toast('添付できませんでした: '+(e.message||e)));
   $('#figUpdate').onclick=()=>figUpdateSource();
@@ -442,7 +458,7 @@ function figOpenFromBlock(el,panel){const nid=el.dataset.fignode,idx=+el.dataset
   const st=figStateFromSpec(j);st.src=src;figOpen(st);}
 async function figBlockAction(el,act){const svgEl=el.querySelector('svg');if(!svgEl)return;const svg=svgEl.outerHTML;const w=+svgEl.getAttribute('width'),h=+svgEl.getAttribute('height');
   if(act==='svg'){saveTextFile(`figure_${Date.now()}.svg`,svg);return;}
-  const c=await figToPng(svg,w,h,300);if(act==='png'){const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=`figure_${Date.now()}.png`;a.click();toast('PNG（300 dpi）を保存しました');}
+  const c=await figToPng(svg,w,h,300);if(act==='png'){const a=document.createElement('a');a.href=figPngDataURL(c,300);a.download=`figure_${Date.now()}.png`;a.click();toast('PNG（300 dpi）を保存しました');}
   else{try{const blob=await new Promise(r=>c.toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);toast('画像をコピーしました');}catch(e){toast('コピーできませんでした');}}}
 function figFromTable(tableEl){const rows=[...tableEl.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(c=>c.textContent.trim()).join('\t'));figOpen({text:rows.join('\n')});}
 document.addEventListener('DOMContentLoaded',()=>{figInit();figToolsInit();});

@@ -402,8 +402,8 @@ async function runSmoke(win) {
         const fb2=document.getElementById('n-'+nid).querySelector('.figblock');r.fig5.annotDrawn=fb2.querySelectorAll('[data-annot]').length;
         const sc=fb2.querySelector('[data-figimg="cols"]');sc.value='1';sc.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(x=>setTimeout(x,400));r.fig5.colsWritten=JSON.parse(figFindBlocks(N(nid).content)[0].json).cols===1;
         const fb3=document.getElementById('n-'+nid).querySelector('.figblock');const svg=fb3.querySelector('svg');const c=await figToPng(svg.outerHTML,+svg.getAttribute('width'),+svg.getAttribute('height'),150);const g=c.getContext('2d');const px=g.getImageData(Math.round(c.width*0.5),Math.round(c.height*0.35),1,1).data;r.fig5.pngPx=c.width+'x'+c.height;r.fig5.pngHasImage=px[2]>150&&px[0]<100;r.fig5.png=c.toDataURL('image/png');
-        const blot={kind:'image',type:'blot',lanes:['1','2','3','4'],conds:[{name:'Zolmin',vals:['−','+','−','+']}],groups:[{name:'Raji',from:0,to:1},{name:'BC-1',from:2,to:3}],bands:[{img:m3.id,name:'CD20',kda:'35'},{img:m3.id,name:'β-actin',kda:'42'}]};
-        let rb=null,err='';try{rb=figRenderSpec(blot);}catch(e){err=e.message;}r.fig5.blot=err||!!(rb&&rb.blot&&rb.svg.includes('kDa')&&rb.svg.includes('Raji'));
+        const blot={kind:'image',type:'blot',nameSide:'left',lanes:['1','2','3','4'],conds:[{name:'Zolmin',vals:['−','+','−','+']}],groups:[{name:'Raji',from:0,to:1},{name:'BC-1',from:2,to:3}],bands:[{img:m3.id,name:'CD20',kda:'35',crop:[0.1,0.2,0.8,0.3]},{img:m3.id,name:'β-actin',kda:'42'}]};
+        let rb=null,err='';try{rb=figRenderSpec(blot);}catch(e){err=e.message;}r.fig5.blot=err||!!(rb&&rb.blot&&rb.svg.includes('kDa')&&rb.svg.includes('Raji'));r.fig5.blotCrop=!!(rb&&/viewBox="60 24 480 36"/.test(rb.svg))&&rb.cells[0].h<rb.cells[1].h;
         const lay=figRenderSpec({kind:'layout',cols:2,panels:[spec,blot]});r.fig5.inLayout=!!(lay&&lay.n===2&&lay.svg.includes('/api/img/'));const cl=await figToPng(lay.svg,lay.w,lay.h,150);r.fig5.png2=cl.toDataURL('image/png');
       }
       if(${process.env.SMOKE_FIG6 === '1'}){ // Figure 模式図: 6 種を描き、チャットのブロック→「{} 編集」で書き戻す

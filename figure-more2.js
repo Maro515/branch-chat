@@ -6,8 +6,8 @@
 'use strict';
 
 /* ---------- 図種の登録 ---------- */
-FIG_TYPES.column.push(['estimation','推定プロット（差と 95% CI）'],['qq','QQ プロット（正規性）'],['bland-altman','Bland–Altman（2 列）']);
-FIG_TYPES.grouped.push(['grouped-line','カテゴリ軸の折れ線＋誤差']);
+FIG_TYPES.column.push(['estimation','推定プロット（差と 95% CI）'],['qq','QQ プロット（正規性）'],['bland-altman','Bland–Altman（2 列）'],['ecdf','累積分布（ECDF）'],['pie','円グラフ（列＝区分、値の合計）'],['donut','ドーナツ（列＝区分）']);
+FIG_TYPES.grouped.push(['grouped-line','カテゴリ軸の折れ線＋誤差'],['pie','円グラフ（行＝区分）'],['donut','ドーナツ（行＝区分）']);
 FIG_TYPES.xy.push(['xy-band','折れ線＋誤差の帯（学習曲線）']);
 FIG_TYPES.heatmap.push(['confusion','混同行列（行＝実際、列＝予測）']);
 Object.assign(FIG_TYPES,{
@@ -21,9 +21,9 @@ const FIG_KINDS_P3=[['multi','多変数（行＝個体、列＝変数、Group �
 const FIG_DEF_P3={estCI:true,estText:true,estErr:'SD',qqLine:true,qqText:true,baLoA:true,baText:true,baMode:'diff',glErr:true,bandAlpha:0.2,
   bubMax:28,bubLegend:true,bubLabels:false,bubAlpha:0.5,
   pcaScale:true,pcaX:1,pcaY:2,pcaLabels:false,pcaEllipse:false,pcaPA:true,pcaNPA:100,pcaCum:true,
-  spSubject:true,spErr:'SD',spSmall:true,
+  spSubject:true,spErr:'SD',spSmall:true,spColor:'group',
   swSort:'duration',swEvents:true,swArrow:true,swUnit:'',
-  sdLines:true,sdEnd:true,sdColor:'group',
+  sdLines:true,sdEnd:true,sdColor:'group',pieLabels:'percent',pieStart:0,pieSort:false,
   volFC:1,volP:0.05,volQ:false,volLabels:10,volLines:true,volCounts:true,
   cmNorm:'none',cmScheme:'wb',cmValues:true,impN:'',impSort:'desc',impErr:true};
 Object.assign(FIG_DEF,FIG_DEF_P3);FIG_STYLE_KEYS.push(...Object.keys(FIG_DEF_P3));
@@ -38,9 +38,11 @@ Object.assign(FIG_TOOLS_MORE,{
   'pca-biplot':[{k:'pcaScale',t:'check',l:'変数を標準化（相関行列）'},{k:'pcaX',t:'select',l:'横軸',o:[['1','PC1'],['2','PC2'],['3','PC3']]},{k:'pcaY',t:'select',l:'縦軸',o:[['2','PC2'],['1','PC1'],['3','PC3']]},{k:'pcaLabels',t:'check',l:'点に名前を書く'}],
   'pca-scree':[{k:'pcaScale',t:'check',l:'変数を標準化（相関行列）'},{k:'pcaPA',t:'check',l:'Parallel analysis の帯'}],
   'pca-variance':[{k:'pcaScale',t:'check',l:'変数を標準化（相関行列）'},{k:'pcaCum',t:'check',l:'累積の折れ線'}],
-  superplot:[{k:'spSmall',t:'check',l:'反復の点を描く'},{k:'spSubject',t:'check',l:'個体の平均を大きな記号で'},{k:'spErr',t:'select',l:'誤差（個体平均の）',o:[['SD','SD'],['SEM','SEM'],['CI','95% CI'],['none','なし']]}],
+  superplot:[{k:'spColor',t:'select',l:'色分け',o:[['group','群ごと'],['subject','個体（実験）ごと']]},{k:'spSmall',t:'check',l:'反復の点を描く'},{k:'spSubject',t:'check',l:'個体の平均を大きな記号で'},{k:'spErr',t:'select',l:'誤差（個体平均の）',o:[['SD','SD'],['SEM','SEM'],['CI','95% CI'],['none','なし']]}],
   swimmer:[{k:'swSort',t:'select',l:'並べ方',o:[['duration','期間の長い順'],['input','入力順'],['group','群ごと']]},{k:'swEvents',t:'check',l:'イベントの記号'},{k:'swArrow',t:'check',l:'継続中の矢印'},{k:'swUnit',t:'text',l:'横軸の単位（例: Months）'}],
   spider:[{k:'sdLines',t:'check',l:'+20% / −30% の線'},{k:'sdEnd',t:'check',l:'最終点に記号'},{k:'sdColor',t:'select',l:'線の色',o:[['group','群ごと'],['patient','患者ごと'],['best','最良効果（PD/SD/PR）']]}],
+  pie:[{k:'pieLabels',t:'select',l:'区分の文字',o:[['percent','%'],['value','値'],['both','値と %'],['none','なし']]},{k:'pieSort',t:'check',l:'大きい順に並べる'}],
+  donut:[{k:'pieLabels',t:'select',l:'区分の文字',o:[['percent','%'],['value','値'],['both','値と %'],['none','なし']]},{k:'pieSort',t:'check',l:'大きい順に並べる'}],
   confusion:[{k:'cmNorm',t:'select',l:'セルの値',o:[['none','件数'],['row','件数と行の %（再現率）'],['col','件数と列の %（精度）']]},{k:'cmScheme',t:'select',l:'色',o:[['wb','白–青'],['wr','白–赤'],['gray','白–黒'],['viridis','Viridis']]},{k:'cmValues',t:'check',l:'セルに値を書く'}],
   volcano:[{k:'volFC',t:'select',l:'|log2FC| のしきい値',o:[['0.585','0.585（1.5 倍）'],['1','1（2 倍）'],['2','2（4 倍）'],['0','なし']]},{k:'volP',t:'select',l:'P のしきい値',o:[['0.05','0.05'],['0.01','0.01'],['0.001','0.001']]},{k:'volQ',t:'check',l:'BH 補正した q を使う'},{k:'volLabels',t:'select',l:'名前を書く上位 n',o:[['0','なし'],['5','5'],['10','10'],['20','20']]},{k:'volLines',t:'check',l:'しきい値の線'},{k:'volCounts',t:'check',l:'上昇・下降の数を書く'}],
   ma:[{k:'volFC',t:'select',l:'|log2FC| のしきい値',o:[['0.585','0.585'],['1','1'],['2','2'],['0','なし']]},{k:'volP',t:'select',l:'P のしきい値',o:[['0.05','0.05'],['0.01','0.01'],['0.001','0.001']]},{k:'volQ',t:'check',l:'BH 補正した q を使う'},{k:'volLabels',t:'select',l:'名前を書く上位 n',o:[['0','なし'],['5','5'],['10','10'],['20','20']]}],
@@ -134,7 +136,7 @@ function figRenderP3(spec){const d=spec.data,t=spec.type;
   if(typeof figRenderP4==='function'){const r=figRenderP4(spec);if(r)return r;}
   if(d.kind==='multi')return /^pca/.test(t)?figRenderPCA(spec):figRenderBubble(spec);if(d.kind==='nested')return figRenderSuper(spec);if(d.kind==='swimmer')return figRenderSwimmer(spec);if(d.kind==='spider')return figRenderSpider(spec);if(d.kind==='feature')return figRenderVolcano(spec);if(d.kind==='importance')return figRenderImportance(spec);
   if(d.kind==='heatmap'&&t==='confusion')return figRenderConfusion(spec);
-  if(t==='estimation')return figRenderEstimation(spec);if(t==='qq')return figRenderQQ(spec);if(t==='bland-altman')return figRenderBA2(spec);if(t==='grouped-line')return figRenderGroupedLine(spec);if(t==='xy-band')return figRenderBand(spec);
+  if(t==='estimation')return figRenderEstimation(spec);if(t==='pie'||t==='donut')return figRenderPie(spec);if(t==='ecdf')return figRenderECDF(spec);if(t==='qq')return figRenderQQ(spec);if(t==='bland-altman')return figRenderBA2(spec);if(t==='grouped-line')return figRenderGroupedLine(spec);if(t==='xy-band')return figRenderBand(spec);
   return null;}
 // 利用者がサイズを変えていないときだけ図種の既定サイズを使う
 const figDefSize=(spec,k)=>(spec.opts||{})[k]==null;
@@ -160,6 +162,27 @@ function figRenderEstimation(spec){const d=spec.data;const gs=d.groups.filter(g=
   const r=F.wrap(right+body+(texts?`<g data-sel="text">${texts}</g>`:''));r.res={diffs,ctrl:c,m0};return r;}
 function F0(o){return (+o.fontPt||12)*FIG_PT;}
 
+
+// 円グラフ／ドーナツ（column: 列＝区分で値の合計、grouped: 行＝区分で群ごとに 1 つ）
+function figRenderPie(spec){const d=spec.data;const o=Object.assign({},FIG_DEF,spec.opts||{});const donut=spec.type==='donut';const st=figStyle(spec);const {fs,a,txt,S}=st;
+  let pies=[];if(d.kind==='grouped'){pies=d.groups.map(g=>({name:g.name,slices:d.cats.map((c,ci)=>({name:c,v:(g.cells[ci]||[]).reduce((x,y)=>x+y,0)}))}));}else{pies=[{name:'',slices:d.groups.map(g=>({name:g.name,v:g.values.reduce((x,y)=>x+y,0)}))}];}
+  pies.forEach(p=>{p.slices=p.slices.filter(sl=>sl.v>0);if(o.pieSort)p.slices.sort((x,y)=>y.v-x.v);});pies=pies.filter(p=>p.slices.length);if(!pies.length)return {svg:'',w:0,h:0};
+  const names=[...new Set(pies.flatMap(p=>p.slices.map(sl=>sl.name)))];const colOf=n=>S(names.indexOf(n)).color;const R=((spec.opts||{}).wIn==null?1.1:+o.wIn/2.5)*FIG_IN;const gap=fs*2;const legW=Math.max(...names.map(n=>figTW(n,fs)))+fs*2.4;
+  const padT=fs*(spec.title?2.4:0.8)+(pies.length>1&&pies[0].name?fs*1.4:0);const padX=fs*(o.pieLabels==='both'?3:1.5);const W=padX+pies.length*(2*R+gap)-gap+padX+legW,H=padT+2*R+fs*1.2;let body='';
+  pies.forEach((p,pi)=>{const cx=padX+pi*(2*R+gap)+R,cy=padT+R;const tot=p.slices.reduce((x,sl)=>x+sl.v,0);let ang=(+o.pieStart||0)*Math.PI/180-Math.PI/2;let s='';
+    p.slices.forEach(sl=>{const da=sl.v/tot*2*Math.PI;const a1=ang,a2=ang+da;ang=a2;const r0=donut?R*0.55:0;const P=(r,t)=>`${cx+r*Math.cos(t)},${cy+r*Math.sin(t)}`;const big=da>Math.PI?1:0;
+      const dpath=donut?`M${P(R,a1)} A${R},${R} 0 ${big} 1 ${P(R,a2)} L${P(r0,a2)} A${r0},${r0} 0 ${big} 0 ${P(r0,a1)} Z`:`M${cx},${cy} L${P(R,a1)} A${R},${R} 0 ${big} 1 ${P(R,a2)} Z`;s+=`<path d="${dpath}" fill="${colOf(sl.name)}" fill-opacity="${+o.fillAlpha}" stroke="#fff" stroke-width="${a}"/>`;
+      if(o.pieLabels!=='none'&&da>0.12){const mid=(a1+a2)/2;const rr=donut?(R+r0)/2:R*0.62;const lab=o.pieLabels==='value'?figFmt(+sl.v.toPrecision(4)):o.pieLabels==='both'?`${figFmt(+sl.v.toPrecision(4))} (${(sl.v/tot*100).toFixed(1)}%)`:`${(sl.v/tot*100).toFixed(1)}%`;s+=txt(cx+rr*Math.cos(mid),cy+rr*Math.sin(mid)+fs*0.33,lab,'middle',`fill="${figDark(colOf(sl.name))?'#fff':'#000'}"`,null,fs*0.85);}});
+    if(pies.length>1&&p.name)s+=txt(cx,padT-fs*0.5,p.name,'middle');body+=`<g data-sel="series:${pi}">${s}</g>`;});
+  let leg='';const lx=W-legW+fs*0.4;names.forEach((n,k)=>{const ly=padT+fs*(k*1.5+0.8);leg+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${colOf(n)}"/>`+txt(lx+fs*1.5,ly,n,'start');});
+  const title=figTitle1(txt,(W-legW)/2,fs*1.3,spec.title,W-fs,fs);
+  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${body}<g data-sel="legend">${leg}</g>${title}</svg>`,w:W,h:H,plot:{x0:fs,y0:padT,w:W-legW-fs,h:2*R},res:{pies:pies.map(p=>({name:p.name,total:p.slices.reduce((x,sl)=>x+sl.v,0),slices:p.slices}))}};}
+// 累積分布（column: 群ごとの経験分布関数）
+function figRenderECDF(spec){const d=spec.data;const gs=d.groups.filter(g=>g.values.length);if(!gs.length)return {svg:'',w:0,h:0};const o=Object.assign({},FIG_DEF,spec.opts||{});
+  const all=gs.flatMap(g=>g.values);const pad=(Math.max(...all)-Math.min(...all))*0.05||1;const xs=figAxisLin(Math.min(...all)-pad,Math.max(...all)+pad,5);const ys={lo:0,hi:1,ticks:[0,0.25,0.5,0.75,1].map(v=>({v,l:figFmt(v)}))};
+  const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle||'Value',yTitle:o.yTitle||'Cumulative fraction',legend:gs.length>1?gs.map((g,i)=>({name:g.name,kind:'line',i})):[]});const {xOf,yOf,S}=F;
+  let body='';gs.forEach((g,i)=>{const v=g.values.slice().sort((a,b)=>a-b);const n=v.length;const pts=[`${xOf(xs.lo)},${yOf(0)}`];v.forEach((x,k)=>{pts.push(`${xOf(x)},${yOf(k/n)}`);pts.push(`${xOf(x)},${yOf((k+1)/n)}`);});pts.push(`${xOf(xs.hi)},${yOf(1)}`);body+=`<g data-sel="series:${i}"><polyline points="${pts.join(' ')}" fill="none" stroke="${S(i).color}" stroke-width="${S(i).lineW*FIG_PT*1.5}"/></g>`;});
+  const r=F.wrap(body);r.res={n:gs.map(g=>g.values.length),medians:gs.map(g=>median(g.values))};return r;}
 // QQ プロット（column: X＝実測値、Y＝正規分布から予測した値。群ごとに色分け）
 function figRenderQQ(spec){const d=spec.data;const gs=d.groups.filter(g=>g.values.length>=3);if(!gs.length)return {svg:'',w:0,h:0};const o=Object.assign({},FIG_DEF,spec.opts||{});
   const ser=gs.map(g=>{const v=g.values.slice().sort((a,b)=>a-b);const n=v.length,m=mean(v),s=sd(v);const sw=shapiroWilk(v);return {pts:v.map((x,i)=>[x,m+s*normInv((i+1-0.375)/(n+0.25))]),sw,n};});
@@ -230,10 +253,10 @@ function figRenderPCA(spec){const d=spec.data;const o=Object.assign({},FIG_DEF,s
 function figRenderSuper(spec){const d=spec.data;const gs=d.groups.filter(g=>g.values.length);const n=gs.length;if(!n)return {svg:'',w:0,h:0};const o=Object.assign({},FIG_DEF,spec.opts||{});
   const all=gs.flatMap(g=>g.values);let lo=Math.min(...all),hi=Math.max(...all);if(lo>0&&lo<(hi-lo)*0.3)lo=0;const cmpGroups=gs.map(g=>({name:g.name,values:g.means}));const cmp=spec.cmp&&spec.cmp!=='none'?figCompare(cmpGroups,spec.cmp,spec.ctrl):null;const pairs=cmp?cmp.pairs:[];const nLv=figNLevels(pairs,o);const head=nLv?0.14+0.16*nLv:0.08;
   const [ylo,yhi]=figYRange(o,lo,hi+(hi-lo)*head);const ys=figAxisLin(ylo,yhi,5);const xs={lo:0,hi:n,cat:true,ticks:gs.map((g,i)=>({v:i+0.5,l:g.name}))};
-  const maxSub=Math.max(...gs.map(g=>g.subjects.length));const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle,yTitle:o.yTitle||d.vname,legend:o.spSubject&&maxSub<=8?gs[0].subjects.map((s,i)=>({name:`${d.sname} ${i+1}`,kind:'sym',i,color:'#000',fill:'solid',shape:FIG_SYMBOLS[i%FIG_SYMBOLS.length][0]})):[]});const {xOf,yOf,S,a,fs}=F;const bw=(xOf(1)-xOf(0))*0.6;
+  const maxSub=Math.max(...gs.map(g=>g.subjects.length));const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle,yTitle:o.yTitle||d.vname,legend:o.spSubject&&maxSub<=8?gs[0].subjects.map((s,i)=>({name:`${d.sname} ${i+1}`,kind:'sym',i,color:o.spColor==='subject'?FIG_PAL20[i%20]:'#000',fill:'solid',shape:FIG_SYMBOLS[i%FIG_SYMBOLS.length][0]})):[]});const {xOf,yOf,S,a,fs}=F;const bw=(xOf(1)-xOf(0))*0.6;const bySubj=o.spColor==='subject';const colOf=(gi,k)=>bySubj?FIG_PAL20[k%20]:S(gi).color;
   let body='';const centers=[];gs.forEach((g,i)=>{const so=S(i),c=so.color;const cx=xOf(i+0.5);let s='';
-    if(o.spSmall){const vals=[],subj=[];g.subjects.forEach((sb,k)=>sb.values.forEach(v=>{vals.push(v);subj.push(k);}));const r=so.symPt*FIG_PT*0.3;const pos=figArrangeDots(vals,yOf,r,bw*0.9);vals.forEach((v,k)=>{s+=figSymbol(cx+pos[k].dx,pos[k].y,r,'circle',c+'66','none');});}
-    if(o.spSubject){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(g.means,yOf,r,bw*0.9);g.means.forEach((m,k)=>{s+=figSymbol(cx+pos[k].dx,pos[k].y,r,FIG_SYMBOLS[k%FIG_SYMBOLS.length][0],c,'#000');});}
+    if(o.spSmall){const vals=[],subj=[];g.subjects.forEach((sb,k)=>sb.values.forEach(v=>{vals.push(v);subj.push(k);}));const r=so.symPt*FIG_PT*0.3;const pos=figArrangeDots(vals,yOf,r,bw*0.9);vals.forEach((v,k)=>{s+=figSymbol(cx+pos[k].dx,pos[k].y,r,'circle',colOf(i,subj[k])+'66','none');});}
+    if(o.spSubject){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(g.means,yOf,r,bw*0.9);g.means.forEach((m,k)=>{s+=figSymbol(cx+pos[k].dx,pos[k].y,r,FIG_SYMBOLS[k%FIG_SYMBOLS.length][0],colOf(i,k),'#000');});}
     const e=figErr(g.means,o.spErr);const lw=bw*0.5;s+=`<line x1="${cx-lw/2}" y1="${yOf(e.m)}" x2="${cx+lw/2}" y2="${yOf(e.m)}" stroke="#000" stroke-width="${a*2}"/>`+figErrBarP3(F,cx,e.m,e.e,bw,'#000');body+=`<g data-sel="series:${i}">${s}</g>`;centers.push({cx,top:yOf(Math.max(...g.values))});});
   const br=figBracketsMore(pairs,centers,F);const r=F.wrap(body+(br.svg?`<g data-sel="brackets">${br.svg}</g>`:''));r.res={cmp,nsub:gs.map(g=>g.subjects.length)};return r;}
 
@@ -266,7 +289,7 @@ function figRenderConfusion(spec){const d=spec.data;const o=Object.assign({},FIG
     if(o.cmValues){const fc=figDark(col)?'#fff':'#000';const pct=o.cmNorm==='row'?(stats.rs[i]?v/stats.rs[i]*100:0):o.cmNorm==='col'?(stats.cs[j]?v/stats.cs[j]*100:0):null;texts+=txt(x+cell/2,y+cell/2+(pct!=null?-fs*0.15:h/2),figFmt(v),'middle',`fill="${fc}"`,null,fs*(pct!=null?0.95:1.1));if(pct!=null)texts+=txt(x+cell/2,y+cell/2+fs*0.95,pct.toFixed(1)+'%','middle',`fill="${fc}"`,null,fs*0.75);}}));
   let labels='';d.rows.forEach((s,i)=>{labels+=txt(padL-fs*0.4,padT+i*cell+cell/2+h/2,s,'end');});d.cols.forEach((s,j)=>{labels+=txt(padL+j*cell+cell/2,padT-fs*0.4,s,'middle');});
   labels+=txt(padL+C*cell/2,padT-fs*1.6,'Predicted','middle')+txt(padL-labW-fs*1.2,padT+R*cell/2,'Actual','middle',`transform="rotate(-90 ${padL-labW-fs*1.2} ${padT+R*cell/2})"`);
-  const title=spec.title?txt(W/2,fs*1.4,spec.title,'middle','','title'):'';
+  const title=figTitle1(txt,W/2,fs*1.4,spec.title,W-fs,fs);
   return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/><g data-sel="series:0">${cells}</g><g data-sel="text">${texts}</g><g data-sel="axes">${labels}</g>${title}</svg>`,w:W,h:H,res:{stats}};}
 
 // ボルケーノ／MA（feature）
@@ -301,6 +324,8 @@ function figStatsP3(data,st){if(!data)return null;if(typeof figStatsP4==='functi
   if(data.kind==='importance'){return `<div class="hint">${res.n} / ${res.total} 件を表示（${st.opts.impSort==='input'?'入力順':'大きい順'}）</div>`;}
   if(data.kind==='heatmap'&&t==='confusion'){const s0=res.stats;if(!s0)return null;let s=`<div class="hint">N = ${s0.N} ／ 正確度 ${(s0.acc*100).toFixed(1)}% ／ Cohen の κ = ${isFinite(s0.kappa)?s0.kappa.toFixed(3):'–'}</div><table><tr><th>クラス</th><th>再現率（感度）</th><th>精度（PPV）</th><th>特異度</th><th>F1</th></tr>`+data.rows.map((r,i)=>{const p=s0.per[i];const pc=v=>isFinite(v)?(v*100).toFixed(1)+'%':'–';return `<tr><td>${esc(r)}</td><td>${pc(p.recall)}</td><td>${pc(p.precision)}</td><td>${pc(p.spec)}</td><td>${isFinite(p.f1)?p.f1.toFixed(3):'–'}</td></tr>`;}).join('')+'</table>';return s;}
   if(t==='estimation'){const ds=res.diffs||[];const gs=data.groups;let s=`<div class="hint">右軸＝対照（${esc(gs[res.ctrl]?gs[res.ctrl].name:'')}）との平均差。Welch の t 検定の 95% CI。右軸の 0 は対照の平均の高さ。</div><table><tr><th>比較</th><th>平均差</th><th>95% CI</th><th>t</th><th>df</th><th>P</th></tr>`;ds.forEach((r,i)=>{if(!r)return;s+=`<tr><td>${esc(gs[i].name)} − ${esc(gs[res.ctrl].name)}</td><td>${f3(r.diff)}</td><td>${f3(r.ciLo)} – ${f3(r.ciHi)}</td><td>${r.t.toFixed(3)}</td><td>${r.df.toFixed(1)}</td><td>${P(r.p)}</td></tr>`;});return s+'</table>';}
+  if(t==='pie'||t==='donut'){const ps=res.pies||[];return ps.map(p=>`<table><tr><th colspan="3">${esc(p.name||'')}合計 ${figFmt(+p.total.toPrecision(5))}</th></tr><tr><th>区分</th><th>値</th><th>%</th></tr>${p.slices.map(sl=>`<tr><td>${esc(sl.name)}</td><td>${figFmt(+sl.v.toPrecision(5))}</td><td>${(sl.v/p.total*100).toFixed(1)}</td></tr>`).join('')}</table>`).join('');}
+  if(t==='ecdf'){return `<div class="hint">経験累積分布 F(x) = x 以下の割合。n = ${(res.n||[]).join(', ')}、中央値 ${(res.medians||[]).map(m=>figFmt(+m.toPrecision(4))).join(', ')}</div>`;}
   if(t==='qq'){const ser=res.ser||[];return '<div class="hint">X＝実測値、Y＝同じ平均・SD の正規分布から予測した値（Blom の順位統計量）。直線に乗れば正規分布に近い。</div><table><tr><th>群</th><th>n</th><th>Shapiro–Wilk W</th><th>P</th></tr>'+data.groups.filter(g=>g.values.length>=3).map((g,i)=>{const s=ser[i];return `<tr><td>${esc(g.name)}</td><td>${s?s.n:''}</td><td>${s&&s.sw?s.sw.W.toFixed(4):'–'}</td><td>${s&&s.sw?P(s.sw.p):'–'}</td></tr>`;}).join('')+'</table>';}
   if(t==='bland-altman'){if(res.n==null)return '<div class="hint">2 列（同じ行＝同じ個体）が必要です</div>';return `<div class="hint">${esc(data.groups[0].name)} − ${esc(data.groups[1].name)}${res.pct?'（平均に対する %）':''}、n = ${res.n}</div><table><tr><th></th><th>値</th><th>95% CI</th></tr><tr><td>バイアス（平均差）</td><td>${f3(res.bias)}</td><td>${f3(res.biasCI[0])} – ${f3(res.biasCI[1])}</td></tr><tr><td>SD</td><td>${f3(res.sd)}</td><td></td></tr><tr><td>下側一致限界（−1.96 SD）</td><td>${f3(res.loa[0])}</td><td>${f3(res.loaCI[0][0])} – ${f3(res.loaCI[0][1])}</td></tr><tr><td>上側一致限界（+1.96 SD）</td><td>${f3(res.loa[1])}</td><td>${f3(res.loaCI[1][0])} – ${f3(res.loaCI[1][1])}</td></tr></table>`;}
   if(t==='grouped-line'){return '<div class="hint">カテゴリごとの各群の平均を線でつなぎ、誤差棒は選んだ種類（SD/SEM/CI）。</div>';}

@@ -71,7 +71,7 @@ function figFrame(spec,cfg){
   const st=figStyle(spec);const {o,fs,h,a,tick,ac,txt,raw,S,sym}=st;
   const plotW=(cfg.wIn||+o.wIn||3)*FIG_IN,plotH=(cfg.hIn||+o.hIn||2)*FIG_IN;
   const legend=cfg.legend||[];const legendPos=legend.length?(o.legendPos||'right'):'none';const xrot=+o.xRot||cfg.xRot||0;
-  const padL=fs*(cfg.yTitle?4.2:2.8)+(cfg.padL||0),padB=fs*(cfg.xTitle?3.2:2)+(xrot?fs*2.2:0)+(legendPos==='bottom'?fs*1.8:0)+(cfg.padB||0),padT=fs*(spec.title?2.4:1.6)+(cfg.padT||0),padR=fs*1.2+(legendPos==='right'?fs*(cfg.legendW||8):0)+(cfg.padR||0);
+  const legW=legendPos==='right'?Math.max(fs*(cfg.legendW||8),Math.max(...legend.map(it=>figTW(it.name,fs)))+fs*2.2):0;const padL=fs*(cfg.yTitle?4.2:2.8)+(cfg.padL||0),padB=fs*(cfg.xTitle?3.2:2)+(xrot?fs*2.2:0)+(legendPos==='bottom'?fs*1.8:0)+(cfg.padB||0),padR=fs*1.2+legW+(cfg.padR||0);const titleL=figTitleLines(spec.title,padL+plotW+padR-fs,fs);const padT=fs*1.6+(titleL.lines.length?fs*0.8+titleL.lines.length*titleL.size*1.2*0.85:0)+(cfg.padT||0);
   const W=padL+plotW+padR,H=padT+plotH+padB,x0=padL,y0=padT+plotH;const xs=cfg.x,ys=cfg.y;
   const xOf=v=>x0+(v-xs.lo)/(xs.hi-xs.lo)*plotW,yOf=v=>y0-(v-ys.lo)/(ys.hi-ys.lo)*plotH;
   const yT=ys.ticks.length&&!ys.cat?yOf(ys.ticks[ys.ticks.length-1].v):padT,yB=ys.ticks.length&&!ys.cat?yOf(ys.ticks[0].v):y0;const xA=xs.ticks.length&&!xs.cat?xOf(xs.ticks[0].v):x0,xB=xs.ticks.length&&!xs.cat?xOf(xs.ticks[xs.ticks.length-1].v):x0+plotW;
@@ -87,7 +87,7 @@ function figFrame(spec,cfg){
   let leg='';if(legendPos!=='none'){const bottom=legendPos==='bottom';const itemW=fs*7;const lx0=bottom?x0+plotW/2-itemW*legend.length/2:x0+plotW+fs*1.2;legend.forEach((it,k)=>{const lx=bottom?lx0+k*itemW:lx0;const ly=bottom?H-fs*0.6:padT+fs*(k*1.5+0.8);const so=S(it.i==null?k:it.i);const c=it.color||so.color;
     if(it.kind==='rect')leg+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${so.fill==='open'?'#fff':c}" stroke="${c}"/>`;else if(it.kind==='line')leg+=`<line x1="${lx}" y1="${ly-fs*0.2}" x2="${lx+fs*1.1}" y2="${ly-fs*0.2}" stroke="${c}" stroke-width="${so.lineW*FIG_PT*1.5}"/>`;else leg+=sym(lx+fs*0.5,ly-fs*0.2,it.i==null?k:it.i,c,it.fill||so.fill,it.shape);
     leg+=txt(lx+fs*1.5,ly,it.name,'start');});}
-  const title=spec.title?txt(x0+plotW/2,padT-fs*0.9,spec.title,'middle','','title'):'';
+  const title=figTitleSVG(txt,x0+plotW/2,padT-fs*0.9-(cfg.padT||0),spec.title,W-fs,fs);
   const wrap=(body,extra)=>({svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${body}${leg?`<g data-sel="legend">${leg}</g>`:''}${title}${extra||''}</svg>`,w:W,h:H,plot:{x0,y0:padT,w:plotW,h:plotH}});
   return Object.assign(st,{x0,y0,plotW,plotH,W,H,padT,padL,padB,padR,xOf,yOf,wrap,xAxisY});
 }
@@ -195,9 +195,9 @@ function figBuildForest(parsed){const cols=parsed.cols;const num=cols.filter(c=>
   const lo=num.find(c=>/low|lcl|lci|lower|下限|2\.5/.test(figLC(c)));const hi=num.find(c=>c!==lo&&/up|ucl|uci|upper|上限|97\.5/.test(figLC(c)));
   const est=num.find(c=>c!==lo&&c!==hi&&/est|^or$|^hr$|^rr$|ratio|effect|point|^md$|smd|推定|効果|オッズ|ハザード/.test(figLC(c)))||num.find(c=>c!==lo&&c!==hi);if(!est)return null;
   const lo2=lo||num.find(c=>c!==est&&c!==hi),hi2=hi||num.find(c=>c!==est&&c!==lo2);if(!lo2||!hi2)return null;
-  const w=num.find(c=>![est,lo2,hi2].includes(c)&&/weight|wt|重み|%/.test(figLC(c)))||null;const nn=num.find(c=>![est,lo2,hi2,w].includes(c)&&/^n$|^n |size|例数|人数|患者数/.test(figLC(c)))||null;
-  const items=parsed.rowLabels.map((lab,i)=>{const label=parsed.firstColText?lab:String(i+1);const e=est.vals[i];if(e===null)return {label,kind:'head'};return {label,est:e,lo:lo2.vals[i],hi:hi2.vals[i],w:w?w.vals[i]:null,n:nn?nn.vals[i]:null,kind:/overall|pooled|total|summary|combined|全体|統合|合計|random|fixed/i.test(label)?'pooled':'row'};}).filter(it=>it.kind==='head'||(it.lo!==null&&it.hi!==null));
-  if(!items.some(it=>it.kind!=='head'))return null;return {kind:'forest',items,ename:est.name,sname:parsed.firstColText?cols[0].name:'',groups:[]};}
+  const w=num.find(c=>![est,lo2,hi2].includes(c)&&/weight|wt|重み|%/.test(figLC(c)))||null;const pc=num.find(c=>![est,lo2,hi2,w].includes(c)&&/^(p|pval|p_value|pvalue|p\.value|p値)$/.test(figLC(c)))||null;const nn=num.find(c=>![est,lo2,hi2,w].includes(c)&&/^n$|^n |size|例数|人数|患者数/.test(figLC(c)))||null;
+  const items=parsed.rowLabels.map((lab,i)=>{const label=parsed.firstColText?lab:String(i+1);const e=est.vals[i];if(e===null)return {label,kind:'head'};return {label,est:e,lo:lo2.vals[i],hi:hi2.vals[i],w:w?w.vals[i]:null,n:nn?nn.vals[i]:null,p:pc?pc.vals[i]:null,kind:/overall|pooled|total|summary|combined|全体|統合|合計|random|fixed/i.test(label)?'pooled':'row'};}).filter(it=>it.kind==='head'||(it.lo!==null&&it.hi!==null));
+  if(!items.some(it=>it.kind!=='head'))return null;return {kind:'forest',items,ename:est.name,sname:parsed.firstColText?cols[0].name:'',hasP:!!pc,groups:[]};}
 function figBuildWaterfall(parsed){const cols=parsed.cols;const num=cols.filter(c=>c.vals.some(v=>v!==null));const ch=num.find(c=>/change|%|best|変化|縮小|resp/.test(figLC(c)))||num[0];if(!ch)return null;
   const resp=cols.find(c=>c!==ch&&c.raw.some(v=>/^(CR|PR|SD|PD|NE)$/i.test(v)))||null;const idCol=parsed.firstColText?cols[0]:null;
   const items=ch.vals.map((v,i)=>v===null?null:({id:idCol?idCol.raw[i]:String(i+1),v,resp:resp?String(resp.raw[i]||'').toUpperCase():null})).filter(Boolean).sort((p,q)=>q.v-p.v);
@@ -314,7 +314,7 @@ function figRenderSurvival(spec){const d=spec.data;const o=Object.assign({},FIG_
     if(o.survCensor)for(const cs of k.censors)s+=`<line x1="${xOf(cs.t)}" y1="${yOf(Y(cs.s))-h*0.45}" x2="${xOf(cs.t)}" y2="${yOf(Y(cs.s))+h*0.45}" stroke="${c}" stroke-width="${lw}"/>`;
     if(o.survMedian&&k.median!=null&&!cum)s+=`<polyline points="${x0},${yOf(Y(0.5))} ${xOf(k.median)},${yOf(Y(0.5))} ${xOf(k.median)},${y0}" fill="none" stroke="${c}" stroke-width="${a*0.75}" stroke-dasharray="${dash}"/>`;
     body+=`<g data-sel="series:${i}">${s}</g>`;});
-  let texts='';if(o.survText&&lr){const lines=[`Log-rank ${figPtext(lr.p)}`];if(hr)lines.push(`HR ${hr.hr.toFixed(2)} (95% CI ${hr.lo.toFixed(2)}–${hr.hi.toFixed(2)})`);lines.forEach((l,k)=>{texts+=cum?txt(x0+fs*0.5,F.padT+fs*(k+1)*1.15,l,'start',null,null,fs*0.85):txt(x0+F.plotW-fs*0.4,F.padT+fs*(k+1)*1.15,l,'end',null,null,fs*0.85);});}
+  let texts='';if(o.survText&&lr){const lines=[`Log-rank ${figPtext(lr.p)}`];if(hr)lines.push(`HR ${hr.hr.toFixed(2)} (95% CI ${hr.lo.toFixed(2)}–${hr.hi.toFixed(2)})`);lines.forEach((l,k)=>{texts+=cum?txt(x0+fs*0.5,F.padT+fs*(k+1)*1.15,l,'start',null,null,fs*0.85):txt(x0+fs*0.5,F.y0-fs*0.4-(lines.length-1-k)*fs*1.15,l,'start',null,null,fs*0.85);});}
   let table='';if(risk){const ty=y0+Math.max(0,F.tick)+fs*(o.xTitle||d.tname?3.4:2.4);table+=txt(x0,ty,'Number at risk','start',null,null,fs*0.85);gs.forEach((g,i)=>{const y=ty+fs*1.3*(i+1);table+=txt(x0-fs*1.0,y,g.name,'end',`fill="${S(i).color}"`,null,fs*0.85);for(const t of xs.ticks)table+=txt(xOf(t.v),y,String(atRiskAt(g.times,t.v)),'middle',null,null,fs*0.85);});}
   const r=F.wrap(body+(texts?`<g data-sel="text">${texts}</g>`:'')+(table?`<g data-sel="risk">${table}</g>`:''));r.res={km,lr,hr};return r;}
 
@@ -360,23 +360,23 @@ function figRenderHeatmap(spec){const d=spec.data;const st=figStyle(spec);const 
   for(const t of figNiceTicks(lo,hi,4).ticks.filter(t=>t>=lo-1e-9&&t<=hi+1e-9)){const y=by+bh-(t-lo)/(hi-lo)*bh;bar+=`<line x1="${bx+barW}" y1="${y}" x2="${bx+barW-h*0.5}" y2="${y}" stroke="${ac}" stroke-width="${a}"/>`+txt(bx+barW+fs*0.3,y+h/2,figFmt(t),'start',null,null,fs*0.85);}
   if(o.hmZ&&!corr)bar+=txt(bx+barW/2,by+bh+fs*1.1,'z score','middle',null,null,fs*0.8);if(corr)bar+=txt(bx+barW/2,by-fs*0.4,'r','middle',null,null,fs*0.85);
   let dend='';if(rowTree)dend+=figDendro(rowTree,i=>y0+rowOrder.indexOf(i)*cell+cell/2,x0-fs*0.2,dendW-fs*0.4,'row',ac,a);if(colTree)dend+=figDendro(colTree,i=>x0+colOrder.indexOf(i)*cell+cell/2,y0-fs*0.2-(o.hmColPos==='top'?colLabH:0),dendH-fs*0.4,'col',ac,a);
-  const title=spec.title?txt(x0+gw/2,fs*1.4,spec.title,'middle','','title'):'';
+  const title=figTitle1(txt,W/2,fs*1.4,spec.title,W-fs,fs);
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/><g data-sel="cells">${cells}</g>${frame}<g data-sel="axes">${labels}</g><g data-sel="legend">${bar}</g>${dend}${title}</svg>`;
   return {svg,w:W,h:H,res:{M,rows,cols,rowOrder,colOrder,lo,hi,corr}};}
 
 // フォレストプロット（左に研究名・n・重み、中央に点＋CI、右に推定値 [95% CI]、Overall は菱形）
 function figRenderForest(spec){const d=spec.data;const st=figStyle(spec);const {o,fs,h,a,ac,txt,dash}=st;const items=d.items;const rows=items.filter(it=>it.kind!=='head');if(!rows.length)return {svg:'',w:0,h:0};
-  const vals=rows.flatMap(it=>[it.lo,it.hi,it.est]).filter(v=>v!==null&&isFinite(v));let log=o.forestLog==='auto'?(vals.every(v=>v>0)&&/or|hr|rr|ratio|オッズ|ハザード|リスク比/i.test(d.ename)):(o.forestLog===true||o.forestLog==='true');if(log&&!vals.every(v=>v>0))log=false;
+  const vals=rows.flatMap(it=>[it.lo,it.hi,it.est]).filter(v=>v!==null&&isFinite(v));let log=o.forestLog==='auto'?(vals.every(v=>v>0)&&/\bor\b|\bhr\b|\brr\b|ratio|odds|hazard|オッズ|ハザード|リスク比/i.test(d.ename+' '+(o.xTitle||'')+' '+(spec.title||''))):(o.forestLog===true||o.forestLog==='true');if(log&&!vals.every(v=>v>0))log=false;
   const nullV=o.forestNull!==''&&isFinite(+o.forestNull)?+o.forestNull:(log?1:0);let lo=Math.min(...vals,nullV),hi=Math.max(...vals,nullV);
   let ticks;if(log){const cands=[0.01,0.02,0.05,0.1,0.2,0.5,1,2,5,10,20,50,100,200,500,1000];ticks=cands.filter(c=>c>=lo*0.95&&c<=hi*1.05);if(ticks.length<2)ticks=[lo,hi];lo=Math.min(lo,ticks[0]);hi=Math.max(hi,ticks[ticks.length-1]);}else{const ax=figAxisLin(lo,hi,5);ticks=ax.ticks.map(t=>t.v);lo=ax.lo;hi=ax.hi;}
   const rowH=fs*1.5,n=items.length;const plotW=(+o.wIn||3)*FIG_IN*0.7,plotH=n*rowH;const hasHead=items.some(it=>it.kind==='head');
-  const labW=Math.max(...items.map(it=>String(it.label).length))*fs*0.55+fs*(hasHead?1.6:0.8);const showN=o.forestWeights&&rows.some(it=>it.n!==null),showW=o.forestWeights&&rows.some(it=>it.w!==null);const nW=showN?fs*3:0,wW=showW?fs*4:0,txtW=o.forestText?fs*9:0;
-  const padT=fs*(spec.title?2.4:0.6)+fs*1.6,padL=fs*0.5+labW+nW+wW,padR=txtW+fs*0.5,padB=fs*(o.xTitle?3.4:2.2)+(o.forestFav?fs*1.3:0);const W=padL+plotW+padR,H=padT+plotH+padB,x0=padL,y0=padT+plotH;
+  const labW=Math.max(...items.map(it=>String(it.label).length))*fs*0.55+fs*(hasHead?1.6:0.8);const showN=o.forestWeights&&rows.some(it=>it.n!==null),showW=o.forestWeights&&rows.some(it=>it.w!==null);const nW=showN?fs*3:0,wW=showW?fs*4:0,txtW=o.forestText?fs*9:0,pW=d.hasP&&o.forestText?fs*4.5:0;
+  const padT=fs*(spec.title?2.4:0.6)+fs*1.6,padL=fs*0.5+labW+nW+wW,padR=txtW+pW+fs*0.5,padB=fs*(o.xTitle?3.4:2.2)+(o.forestFav?fs*1.3:0);const W=padL+plotW+padR,H=padT+plotH+padB,x0=padL,y0=padT+plotH;
   const xOf=log?v=>x0+(Math.log10(v)-Math.log10(lo))/(Math.log10(hi)-Math.log10(lo))*plotW:v=>x0+(v-lo)/(hi-lo)*plotW;
   let axes=`<line x1="${x0}" y1="${y0}" x2="${x0+plotW}" y2="${y0}" stroke="${ac}" stroke-width="${a}" stroke-linecap="square"/>`;for(const t of ticks){const x=xOf(t);axes+=`<line x1="${x}" y1="${y0}" x2="${x}" y2="${y0+Math.abs(st.tick)}" stroke="${ac}" stroke-width="${a}"/>`+txt(x,y0+Math.abs(st.tick)+fs*1.05,figFmt(t));}
   axes+=`<line x1="${xOf(nullV)}" y1="${padT}" x2="${xOf(nullV)}" y2="${y0}" stroke="${ac}" stroke-width="${a*0.75}" stroke-dasharray="${dash}"/>`;
   let titles='';if(o.xTitle)titles+=txt(x0+plotW/2,y0+Math.abs(st.tick)+fs*2.3,o.xTitle,'middle','','xtitle');if(o.forestFav){const [L,R]=String(o.forestFav).split('|');const fy=y0+Math.abs(st.tick)+fs*(o.xTitle?3.4:2.3);if(L)titles+=txt(xOf(nullV)-fs*0.4,fy,'← '+L.trim(),'end',null,null,fs*0.85);if(R)titles+=txt(xOf(nullV)+fs*0.4,fy,R.trim()+' →','start',null,null,fs*0.85);}
-  const hy=padT-fs*0.5;let head=txt(fs*0.5,hy,d.sname||'Study','start');if(showN)head+=txt(fs*0.5+labW+nW-fs*0.3,hy,'n','end');if(showW)head+=txt(fs*0.5+labW+nW+wW-fs*0.3,hy,'Weight','end');head+=txt(x0+plotW/2,hy,d.ename||'Estimate');if(o.forestText)head+=txt(x0+plotW+fs*0.5,hy,`${d.ename||'Estimate'} [95% CI]`,'start');
+  const hy=padT-fs*0.5;let head=txt(fs*0.5,hy,d.sname||'Study','start');if(showN)head+=txt(fs*0.5+labW+nW-fs*0.3,hy,'n','end');if(showW)head+=txt(fs*0.5+labW+nW+wW-fs*0.3,hy,'Weight','end');head+=txt(x0+plotW/2,hy,d.ename||'Estimate');if(o.forestText)head+=txt(x0+plotW+fs*0.5,hy,`${d.ename||'Estimate'} [95% CI]`,'start');if(pW)head+=txt(x0+plotW+txtW+fs*0.5,hy,'P','start');
   const maxW=Math.max(...rows.map(it=>it.w||0))||0;let body='';
   items.forEach((it,i)=>{const y=padT+i*rowH+rowH/2;if(it.kind==='head'){body+=txt(fs*0.5,y+h/2,it.label,'start');return;}
     body+=txt(fs*0.5+(hasHead?fs*0.8:0),y+h/2,it.label,'start');if(showN&&it.n!==null)body+=txt(fs*0.5+labW+nW-fs*0.3,y+h/2,figFmt(it.n),'end');if(showW&&it.w!==null)body+=txt(fs*0.5+labW+nW+wW-fs*0.3,y+h/2,figFmt(+it.w.toFixed(1))+'%','end');
@@ -384,8 +384,8 @@ function figRenderForest(spec){const d=spec.data;const st=figStyle(spec);const {
     if(it.kind==='pooled'){const dh=rowH*0.38;body+=`<polygon points="${x1},${y} ${xe},${y-dh} ${x2},${y} ${xe},${y+dh}" fill="${ac}" stroke="${ac}" stroke-width="${a}"/>`;}
     else{body+=`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${ac}" stroke-width="${a}"/>`;if(it.lo<lo)body+=`<polygon points="${x1},${y} ${x1+h*0.6},${y-h*0.35} ${x1+h*0.6},${y+h*0.35}" fill="${ac}"/>`;if(it.hi>hi)body+=`<polygon points="${x2},${y} ${x2-h*0.6},${y-h*0.35} ${x2-h*0.6},${y+h*0.35}" fill="${ac}"/>`;
       const side=maxW&&it.w!==null?fs*0.3+fs*0.75*Math.sqrt(it.w/maxW):fs*0.6;body+=`<rect x="${xe-side/2}" y="${y-side/2}" width="${side}" height="${side}" fill="${ac}"/>`;}
-    if(o.forestText)body+=txt(x0+plotW+fs*0.5,y+h/2,`${it.est.toFixed(2)} [${it.lo.toFixed(2)}, ${it.hi.toFixed(2)}]`,'start');});
-  const title=spec.title?txt(W/2,fs*1.4,spec.title,'middle','','title'):'';
+    if(o.forestText)body+=txt(x0+plotW+fs*0.5,y+h/2,`${it.est.toFixed(2)} [${it.lo.toFixed(2)}, ${it.hi.toFixed(2)}]`,'start');if(pW&&it.p!=null)body+=txt(x0+plotW+txtW+fs*0.5,y+h/2,it.p<0.001?'<0.001':it.p.toFixed(3),'start');});
+  const title=figTitle1(txt,W/2,fs*1.4,spec.title,W-fs,fs);
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/><g data-sel="axes">${axes}</g>${titles}<g data-sel="text">${head}</g><g data-sel="series:0">${body}</g>${title}</svg>`;
   return {svg,w:W,h:H,res:{log,nullV,items}};}
 
