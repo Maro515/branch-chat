@@ -86,7 +86,7 @@ function figFrame(spec,cfg){
   if(cfg.xTitle)titles+=txt(x0+plotW/2,y0+Math.max(0,tick)+(xs.ticks.length?fs*2.3:fs*1.2)+(xrot?fs*2:0),cfg.xTitle,'middle','','xtitle');
   let leg='';if(legendPos!=='none'){const bottom=legendPos==='bottom';const itemW=fs*7;const lx0=bottom?x0+plotW/2-itemW*legend.length/2:x0+plotW+fs*1.2;legend.forEach((it,k)=>{const lx=bottom?lx0+k*itemW:lx0;const ly=bottom?H-fs*0.6:padT+fs*(k*1.5+0.8);const so=S(it.i==null?k:it.i);const c=it.color||so.color;
     if(it.kind==='rect')leg+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${so.fill==='open'?'#fff':c}" stroke="${c}"/>`;else if(it.kind==='line')leg+=`<line x1="${lx}" y1="${ly-fs*0.2}" x2="${lx+fs*1.1}" y2="${ly-fs*0.2}" stroke="${c}" stroke-width="${so.lineW*FIG_PT*1.5}"/>`;else leg+=sym(lx+fs*0.5,ly-fs*0.2,it.i==null?k:it.i,c,it.fill||so.fill,it.shape);
-    leg+=txt(lx+fs*1.5,ly,it.name,'start');});}
+    leg+=txt(lx+fs*1.5,ly,so.name||it.name,'start');});}
   const title=figTitleSVG(txt,x0+plotW/2,padT-fs*0.9-(cfg.padT||0),spec.title,W-fs,fs);
   const wrap=(body,extra)=>({svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${body}${leg?`<g data-sel="legend">${leg}</g>`:''}${title}${figNotesSVG(o,x0,padT,plotW,plotH,fs,o.font,st.fw)}${extra||''}</svg>`,w:W,h:H,plot:{x0,y0:padT,w:plotW,h:plotH}});
   return Object.assign(st,{x0,y0,plotW,plotH,W,H,padT,padL,padB,padR,xOf,yOf,wrap,xAxisY});
