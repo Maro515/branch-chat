@@ -416,7 +416,7 @@ function figSync(reset){
   const spec={data,type:st.type,opts:st.opts,title:st.title,compare,cmp:st.cmp,ctrl:st.ctrl,legend:st.opts.legend||'right'};st.spec=spec;
   try{const r=figRender(spec);st.svg=r.svg;st.w=r.w;st.h=r.h;st.res=r.res||null;st.plot=r.plot||null;$('#figPreview').innerHTML=r.svg||'<div class="hint">データを貼り付けてください</div>';}
   catch(e){$('#figPreview').innerHTML='<div class="hint">描画できませんでした: '+figEsc(e.message)+'</div>';st.svg='';}
-  figMarkSel();figInspector();
+  figMarkSel();if(!st.typing)figInspector(); // 右の欄で入力中は作り直さない（フォーカスが外れて 1 文字ずつしか打てなくなる）
   $('#figStats').innerHTML=figStatsHTML(data,compare,note,st);
   clearTimeout(figUndoTimer);figUndoTimer=setTimeout(figPushUndo,400);
 }
@@ -456,7 +456,7 @@ function figInspector(){
     else if(k.startsWith('series.')){const i=+st.sel.split(':')[1];o.series=o.series||{};o.series[i]=o.series[i]||{};if(k==='series.name'&&!v)delete o.series[i].name;else o.series[i][k.slice(7)]=v;}
     else if(k==='title'){$('#figTitle').value=v;}else if(k==='bold'||k==='showNs'){o[k]=v==='1';}else if(k==='scheme'){o.scheme=v;o.colors=FIG_SCHEMES[v];delete o.series;}else{o[k]=v;}
     const f=document.querySelector(`#figDlg [data-fopt="${k}"]`);if(f){if(f.type==='checkbox')f.checked=!!o[k];else f.value=v;}
-    figSync(false);});});
+    const typing=el.tagName==='TEXTAREA'||el.type==='text'||el.type==='number';st.typing=typing;try{figSync(false);}finally{st.typing=false;}});el.addEventListener('change',()=>{if(el.tagName==='TEXTAREA'||el.type==='text'||el.type==='number')figPushUndo();});});
   box.querySelectorAll('[data-iact]').forEach(b=>b.onclick=()=>{if(b.dataset.iact==='unsel')st.sel=null;else if(b.dataset.iact==='resetSeries'&&o.series)delete o.series[+st.sel.split(':')[1]];else if(b.dataset.iact==='delNote'&&o.notes){o.notes.splice(+st.sel.split(':')[1],1);st.sel=null;}figSync(false);figPushUndo();});
 }
 function figInit(){
