@@ -317,7 +317,7 @@ const FIG_TOOLS=[
    {k:'__seriesColors',t:'series'},
  ]},
  {id:'annot',l:'注釈',items:[
-   {k:'__noteAdd',t:'btn',l:'＋ 文字を置く（押してからプレビューをクリック）'},{k:'__noteSize',t:'select',l:'文字の大きさ（置くとき）',o:[['0.7','小'],['0.85','ふつう'],['1','本文と同じ'],['1.2','大']]},{k:'__noteColor',t:'color',l:'文字の色（置くとき）'},{k:'__noteDel',t:'btn',l:'最後の文字を消す'},
+   {k:'__noteHint',t:'hint',l:'自由な文字（例: n = 20、p = 0.03、≥ 6.8）をグラフの好きな場所に書き込めます。ボタンを押してからプレビューの書きたい場所をクリック → 文字を入力。書いた文字はドラッグで動かせます。'},{k:'__noteAdd',t:'btn',l:'＋ グラフに文字を書き込む'},{k:'__noteSize',t:'select',l:'書き込む文字の大きさ',o:[['0.7','小'],['0.85','ふつう'],['1','本文と同じ'],['1.2','大']]},{k:'__noteColor',t:'color',l:'書き込む文字の色'},{k:'__noteDel',t:'btn',l:'最後に書き込んだ文字を消す'},
    {k:'__cmp',t:'select',l:'有意差',o:[['none','なし'],['all','全比較'],['dunnett','対照群と比較']]},
    {k:'bracketShape',t:'select',l:'ブラケットの形',o:[['long','長脚'],['short','短脚']]},
    {k:'pStyle',t:'select',l:'P の表示',o:[['GP','アスタリスク'],['num','数値']]},
@@ -349,12 +349,13 @@ function figToolPanel(g){
     if(it.t==='check')return `<label class="irow chk"><input type="checkbox" data-tk="${it.k}"${v&&v!=='0'?' checked':''}> ${it.l}</label>`;
     if(it.t==='color')return `<div class="irow"><label>${it.l}</label><input type="color" data-tk="${it.k}" value="${v||'#000000'}"></div>`;
     if(it.t==='btn')return `<div class="irow"><button type="button" class="small" data-tbtn="${it.k}">${it.l}</button></div>`;
+    if(it.t==='hint')return `<div class="hint" style="margin:2px 0 6px">${it.l}</div>`;
     return `<div class="irow"><label>${it.l}</label><input type="text" data-tk="${it.k}" value="${figEsc(v==null?'':v)}"></div>`;}).join('');
 }
 function figApplyTool(k,v){
   const st=figState,o=st.opts;const $=s=>document.querySelector(s);
   if(k==='__noteSize'){st.noteSize=v;return;}if(k==='__noteColor'){st.noteColor=v;return;}
-  if(k==='__noteAdd'){st.noteTool=!st.noteTool;toast(st.noteTool?'プレビューの置きたい場所をクリックしてください':'文字の配置をやめました');return;}
+  if(k==='__noteAdd'){st.noteTool=!st.noteTool;toast(st.noteTool?'右のプレビュー（グラフ）の、文字を書きたい場所をクリックしてください':'文字の書き込みをやめました');return;}
   if(k==='__noteDel'){if(o.notes&&o.notes.length){o.notes.pop();figSync();figPushUndo();}else toast('消す文字がありません');return;}
   if(k==='__type'){st.type=v;$('#figType').value=v;}
   else if(k==='__title'){st.title=v;$('#figTitle').value=v;}
@@ -458,7 +459,7 @@ function figInit(){
   $('#figCtrl').onchange=e=>{figState.ctrl=+e.target.value;figSync(false);};
   document.querySelectorAll('#figDlg [data-fopt]').forEach(el=>{el.addEventListener(el.type==='checkbox'?'change':'input',()=>{figState.opts[el.dataset.fopt]=el.type==='checkbox'?el.checked:el.value;figSync(false);});});
   $('#figFileBtn').onclick=()=>$('#figFile').click();$('#figFile').onchange=async()=>{await figLoadTableFiles($('#figFile').files);$('#figFile').value='';};$('#figData').addEventListener('drop',e=>{const fs=[...e.dataTransfer.files];if(fs.length){e.preventDefault();figLoadTableFiles(fs);}});
-  $('#figPreview').addEventListener('click',e=>{if(figState&&figState.noteTool){const svg=e.target.closest('svg')||$('#figPreview svg');const plot=figState.plot;if(!svg||!plot){toast('この図には文字を置けません');figState.noteTool=false;return;}const rect=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const sc=vb&&vb.width?vb.width/rect.width:1;const px=(e.clientX-rect.left)*sc,py=(e.clientY-rect.top)*sc;const text=prompt('置く文字（改行は \\n）');if(!text){figState.noteTool=false;return;}const o=figState.opts;(o.notes=o.notes||[]).push({x:+((px-plot.x0)/plot.w).toFixed(3),y:+((py-plot.y0)/plot.h).toFixed(3),text:text.replace(/\\n/g,'\n'),size:+(figState.noteSize||0.85),color:figState.noteColor||'#000000'});figState.noteTool=false;figSync();figPushUndo();return;}
+  $('#figPreview').addEventListener('click',e=>{if(figState&&figState.noteTool){const svg=e.target.closest('svg')||$('#figPreview svg');const plot=figState.plot;if(!svg||!plot){toast('この図には文字を置けません');figState.noteTool=false;return;}const rect=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const sc=vb&&vb.width?vb.width/rect.width:1;const px=(e.clientX-rect.left)*sc,py=(e.clientY-rect.top)*sc;const text=prompt('グラフに書き込む文字（改行は \\n）');if(!text){figState.noteTool=false;return;}const o=figState.opts;(o.notes=o.notes||[]).push({x:+((px-plot.x0)/plot.w).toFixed(3),y:+((py-plot.y0)/plot.h).toFixed(3),text:text.replace(/\\n/g,'\n'),size:+(figState.noteSize||0.85),color:figState.noteColor||'#000000'});figState.noteTool=false;figSync();figPushUndo();return;}
     const t=e.target.closest&&e.target.closest('[data-sel]');figState.sel=t?t.dataset.sel:null;figMarkSel();figInspector();});
   $('#figClose').onclick=()=>$('#figDlg').close();
   $('#figSvg').onclick=()=>{if(!figState.svg)return;saveTextFile(`figure_${Date.now()}.svg`,figState.svg);};
