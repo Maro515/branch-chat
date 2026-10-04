@@ -30,6 +30,8 @@ function figTitleLines(title,maxW,fs){const t=String(title||'');if(!t)return {li
   const half=t.length/2;let cut=-1;for(let i=0;i<t.length;i++){if(/[ 、，,。：:／/]/.test(t[i])&&Math.abs(i-half)<Math.abs(cut-half))cut=i;}if(cut<0)cut=Math.floor(half);const a=t.slice(0,cut+1).trim(),b=t.slice(cut+1).trim();const w2=Math.max(figTW(a,fs),figTW(b,fs));return {lines:[a,b],size:w2<=maxW?fs:fs*Math.max(0.6,maxW/w2)};}
 function figTitle1(txt,cx,y,title,maxW,fs){if(!title)return '';const w=figTW(title,fs);const size=w>maxW?fs*Math.max(0.55,maxW/w):fs;return txt(cx,y,title,'middle','','title',size);}
 function figTitleSVG(txt,cx,yBase,title,maxW,fs){const tl=figTitleLines(title,maxW,fs);if(!tl.lines.length)return '';const lh=tl.size*1.2;return tl.lines.map((l,i)=>txt(cx,yBase-(tl.lines.length-1-i)*lh,l,'middle','','title',tl.size)).join('');}
+// 任意の文字（注釈）。o.notes=[{x,y（プロット領域に対する割合 0–1、y は上から）,text,size（文字高さの倍率）,color,anchor}]。ドラッグで動かせるよう data-note を付ける
+function figNotesSVG(o,x0,y0top,plotW,plotH,fs,font,fw){const ns=Array.isArray(o.notes)?o.notes:[];if(!ns.length)return '';return '<g data-sel="notes">'+ns.map((n,k)=>{const x=x0+(+n.x||0)*plotW,y=y0top+(+n.y||0)*plotH;const size=fs*(+n.size||0.85);const lines=String(n.text||'').split('\n');return lines.map((l,i)=>`<text data-note="${k}" x="${x}" y="${y+i*size*1.2}" font-family="${font}" font-size="${size}" font-weight="${n.bold===false?'normal':fw}" text-anchor="${n.anchor||'start'}" fill="${n.color||'#000'}">${figEsc(l)}</text>`).join('');}).join('')+'</g>';}
 function figParseTable(text){
   let lines=String(text||'').replace(/\r/g,'').split('\n').map(l=>l.replace(/^\s*\|/,'').replace(/\|\s*$/,'')).filter(l=>l.trim()&&!/^\s*[:\-| ]+\s*$/.test(l));
   if(!lines.length)return null;
@@ -211,7 +213,7 @@ function figRender(spec){
     if(d.kind==='grouped'&&type!=='grouped-scatter')legend+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${so.fill==='open'?'#fff':c}" stroke="${c}"/>`;else legend+=sym(lx+fs*0.5,ly-fs*0.2,i,null,c,so.fill);
     legend+=txt(lx+fs*1.5,ly,gr.name,'start');});}
   const title=figTitleSVG(txt,x0+plotW/2,padT-fs*0.9,spec.title,W-fs,fs);
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${series.map((s,i)=>`<g data-sel="series:${i}">${s||''}</g>`).join('')}${brackets?`<g data-sel="brackets">${brackets}</g>`:''}${legend?`<g data-sel="legend">${legend}</g>`:''}${title}</svg>`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${series.map((s,i)=>`<g data-sel="series:${i}">${s||''}</g>`).join('')}${brackets?`<g data-sel="brackets">${brackets}</g>`:''}${legend?`<g data-sel="legend">${legend}</g>`:''}${title}${figNotesSVG(o,x0,padT,plotW,plotH,fs,o.font,fw)}</svg>`;
   return {svg,w:W,h:H,plot:{x0,y0:padT,w:plotW,h:plotH}}; // plot はレイアウトで軸を揃えるための プロット領域
 }
 
@@ -225,10 +227,32 @@ function figPngDataURL(canvas,dpi){const url=canvas.toDataURL('image/png');try{c
 async function figToPng(svg,w,h,dpi){if(typeof figInlineImages==='function'&&svg.includes('/api/img/'))svg=await figInlineImages(svg); // 画像パネルの画像を埋め込む
   return new Promise((res,rej)=>{const scale=(dpi||300)/96;const c=document.createElement('canvas');c.width=Math.round(w*scale);c.height=Math.round(h*scale);const g=c.getContext('2d');const im=new Image();im.onload=()=>{g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);res(c);};im.onerror=e=>rej(new Error('描画に失敗しました'));im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);});}
 
+
+/* ---------- 表ファイルの読み込み（CSV / TSV / XLSX）。XLSX は ZIP を自前で読み、DecompressionStream('deflate-raw') で展開する ---------- */
+async function figReadTableFile(file){const name=String(file.name||'');if(/\.xlsx$/i.test(name)||/spreadsheetml/.test(file.type))return figReadXlsx(await file.arrayBuffer());const text=await file.text();return [{name:name.replace(/\.[^.]+$/,''),tsv:figCsvToTsv(text)}];}
+function figCsvToTsv(text){const t=String(text).replace(/^﻿/,'').replace(/\r/g,'');if(t.includes('\t'))return t;const rows=[];let row=[],cell='',q=false;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'){if(t[i+1]==='"'){cell+='"';i++;}else q=false;}else cell+=ch;}else if(ch==='"')q=true;else if(ch===','){row.push(cell);cell='';}else if(ch==='\n'){row.push(cell);rows.push(row);row=[];cell='';}else cell+=ch;}if(cell!==''||row.length){row.push(cell);rows.push(row);}return rows.map(r=>r.join('\t')).join('\n');}
+async function figUnzip(buf){const dv=new DataView(buf);let eocd=-1;for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-70000);i--){if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;}}if(eocd<0)throw new Error('ZIP ではありません');const n=dv.getUint16(eocd+10,true),cd=dv.getUint32(eocd+16,true);const files={};let p=cd;
+  for(let k=0;k<n;k++){if(dv.getUint32(p,true)!==0x02014b50)break;const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),fn=dv.getUint16(p+28,true),ex=dv.getUint16(p+30,true),cm=dv.getUint16(p+32,true),lh=dv.getUint32(p+42,true);const nm=new TextDecoder().decode(new Uint8Array(buf,p+46,fn));const lfn=dv.getUint16(lh+26,true),lex=dv.getUint16(lh+28,true);const data=new Uint8Array(buf,lh+30+lfn+lex,csize);files[nm]={method,data};p+=46+fn+ex+cm;}
+  const out={};for(const [nm,f] of Object.entries(files)){if(!/\.(xml|rels)$/.test(nm))continue;let bytes;if(f.method===0)bytes=f.data;else if(f.method===8){const ds=new DecompressionStream('deflate-raw');const w=ds.writable.getWriter();w.write(f.data);w.close();bytes=new Uint8Array(await new Response(ds.readable).arrayBuffer());}else continue;out[nm]=new TextDecoder().decode(bytes);}return out;}
+async function figReadXlsx(buf){const z=await figUnzip(buf);const parse=x=>new DOMParser().parseFromString(x,'application/xml');const ss=[];if(z['xl/sharedStrings.xml'])[...parse(z['xl/sharedStrings.xml']).getElementsByTagName('si')].forEach(si=>ss.push([...si.getElementsByTagName('t')].map(t=>t.textContent).join('')));
+  const wb=z['xl/workbook.xml']?parse(z['xl/workbook.xml']):null;const rels=z['xl/_rels/workbook.xml.rels']?parse(z['xl/_rels/workbook.xml.rels']):null;const relMap={};if(rels)[...rels.getElementsByTagName('Relationship')].forEach(r=>relMap[r.getAttribute('Id')]=r.getAttribute('Target'));
+  const sheets=wb?[...wb.getElementsByTagName('sheet')].map(sh=>({name:sh.getAttribute('name'),path:'xl/'+String(relMap[sh.getAttribute('r:id')]||'').replace(/^\/?xl\//,'').replace(/^\//,'')})):Object.keys(z).filter(k=>/^xl\/worksheets\/sheet\d+\.xml$/.test(k)).map(k=>({name:k,path:k}));
+  const col=ref=>{let c=0;for(const ch of ref.replace(/\d+/g,''))c=c*26+(ch.charCodeAt(0)-64);return c-1;};const out=[];
+  for(const sh of sheets){const xml=z[sh.path];if(!xml)continue;const doc=parse(xml);const rows=[];[...doc.getElementsByTagName('row')].forEach(r=>{const cells=[];[...r.getElementsByTagName('c')].forEach(c=>{const ref=c.getAttribute('r')||'';const ci=ref?col(ref):cells.length;const t=c.getAttribute('t');let v='';const vEl=c.getElementsByTagName('v')[0];if(t==='s'){v=ss[+(vEl?vEl.textContent:0)]||'';}else if(t==='inlineStr'){v=[...c.getElementsByTagName('t')].map(x=>x.textContent).join('');}else if(t==='b'){v=vEl&&vEl.textContent==='1'?'TRUE':'FALSE';}else v=vEl?vEl.textContent:'';while(cells.length<ci)cells.push('');cells[ci]=v;});rows.push(cells);});
+    const w=Math.max(0,...rows.map(r=>r.length));const tsv=rows.filter(r=>r.some(v=>v!=='')).map(r=>{while(r.length<w)r.push('');return r.map(v=>String(v).replace(/[\t\n]/g,' ')).join('\t');}).join('\n');if(tsv.trim())out.push({name:sh.name,tsv});}
+  if(!out.length)throw new Error('シートに表がありません');return out;}
+// Figure 作成画面に表ファイルを読み込む（複数シートなら選ばせる）
+async function figLoadTableFiles(files){const f=[...files].find(x=>/\.(xlsx|csv|tsv|txt)$/i.test(x.name)||/csv|tab|excel|spreadsheet|text\/plain/.test(x.type));if(!f){toast('CSV / TSV / XLSX のファイルを選んでください');return;}
+  try{const sheets=await figReadTableFile(f);let sh=sheets[0];if(sheets.length>1){const pick=prompt('シートを選んでください（番号）:\n'+sheets.map((x,i)=>`${i+1}. ${x.name}`).join('\n'),'1');const k=+pick-1;if(!(k>=0&&k<sheets.length))return;sh=sheets[k];}
+    const ta=document.querySelector('#figData');ta.value=sh.tsv;figState.text=sh.tsv;figSync();figPushUndo();toast(`「${sh.name}」を読み込みました（${sh.tsv.split('\n').length} 行）。表の型とグラフを選んでください`);}catch(e){toast('読み込めませんでした: '+e.message);}}
+// 注釈（文字）のドラッグ終了。chat のブロックは書き戻し、作成画面は状態を更新
+function figNoteDragEnd(fb,k,dx,dy){if(fb.id==='figPreview'){const st=figState;const n=st&&st.opts.notes&&st.opts.notes[k];if(!n||!st.plot)return;n.x=+((+n.x||0)+dx/st.plot.w).toFixed(3);n.y=+((+n.y||0)+dy/st.plot.h).toFixed(3);figSync();figPushUndo();return;}
+  const nid=fb.dataset.fignode,idx=+fb.dataset.figidx;const nd=N(nid);if(!nd)return;const b=figFindBlocks(nd.content)[idx];if(!b)return;let j;try{j=JSON.parse(b.json);}catch(e){return;}let target=j;const svg=fb.querySelector(':scope > svg');const panelEl=svg&&svg.querySelector(`[data-note="${k}"]`)&&svg.querySelector(`[data-note="${k}"]`).closest('svg[data-panel]');if(panelEl&&j.panels)target=j.panels[+panelEl.getAttribute('data-panel')];if(!target)return;
+  const r=figRenderSpec(target);const n=target.style&&target.style.notes&&target.style.notes[k];if(!n||!r||!r.plot)return;n.x=+((+n.x||0)+dx/r.plot.w).toFixed(3);n.y=+((+n.y||0)+dy/r.plot.h).toFixed(3);nd.content=nd.content.slice(0,b.start)+'```figure\n'+JSON.stringify(j)+'\n```'+nd.content.slice(b.end);persist();renderAll();}
 /* ---------- 仕様（チャットとの受け渡し） ---------- */
 // ```figure の中の JSON: {title, kind, type, err, compare, ctrl, ytitle, xtitle, ymin, ymax, data(TSV), style:{...}}
 function figSpecFromState(st){return Object.assign({},st.opts.x||{},{title:st.title||'',kind:st.kind,type:st.type,err:st.opts.errType,compare:st.cmp||'none',ctrl:st.ctrl||0,ytitle:st.opts.yTitle||'',xtitle:st.opts.xTitle||'',ymin:st.opts.ymin||'',ymax:st.opts.ymax||'',data:st.text,style:figStyleOf(st.opts)});}
-const FIG_STYLE_KEYS=['fontPt','bold','axisPt','tickLen','wIn','hIn','symPt','linePt','barFill','bracketShape','pStyle','showNs','legend','scheme','series','barDots','legendPos','frame','grid','tickDir','ylog','xRot','barEdge','fontFamily','refLine','errDir','fillAlpha','capW','axisColor'];
+const FIG_STYLE_KEYS=['notes','fontPt','bold','axisPt','tickLen','wIn','hIn','symPt','linePt','barFill','bracketShape','pStyle','showNs','legend','scheme','series','barDots','legendPos','frame','grid','tickDir','ylog','xRot','barEdge','fontFamily','refLine','errDir','fillAlpha','capW','axisColor'];
 function figStyleOf(o){const st={};for(const k of FIG_STYLE_KEYS)if(o[k]!==undefined&&o[k]!==''&&o[k]!==null)st[k]=o[k];return st;}
 function figStateFromSpec(j){j=j||{};const opts=Object.assign({errType:j.err||'SD',pThr:0.05,pStyle:'GP',showNs:false,yTitle:j.ytitle||'',xTitle:j.xtitle||'',ymin:j.ymin==null?'':j.ymin,ymax:j.ymax==null?'':j.ymax,barFill:'solid',bracketShape:'long'},j.style||{});
   const known=new Set(['title','kind','type','err','compare','ctrl','ytitle','xtitle','ymin','ymax','data','style']);const x={};for(const k of Object.keys(j))if(!known.has(k))x[k]=j[k];if(Object.keys(x).length)opts.x=x; // 図種固有の追加項目（GSEA の nes/pval/fdr など）は opts.x に保ち、書き戻しで元に戻す
@@ -293,6 +317,7 @@ const FIG_TOOLS=[
    {k:'__seriesColors',t:'series'},
  ]},
  {id:'annot',l:'注釈',items:[
+   {k:'__noteAdd',t:'btn',l:'＋ 文字を置く（押してからプレビューをクリック）'},{k:'__noteSize',t:'select',l:'文字の大きさ（置くとき）',o:[['0.7','小'],['0.85','ふつう'],['1','本文と同じ'],['1.2','大']]},{k:'__noteColor',t:'color',l:'文字の色（置くとき）'},{k:'__noteDel',t:'btn',l:'最後の文字を消す'},
    {k:'__cmp',t:'select',l:'有意差',o:[['none','なし'],['all','全比較'],['dunnett','対照群と比較']]},
    {k:'bracketShape',t:'select',l:'ブラケットの形',o:[['long','長脚'],['short','短脚']]},
    {k:'pStyle',t:'select',l:'P の表示',o:[['GP','アスタリスク'],['num','数値']]},
@@ -315,7 +340,7 @@ function figDoUndo(){if(figUndo.length<2)return;figRedo.push(figUndo.pop());figR
 function figDoRedo(){if(!figRedo.length)return;const s=figRedo.pop();figUndo.push(s);figRestore(s);figUndoBtns();}
 function figToolsHTML(){return `<div class="figTools"><button class="small" id="figUndoBtn" data-tip="元に戻す">↶</button><button class="small" id="figRedoBtn" data-tip="やり直す">↷</button><span class="sep"></span>${FIG_TOOLS.map(g=>`<div class="ftm" data-ftm="${g.id}"><button class="small">${g.l} ▾</button><div class="ftp" id="ftp-${g.id}"></div></div>`).join('')}<span class="sep"></span><button class="small" data-fact="copy" data-tip="画像をコピー">⧉ コピー</button><button class="small" data-fact="png" data-tip="PNG 300 dpi">PNG</button><button class="small" data-fact="png600" data-tip="PNG 600 dpi">PNG 600</button><button class="small" data-fact="svg" data-tip="SVG">SVG</button></div>`;}
 function figToolPanel(g){
-  const st=figState,o=st.opts;const val=k=>k==='__type'?st.type:k==='__title'?st.title:k==='__cmp'?st.cmp:k==='__preset'?(Object.entries(FIG_PRESETS).find(([n,v])=>v[0]==+(o.wIn||3)&&v[1]==+(o.hIn||2))||['custom'])[0]:(o[k]===undefined?(FIG_DEF[k]===undefined?'':FIG_DEF[k]):o[k]);
+  const st=figState,o=st.opts;const val=k=>k==='__type'?st.type:k==='__title'?st.title:k==='__cmp'?st.cmp:k==='__noteSize'?(st.noteSize||'0.85'):k==='__noteColor'?(st.noteColor||'#000000'):k==='__preset'?(Object.entries(FIG_PRESETS).find(([n,v])=>v[0]==+(o.wIn||3)&&v[1]==+(o.hIn||2))||['custom'])[0]:(o[k]===undefined?(FIG_DEF[k]===undefined?'':FIG_DEF[k]):o[k]);
   if(!g.items.length)return '<div class="hint">この図種に固有の設定はありません</div>';
   return g.items.map(it=>{if(it.t==='series'){const gs=(st.data&&st.data.groups)||[];return gs.map((gr,i)=>{const so=figSeriesOpt(o,i);return `<div class="irow"><label>${figEsc(gr.name)}</label><span class="srow"><input type="color" data-tk="series.${i}.color" value="${so.color}"><select data-tk="series.${i}.symbol">${FIG_SYMBOLS.map(([a,b])=>`<option value="${a}"${a===so.symbol?' selected':''}>${b}</option>`).join('')}</select><select data-tk="series.${i}.fill"><option value="solid"${so.fill==='solid'?' selected':''}>塗り</option><option value="open"${so.fill==='open'?' selected':''}>白抜き</option></select></span></div>`;}).join('')||'<div class="hint">データを入れると系列ごとの色が出ます</div>';}
     const v=val(it.k);const opts=typeof it.o==='function'?it.o():it.o;
@@ -323,10 +348,14 @@ function figToolPanel(g){
     if(it.t==='num')return `<div class="irow"><label>${it.l}</label><input type="number" data-tk="${it.k}" value="${v===''?'':v}" min="${it.min}" max="${it.max}" step="${it.step}"></div>`;
     if(it.t==='check')return `<label class="irow chk"><input type="checkbox" data-tk="${it.k}"${v&&v!=='0'?' checked':''}> ${it.l}</label>`;
     if(it.t==='color')return `<div class="irow"><label>${it.l}</label><input type="color" data-tk="${it.k}" value="${v||'#000000'}"></div>`;
+    if(it.t==='btn')return `<div class="irow"><button type="button" class="small" data-tbtn="${it.k}">${it.l}</button></div>`;
     return `<div class="irow"><label>${it.l}</label><input type="text" data-tk="${it.k}" value="${figEsc(v==null?'':v)}"></div>`;}).join('');
 }
 function figApplyTool(k,v){
   const st=figState,o=st.opts;const $=s=>document.querySelector(s);
+  if(k==='__noteSize'){st.noteSize=v;return;}if(k==='__noteColor'){st.noteColor=v;return;}
+  if(k==='__noteAdd'){st.noteTool=!st.noteTool;toast(st.noteTool?'プレビューの置きたい場所をクリックしてください':'文字の配置をやめました');return;}
+  if(k==='__noteDel'){if(o.notes&&o.notes.length){o.notes.pop();figSync();figPushUndo();}else toast('消す文字がありません');return;}
   if(k==='__type'){st.type=v;$('#figType').value=v;}
   else if(k==='__title'){st.title=v;$('#figTitle').value=v;}
   else if(k==='__cmp'){st.cmp=v;$('#figCmp').value=v;}
@@ -345,7 +374,7 @@ function figToolsInit(){
   bar.querySelectorAll('[data-fact]').forEach(b=>b.onclick=()=>{const act=b.dataset.fact;if(act==='copy')document.querySelector('#figCopy').click();else if(act==='svg')document.querySelector('#figSvg').click();else figSavePng(act==='png600'?600:300);});
   document.addEventListener('keydown',e=>{if(!document.querySelector('#figDlg').open)return;const mod=e.metaKey||e.ctrlKey;if(mod&&e.key==='z'&&!e.shiftKey){e.preventDefault();figDoUndo();}else if(mod&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){e.preventDefault();figDoRedo();}});
 }
-function figBindTools(panel){panel.querySelectorAll('[data-tk]').forEach(el=>{el.addEventListener(el.type==='checkbox'||el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.tk;let v=el.type==='checkbox'?el.checked:el.value;if(k==='bold'||k==='showNs'||k==='ylog'||k==='barDots')v=!!v;figApplyTool(k,v);const g=FIG_TOOLS.find(x=>x.id===panel.id.replace('ftp-',''));if(g&&g.id==='graph'&&k==='__type'){panel.innerHTML=figToolPanel(g);figBindTools(panel);}});});}
+function figBindTools(panel){panel.querySelectorAll('[data-tbtn]').forEach(b=>{b.addEventListener('click',()=>figApplyTool(b.dataset.tbtn,true));});panel.querySelectorAll('[data-tk]').forEach(el=>{el.addEventListener(el.type==='checkbox'||el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.tk;let v=el.type==='checkbox'?el.checked:el.value;if(k==='bold'||k==='showNs'||k==='ylog'||k==='barDots')v=!!v;figApplyTool(k,v);const g=FIG_TOOLS.find(x=>x.id===panel.id.replace('ftp-',''));if(g&&g.id==='graph'&&k==='__type'){panel.innerHTML=figToolPanel(g);figBindTools(panel);}});});}
 async function figSavePng(dpi){if(!figState.svg)return;const c=await figToPng(figState.svg,figState.w,figState.h,dpi);const a=document.createElement('a');a.href=figPngDataURL(c,dpi);a.download=`figure_${Date.now()}_${dpi}dpi.png`;a.click();toast(`PNG（${dpi} dpi）を保存しました`);}
 
 /* ---------- 画面 ---------- */
@@ -377,7 +406,7 @@ function figSync(reset){
   else{$('#figCtrl').style.display='none';}
   if(st.opts.scheme&&FIG_SCHEMES[st.opts.scheme])st.opts.colors=FIG_SCHEMES[st.opts.scheme];
   const spec={data,type:st.type,opts:st.opts,title:st.title,compare,cmp:st.cmp,ctrl:st.ctrl,legend:st.opts.legend||'right'};st.spec=spec;
-  try{const r=figRender(spec);st.svg=r.svg;st.w=r.w;st.h=r.h;st.res=r.res||null;$('#figPreview').innerHTML=r.svg||'<div class="hint">データを貼り付けてください</div>';}
+  try{const r=figRender(spec);st.svg=r.svg;st.w=r.w;st.h=r.h;st.res=r.res||null;st.plot=r.plot||null;$('#figPreview').innerHTML=r.svg||'<div class="hint">データを貼り付けてください</div>';}
   catch(e){$('#figPreview').innerHTML='<div class="hint">描画できませんでした: '+figEsc(e.message)+'</div>';st.svg='';}
   figMarkSel();figInspector();
   $('#figStats').innerHTML=figStatsHTML(data,compare,note,st);
@@ -428,7 +457,9 @@ function figInit(){
   $('#figCmp').onchange=e=>{figState.cmp=e.target.value;figSync(false);};
   $('#figCtrl').onchange=e=>{figState.ctrl=+e.target.value;figSync(false);};
   document.querySelectorAll('#figDlg [data-fopt]').forEach(el=>{el.addEventListener(el.type==='checkbox'?'change':'input',()=>{figState.opts[el.dataset.fopt]=el.type==='checkbox'?el.checked:el.value;figSync(false);});});
-  $('#figPreview').addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-sel]');figState.sel=t?t.dataset.sel:null;figMarkSel();figInspector();});
+  $('#figFileBtn').onclick=()=>$('#figFile').click();$('#figFile').onchange=async()=>{await figLoadTableFiles($('#figFile').files);$('#figFile').value='';};$('#figData').addEventListener('drop',e=>{const fs=[...e.dataTransfer.files];if(fs.length){e.preventDefault();figLoadTableFiles(fs);}});
+  $('#figPreview').addEventListener('click',e=>{if(figState&&figState.noteTool){const svg=e.target.closest('svg')||$('#figPreview svg');const plot=figState.plot;if(!svg||!plot){toast('この図には文字を置けません');figState.noteTool=false;return;}const rect=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const sc=vb&&vb.width?vb.width/rect.width:1;const px=(e.clientX-rect.left)*sc,py=(e.clientY-rect.top)*sc;const text=prompt('置く文字（改行は \\n）');if(!text){figState.noteTool=false;return;}const o=figState.opts;(o.notes=o.notes||[]).push({x:+((px-plot.x0)/plot.w).toFixed(3),y:+((py-plot.y0)/plot.h).toFixed(3),text:text.replace(/\\n/g,'\n'),size:+(figState.noteSize||0.85),color:figState.noteColor||'#000000'});figState.noteTool=false;figSync();figPushUndo();return;}
+    const t=e.target.closest&&e.target.closest('[data-sel]');figState.sel=t?t.dataset.sel:null;figMarkSel();figInspector();});
   $('#figClose').onclick=()=>$('#figDlg').close();
   $('#figSvg').onclick=()=>{if(!figState.svg)return;saveTextFile(`figure_${Date.now()}.svg`,figState.svg);};
   $('#figPng').onclick=async()=>{if(!figState.svg)return;const c=await figToPng(figState.svg,figState.w,figState.h,300);const a=document.createElement('a');a.href=figPngDataURL(c,300);a.download=`figure_${Date.now()}.png`;a.click();toast('PNG（300 dpi）を保存しました');};

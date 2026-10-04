@@ -12,7 +12,7 @@ FIG_TYPES.xy.push(['xy-regression','散布＋直線回帰'],['xy-dose','用量�
 Object.assign(FIG_TYPES,{survival:[['km','Kaplan–Meier 生存曲線'],['km-cuminc','累積発生']],roc:[['roc','ROC 曲線']],heatmap:[['heatmap','ヒートマップ'],['corr','相関行列（列どうし）']],forest:[['forest','フォレストプロット']],waterfall:[['waterfall','ウォーターフォール']]});
 const FIG_KINDS_MORE=[['survival','生存（Time, Event, Group）'],['roc','ROC（マーカーの列, Class）'],['heatmap','行列（1列目＝行名、見出し＝列名）'],['forest','フォレスト（Study, Estimate, Lower, Upper）'],['waterfall','ウォーターフォール（Patient, Change%, Response）']];
 const FIG_DEF_MORE={survCI:false,survCensor:true,survMedian:false,survRisk:true,survText:true,survY:'percent',
-  rocFill:false,rocCutoff:true,rocPct:false,rocDir:'auto',
+  rocFill:false,rocCutoff:true,rocPct:false,rocDir:'auto',rocCutPos:'right',rocCutSize:'0.8',rocCutText:'thr',
   hmScheme:'bwr',hmZ:false,hmValues:false,hmCluster:'none',hmBorder:'white',hmMin:'',hmMax:'',hmColPos:'bottom',
   forestLog:'auto',forestNull:'',forestText:true,forestWeights:true,forestFav:'',
   wfLines:true,wfValues:false,wfLabels:'none',
@@ -25,7 +25,7 @@ const FIG_RESP_COLORS={CR:'#1D4ED8',PR:'#60A5FA',SD:'#9CA3AF',PD:'#DC2626',NE:'#
 // 図種ごとの固有設定（「図種の設定」メニュー）。キーは type を優先し、無ければ kind
 const FIG_TOOLS_MORE={
   survival:[{k:'survY',t:'select',l:'Y 軸',o:[['percent','生存率 (%)'],['fraction','生存率 (0–1)']]},{k:'survCI',t:'check',l:'95% CI の帯'},{k:'survCensor',t:'check',l:'打ち切りの印'},{k:'survMedian',t:'check',l:'生存期間中央値の補助線'},{k:'survRisk',t:'check',l:'Number at risk 表'},{k:'survText',t:'check',l:'log-rank P と HR を書く'}],
-  roc:[{k:'rocFill',t:'check',l:'AUC を塗る'},{k:'rocCutoff',t:'check',l:'最適カットオフ（Youden）を示す'},{k:'rocPct',t:'check',l:'軸を % で表示'},{k:'rocDir',t:'select',l:'陽性の向き',o:[['auto','自動（AUC<0.5 なら反転）'],['high','値が大きいほど陽性'],['low','値が小さいほど陽性']]}],
+  roc:[{k:'rocFill',t:'check',l:'AUC を塗る'},{k:'rocCutoff',t:'check',l:'最適カットオフ（Youden）を示す'},{k:'rocCutText',t:'select',l:'カットオフの文字',o:[['thr','しきい値（≥ 6.8）'],['sens','感度/特異度'],['both','しきい値と感度/特異度'],['none','記号だけ']]},{k:'rocCutPos',t:'select',l:'文字の位置',o:[['right','右上'],['left','左下'],['above','真上'],['below','真下']]},{k:'rocCutSize',t:'select',l:'文字の大きさ',o:[['0.7','小'],['0.8','ふつう'],['1','本文と同じ']]},{k:'rocPct',t:'check',l:'軸を % で表示'},{k:'rocDir',t:'select',l:'陽性の向き',o:[['auto','自動（AUC<0.5 なら反転）'],['high','値が大きいほど陽性'],['low','値が小さいほど陽性']]}],
   heatmap:[{k:'hmScheme',t:'select',l:'色',o:[['bwr','青–白–赤'],['wb','白–青'],['wr','白–赤'],['viridis','Viridis'],['ryg','赤–黄–緑'],['gray','白–黒']]},{k:'hmZ',t:'check',l:'行ごとに z スコア化'},{k:'hmValues',t:'check',l:'セルに値を書く'},{k:'hmCluster',t:'select',l:'クラスタリング（樹形図）',o:[['none','なし'],['rows','行'],['cols','列'],['both','行と列']]},{k:'hmBorder',t:'select',l:'セルの枠',o:[['white','白'],['black','黒'],['none','なし']]},{k:'hmColPos',t:'select',l:'列名の位置',o:[['bottom','下'],['top','上']]},{k:'hmMin',t:'text',l:'色の最小（空で自動）'},{k:'hmMax',t:'text',l:'色の最大（空で自動）'}],
   corr:[{k:'hmScheme',t:'select',l:'色',o:[['bwr','青–白–赤'],['ryg','赤–黄–緑'],['gray','白–黒']]},{k:'hmValues',t:'check',l:'セルに r を書く'},{k:'hmBorder',t:'select',l:'セルの枠',o:[['white','白'],['black','黒'],['none','なし']]},{k:'hmColPos',t:'select',l:'列名の位置',o:[['bottom','下'],['top','上']]}],
   forest:[{k:'forestLog',t:'select',l:'横軸',o:[['auto','自動（OR/HR/RR は対数）'],['true','対数'],['false','線形']]},{k:'forestNull',t:'text',l:'効果なしの線（空で自動）'},{k:'forestText',t:'check',l:'右に推定値 [95% CI] を書く'},{k:'forestWeights',t:'check',l:'n と重みの列を書く'},{k:'forestFav',t:'text',l:'軸の下の文字（例: 治療が有利|対照が有利）'}],
@@ -88,7 +88,7 @@ function figFrame(spec,cfg){
     if(it.kind==='rect')leg+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${so.fill==='open'?'#fff':c}" stroke="${c}"/>`;else if(it.kind==='line')leg+=`<line x1="${lx}" y1="${ly-fs*0.2}" x2="${lx+fs*1.1}" y2="${ly-fs*0.2}" stroke="${c}" stroke-width="${so.lineW*FIG_PT*1.5}"/>`;else leg+=sym(lx+fs*0.5,ly-fs*0.2,it.i==null?k:it.i,c,it.fill||so.fill,it.shape);
     leg+=txt(lx+fs*1.5,ly,it.name,'start');});}
   const title=figTitleSVG(txt,x0+plotW/2,padT-fs*0.9-(cfg.padT||0),spec.title,W-fs,fs);
-  const wrap=(body,extra)=>({svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${body}${leg?`<g data-sel="legend">${leg}</g>`:''}${title}${extra||''}</svg>`,w:W,h:H,plot:{x0,y0:padT,w:plotW,h:plotH}});
+  const wrap=(body,extra)=>({svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${body}${leg?`<g data-sel="legend">${leg}</g>`:''}${title}${figNotesSVG(o,x0,padT,plotW,plotH,fs,o.font,st.fw)}${extra||''}</svg>`,w:W,h:H,plot:{x0,y0:padT,w:plotW,h:plotH}});
   return Object.assign(st,{x0,y0,plotW,plotH,W,H,padT,padL,padB,padR,xOf,yOf,wrap,xAxisY});
 }
 // 有意差ブラケット（figure.js と同じ見た目）。pairs: [{a,b,p}]、centers: [{cx,top}]
@@ -328,7 +328,7 @@ function figRenderROC(spec){const d=spec.data;const o=Object.assign({},FIG_DEF,s
   res.forEach((r,i)=>{const so=S(i),c=so.color;let s='';const pts=r.pts.map(p=>`${xOf(p.fpr)},${yOf(p.tpr)}`);
     if(o.rocFill)s+=`<polygon points="${pts.join(' ')} ${xOf(1)},${yOf(0)}" fill="${c}" fill-opacity="0.12" stroke="none"/>`;
     s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${c}" stroke-width="${so.lineW*FIG_PT}" stroke-linejoin="miter"/>`;
-    if(o.rocCutoff&&r.youden&&isFinite(r.youden.thr)){const p=r.youden;const thr=r.flipped?-p.thr:p.thr;s+=sym(xOf(p.fpr),yOf(p.tpr),i,c,'open')+txt(xOf(p.fpr)+fs*0.5,yOf(p.tpr)-fs*0.35,`${r.flipped?'≤':'≥'} ${figSci(thr)}`,'start',`fill="${c}"`,null,fs*0.8);}
+    if(o.rocCutoff&&r.youden&&isFinite(r.youden.thr)){const p=r.youden;const thr=r.flipped?-p.thr:p.thr;s+=sym(xOf(p.fpr),yOf(p.tpr),i,c,'open');const ct=o.rocCutText||'thr';const parts=[];if(ct==='thr'||ct==='both')parts.push(`${r.flipped?'≤':'≥'} ${figSci(thr)}`);if(ct==='sens'||ct==='both')parts.push(`Se ${(p.tpr*100).toFixed(0)}% / Sp ${((1-p.fpr)*100).toFixed(0)}%`);if(parts.length){const cs=fs*(+o.rocCutSize||0.8);const pos=o.rocCutPos||'right';const cx=xOf(p.fpr),cy=yOf(p.tpr);const px=pos==='right'?cx+fs*0.5:pos==='left'?cx-fs*0.5:cx,py=pos==='right'?cy-fs*0.35:pos==='left'?cy+cs*1.1:pos==='above'?cy-fs*0.6:cy+cs*1.2;s+=txt(px,py,parts.join('  '),pos==='right'?'start':pos==='left'?'end':'middle',`fill="${c}"`,null,cs);}}
     body+=`<g data-sel="series:${i}">${s}</g>`;});
   let leg='';res.forEach((r,i)=>{const y=y0-fs*0.5-(res.length-1-i)*fs*1.2;leg+=txt(x0+F.plotW-fs*0.4,y,`${res.length>1?r.name+': ':''}AUC ${r.auc.toFixed(3)} (${r.lo.toFixed(3)}–${r.hi.toFixed(3)})`,'end',`fill="${S(i).color}"`,null,fs*0.85);});
   const cmp=res.length===2?figDeLongCompare(res[0],res[1]):null;const out=F.wrap(body+`<g data-sel="text">${leg}</g>`);out.res={res,cmp};return out;}
