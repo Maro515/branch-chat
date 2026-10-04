@@ -345,7 +345,7 @@ function figRenderHeatmap(spec){const d=spec.data;const st=figStyle(spec);const 
   if(corr){lo=-1;hi=1;}else if(o.hmZ&&o.hmMin===''&&o.hmMax===''){const m=Math.max(Math.abs(lo),Math.abs(hi))||1;lo=-m;hi=m;}if(!(hi>lo))hi=lo+1;
   const scheme=FIG_HM_SCHEMES[o.hmScheme]||FIG_HM_SCHEMES.bwr;const colorOf=v=>figGrad(scheme,(v-lo)/(hi-lo));
   const plotW=(+o.wIn||3)*FIG_IN,plotH=(+o.hIn||2)*FIG_IN;const cell=Math.min(plotW/nc,plotH/nr);const gw=cell*nc,gh=cell*nr;
-  const rowLabW=Math.max(...rows.map(r=>String(r).length))*fs*0.55+fs*0.6;const colLen=Math.max(...cols.map(c=>String(c).length));const colRot=+o.xRot||(colLen*fs*0.55>cell*1.1?(colLen>8?90:45):0);
+  const rowLabW=Math.max(...rows.map(r=>figTW(String(r),fs)))+fs*0.9;const colLen=Math.max(...cols.map(c=>String(c).length));const colRot=+o.xRot||(colLen*fs*0.55>cell*1.1?(colLen>8?90:45):0);
   const colLabH=colRot?colLen*fs*0.55*Math.sin(colRot*Math.PI/180)+fs*0.8:fs*1.4;const dendW=rowTree?fs*3:0,dendH=colTree?fs*3:0;const barW=fs*0.9,barGap=fs*1.2,barLabW=fs*3.2;
   const padT=fs*(spec.title?2.2:0.6)+dendH+(o.hmColPos==='top'?colLabH:0),padL=fs*0.5+dendW+(rowTree?0:rowLabW),padR=(rowTree?rowLabW:0)+barGap+barW+barLabW,padB=(o.hmColPos==='top'?fs*0.8:colLabH+fs*0.4)+(o.hmZ&&!corr?fs*0.8:0);
   const W=padL+gw+padR,H=padT+gh+padB,x0=padL,y0=padT;

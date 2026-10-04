@@ -788,6 +788,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div class="figRow"><label>題名</label><input id="figImgTitle" type="text" placeholder="任意"></div>
       <div id="figImgGridOpts">
         <div class="figRow"><label>列数</label><select id="figImgCols"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select><label>セル幅</label><select id="figImgCell"><option value="0.8">0.8 in</option><option value="1">1.0 in</option><option value="1.2" selected>1.2 in</option><option value="1.5">1.5 in</option><option value="2">2.0 in</option></select></div>
+        <div class="figRow"><label>収め方</label><select id="figImgFit"><option value="cover">枠いっぱい（はみ出しは切る）</option><option value="contain">全体を収める（余白）</option></select><label>縦横比</label><select id="figImgAspect"><option value="">1 枚目に合わせる</option><option value="1">1:1</option><option value="0.75">4:3</option><option value="0.6667">3:2</option><option value="0.5625">16:9</option></select></div>
         <div class="figRow"><label>行見出し</label><input id="figImgRows" type="text" placeholder="Control, Zolmin（カンマ区切り）" style="max-width:none;flex:1"></div>
         <div class="figRow"><label>列見出し</label><input id="figImgColsLab" type="text" placeholder="DAPI, GFP, Merge" style="max-width:none;flex:1"></div>
         <div class="figRow" style="align-items:flex-start"><label>列見出しの色</label><div id="figImgColColorsUI" style="display:flex;flex-direction:column;gap:3px"></div></div>

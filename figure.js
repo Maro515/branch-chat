@@ -24,7 +24,7 @@ const FIG_IN=96;    // 1in → px
 /* ---------- データ表 ---------- */
 // 文字列（TSV/CSV/Markdown表）→ {kind:'column'|'grouped'|'xy', cols:[{name,vals}]}
 // 文字幅の見積もり（和文 1.0、欧文 0.58 × 文字高さ）と、題名を幅に収める（縮小 → 2 行）
-function figTW(s,fs){let w=0;for(const ch of String(s||''))w+=/[\u3000-\u9fff\uff00-\uffef]/.test(ch)?fs*1.0:fs*0.58;return w;}
+function figTW(s,fs){let w=0;for(const ch of String(s||''))w+=/[\u3000-\u9fff\uff00-\uffef]/.test(ch)?fs*1.0:/[A-Z0-9@#%&WM]/.test(ch)?fs*0.72:/[ijl.,:;'|!\s]/.test(ch)?fs*0.3:fs*0.58;return w;}
 function figTitleLines(title,maxW,fs){const t=String(title||'');if(!t)return {lines:[],size:fs};const w=figTW(t,fs);if(w<=maxW)return {lines:[t],size:fs};if(w*0.8<=maxW)return {lines:[t],size:fs*maxW/w};
   // 2 行に分ける（空白か読点の近くで）
   const half=t.length/2;let cut=-1;for(let i=0;i<t.length;i++){if(/[ 、，,。：:／/]/.test(t[i])&&Math.abs(i-half)<Math.abs(cut-half))cut=i;}if(cut<0)cut=Math.floor(half);const a=t.slice(0,cut+1).trim(),b=t.slice(cut+1).trim();const w2=Math.max(figTW(a,fs),figTW(b,fs));return {lines:[a,b],size:w2<=maxW?fs:fs*Math.max(0.6,maxW/w2)};}
@@ -86,10 +86,12 @@ function figStars(p,style){if(!(p<1))return 'ns';if(style==='num')return p<0.000
 
 function kde(v,lo,hi,n){const s=sd(v)||1,iqrv=quantile(v,0.75)-quantile(v,0.25);const h=0.9*Math.min(s,iqrv/1.34||s)*Math.pow(v.length,-0.2)||1;const out=[];for(let i=0;i<=n;i++){const x=lo+(hi-lo)*i/n;let d=0;for(const p of v)d+=Math.exp(-0.5*Math.pow((x-p)/h,2));out.push([x,d/(v.length*h*Math.sqrt(2*Math.PI))]);}return out;}
 /* ---------- 描画（SVG） ---------- */
+// データが最後の目盛を 40% 以上はみ出すときは目盛を 1 つ延ばす（figure-more.js の figAxisLin と同じ規則）
+function figExtendTicks(t,lo,hi){const ts=t.ticks.slice();if(ts.length&&ts[0]-lo>t.step*0.4)ts.unshift(+(ts[0]-t.step).toFixed(10));if(ts.length&&hi-ts[ts.length-1]>t.step*0.4)ts.push(+(ts[ts.length-1]+t.step).toFixed(10));return {step:t.step,ticks:ts};}
 function figNiceTicks(lo,hi,n){if(!(hi>lo)){hi=lo+1;}const span=hi-lo;const raw=span/Math.max(1,n);const mag=Math.pow(10,Math.floor(Math.log10(raw)));const cand=[1,2,2.5,5,10].map(c=>c*mag);const step=cand.find(c=>span/c<=n+0.5)||cand[cand.length-1];const t0=Math.ceil(lo/step-1e-9)*step,t1=Math.floor(hi/step+1e-9)*step;const ts=[];for(let v=t0;v<=t1+1e-9;v+=step)ts.push(+v.toFixed(10));return {step,ticks:ts};}
 function figPow(v){const e=Math.round(Math.log10(v));return e>=0&&e<=3?String(Math.pow(10,e)):'10^'+e;}
 function figFmt(v){if(Math.abs(v)>=1e5||(Math.abs(v)<1e-3&&v!==0))return v.toExponential(1);let t=(+v.toFixed(6)).toString();if(t.includes('.'))t=t.replace(/0+$/,'').replace(/\.$/,'');return t||'0';}
-function figSymbol(x,y,r,shape,fill,stroke){
+function figSymbol(x,y,r,shape,fill,stroke){if(!(r>0))return '';
   switch(shape){
     case 'square':return `<rect x="${x-r}" y="${y-r}" width="${2*r}" height="${2*r}" fill="${fill}" stroke="${stroke}" stroke-width="${FIG_PT}"/>`;
     case 'triangle':return `<polygon points="${x},${y-r*1.15} ${x-r*1.1},${y+r*0.85} ${x+r*1.1},${y+r*0.85}" fill="${fill}" stroke="${stroke}" stroke-width="${FIG_PT}"/>`;
@@ -111,7 +113,7 @@ function figArrangeDots(vals,yOf,r,maxW){
   return out;
 }
 
-function figSeriesOpt(o,i){const ov=(o.series&&o.series[i])||{};const colors=o.colors||FIG_DEF.colors,symbols=o.symbols||FIG_DEF.symbols;return {color:ov.color||colors[i%colors.length],symbol:ov.symbol||symbols[i%symbols.length],symPt:+(ov.symPt||o.symPt||FIG_DEF.symPt),fill:ov.fill||'solid',lineW:+(ov.lineW||o.linePt||1)};}
+function figSeriesOpt(o,i){const ov=(o.series&&o.series[i])||{};const colors=o.colors||FIG_DEF.colors,symbols=o.symbols||FIG_DEF.symbols;return {color:ov.color||colors[i%colors.length],symbol:ov.symbol||symbols[i%symbols.length],symPt:+(ov.symPt!=null&&ov.symPt!==''?ov.symPt:(o.symPt!=null&&o.symPt!==''?o.symPt:FIG_DEF.symPt)),fill:ov.fill||'solid',lineW:+(ov.lineW||o.linePt||1)};}
 function figRender(spec){
   const d=spec.data;if(!d)return {svg:'',w:0,h:0};
   if(typeof figRenderMore==='function'){const r=figRenderMore(spec);if(r)return r;} // figure-more.js の図種
@@ -133,7 +135,7 @@ function figRender(spec){
   if(o.ymax!==''&&o.ymax!=null&&isFinite(+o.ymax))ymax=+o.ymax;
   let nLv=0;if(spec.compare&&spec.compare.pairs&&d.kind==='grouped'){nLv=Math.min(3,d.groups.length-1);}else if(spec.compare&&spec.compare.pairs){const ps0=spec.compare.pairs.filter(p=>o.showNs||p.p<o.pThr).map(p=>({l:Math.min(p.a,p.b),r:Math.max(p.a,p.b)})).sort((p,q)=>(p.r-p.l)-(q.r-q.l));const lv0=[];for(const p of ps0){let lv=0;for(;;lv++){if(!lv0[lv]||!lv0[lv].some(q=>!(p.r<q.l||p.l>q.r)))break;}(lv0[lv]=lv0[lv]||[]).push(p);}nLv=lv0.length;}
   const head=nLv?0.14+0.16*nLv:0.06;
-  const yt=figNiceTicks(ymin,ymax+(ymax-ymin)*head,5);const yLo=Math.min(ymin,yt.ticks[0]),yHi=Math.max(ymax+(ymax-ymin)*head,yt.ticks[yt.ticks.length-1]);
+  const yt=figExtendTicks(figNiceTicks(ymin,ymax+(ymax-ymin)*head,5),ymin,ymax+(ymax-ymin)*head);const yLo=Math.min(ymin,yt.ticks[0]),yHi=Math.max(ymax+(ymax-ymin)*head,yt.ticks[yt.ticks.length-1]);
   let yOf=v=>y0-(v-yLo)/(yHi-yLo)*plotH;let yTicks=yt.ticks;
   if(o.ylog){const pos=allY.filter(v=>v>0);if(pos.length){const lo=Math.min(...pos),hi=Math.max(...pos);const e0=Math.floor(Math.log10(lo)),e1=Math.ceil(Math.log10(hi*(1+head)));yTicks=[];for(let e=e0;e<=e1;e++)yTicks.push(Math.pow(10,e));const L0=Math.log10(yTicks[0]),L1=Math.log10(yTicks[yTicks.length-1]);yOf=v=>y0-(Math.log10(Math.max(v,yTicks[0]))-L0)/(L1-L0)*plotH;}}
   const yAxisTop=yOf(yTicks[yTicks.length-1]),yAxisBot=yOf(yTicks[0]);
@@ -178,7 +180,7 @@ function figRender(spec){
     axes+=xAxis;if(xTitle)titles+=txt(x0+plotW/2,y0+Math.max(0,tick)+fs*2.3+(xrot?fs*2:0),xTitle,'middle','','xtitle');
   }else{
     const xs=d.groups.flatMap(g=>g.points.map(p=>p.x));let xmin=Math.min(...xs),xmax=Math.max(...xs);if(!(xmax>xmin)){xmax=xmin+1;}
-    const xt=figNiceTicks(xmin,xmax,6);const xLo=Math.min(xmin,xt.ticks[0]),xHi=Math.max(xmax,xt.ticks[xt.ticks.length-1]);const xOf=x=>x0+(x-xLo)/(xHi-xLo)*plotW;
+    const xt=figExtendTicks(figNiceTicks(xmin,xmax,6),xmin,xmax);const xLo=Math.min(xmin,xt.ticks[0]),xHi=Math.max(xmax,xt.ticks[xt.ticks.length-1]);const xOf=x=>x0+(x-xLo)/(xHi-xLo)*plotW;
     const xa0=xOf(xt.ticks[0]),xa1=xOf(xt.ticks[xt.ticks.length-1]);
     let xAxis=`<line x1="${xa0}" y1="${y0}" x2="${xa1}" y2="${y0}" stroke="${ac}" stroke-width="${a}" stroke-linecap="square"/>`;
     for(const t of xt.ticks){const x=xOf(t);xAxis+=`<line x1="${x}" y1="${y0}" x2="${x}" y2="${y0+tick}" stroke="${ac}" stroke-width="${a}"/>`+xlab(x,figFmt(t));}
@@ -247,7 +249,7 @@ let FIG_PROMPT=`## 図（Figure）の作り方
 data はタブ区切り。column は列＝群・行＝反復、grouped は1列目＝カテゴリで同名の列が反復、xy は1列目＝X。compare は column と grouped で使える（all=全比較: 2 群なら Welch t、3 群以上は ANOVA+Tukey。dunnett=対照群と比較。grouped はカテゴリごとに群を比較してブラケットを付ける）。
 "style" で指定できる主な項目（利用者が「点も重ねて」「幅を広く」などと言ったら使う。編集画面の設定と同じもの）: wIn/hIn（プロット領域の幅・高さ in、既定 3×2）, fontPt（文字 pt、既定 12）, barDots:true（棒・箱・バイオリンに個々の点を重ねる）, legendPos:"right|bottom|none", scheme:"prism|colorblind|gray|nature", series:[{color,symbol,symPt,fill:"open"}], ylog:true, refLine（基準線の Y）, xRot（X ラベルの角度）, grid:"major", frame:"box", stackLabels:"percent|value"（積み上げ棒の区分の文字）, errDir, capW。
 図種固有の項目は「図種の設定」と同じキー: survCI/survMedian/survRisk（生存）, rocFill/rocCutoff, forestLog:"true|false"/forestNull（フォレスト: OR/HR/RR なら対数軸）, pcaEllipse:true（PCA の 95% 楕円）, hmCluster:"rows|cols|both"/hmZ（ヒートマップ）, regBand:"ci|pi", doseBand/doseCI（用量反応）, spColor:"subject"（SuperPlot を個体ごとに色分け）, pieLabels:"percent|value|both", volLabels, mhLabels。
-注意: できないと決めつけない。幅・高さ・文字サイズ・点の重ね描き・楕円・HR・at-risk 表・対数軸はすべて指定できる。bland-altman の差は 1 列目 − 2 列目（ytitle もその向きで書く）。列名は意味が伝わるもの（例: OR, Lower, Upper, P）にする。`;
+注意: できないと決めつけない。幅・高さ・文字サイズ・点の重ね描き・楕円・HR・at-risk 表・対数軸はすべて指定できる。ROC の AUC と 95% CI、KM の log-rank P と HR、用量反応の EC50/IC50・Hill・R²、酵素反応の Vmax/Km、回帰の r/R²/P は自動で図に書かれる（「要確認」と言わず、書かれると説明する）。xy で記号を消すには style.symPt を 0。bland-altman の差は 1 列目 − 2 列目（ytitle もその向きで書く）。列名は意味が伝わるもの（例: OR, Lower, Upper, P）にする。`;
 
 
 /* ---------- ツールメニュー（Prism のリボンにならった編集ボタン） ---------- */
@@ -457,7 +459,8 @@ function figOpenFromBlock(el,panel){const nid=el.dataset.fignode,idx=+el.dataset
   if(typeof figIsImage==='function'&&figIsImage(j)&&typeof figImgOpen==='function'){figImgOpen(j,src);return;} // 画像パネルは専用の画面
   const st=figStateFromSpec(j);st.src=src;figOpen(st);}
 async function figBlockAction(el,act){const svgEl=el.querySelector('svg');if(!svgEl)return;const svg=svgEl.outerHTML;const w=+svgEl.getAttribute('width'),h=+svgEl.getAttribute('height');
-  if(act==='svg'){saveTextFile(`figure_${Date.now()}.svg`,svg);return;}
+  if(act==='svg'){let out=svg;const mm=+svgEl.getAttribute('data-mm');if(mm>0){const hmm=mm*h/w;out=out.replace(/^<svg([^>]*?) width="[^"]*" height="[^"]*"/,`<svg$1 width="${mm}mm" height="${hmm.toFixed(3)}mm"`);} // 誌面幅の指定があれば物理単位で
+    if(typeof figInlineImages==='function')out=await figInlineImages(out);saveTextFile(`figure_${Date.now()}.svg`,out);return;}
   const c=await figToPng(svg,w,h,300);if(act==='png'){const a=document.createElement('a');a.href=figPngDataURL(c,300);a.download=`figure_${Date.now()}.png`;a.click();toast('PNG（300 dpi）を保存しました');}
   else{try{const blob=await new Promise(r=>c.toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);toast('画像をコピーしました');}catch(e){toast('コピーできませんでした');}}}
 function figFromTable(tableEl){const rows=[...tableEl.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(c=>c.textContent.trim()).join('\t'));figOpen({text:rows.join('\n')});}
