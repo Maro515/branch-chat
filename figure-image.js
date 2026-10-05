@@ -38,7 +38,10 @@ function figImgAnnots(annots,cellOf,fs,idxOf){let s='';(annots||[]).forEach(a=>{
   if(a.t==='line'){const x2=c.x+(+a.x2||0)*c.w,y2=c.y+(+a.y2||0)*c.h;s+=`<g data-annot="${ai}"><line x1="${px}" y1="${py}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${FIG_PT*1.2}"/><circle cx="${px}" cy="${py}" r="${FIG_PT*1.5}" fill="${col}"/><circle cx="${x2}" cy="${y2}" r="${FIG_PT*1.5}" fill="${col}"/></g>`;return;}
   if(a.t==='inset'){s+=figImgInset(a,c,fs,ai);return;}
   if(a.t==='arrow'){const len=(+a.len||0.18)*Math.min(c.w,c.h);const dir=((a.dir==null?225:+a.dir)*Math.PI/180);const tx=px+Math.cos(dir)*len,ty=py+Math.sin(dir)*len;const hl=len*0.4,hw=len*0.2;const ang=Math.atan2(py-ty,px-tx);const bx=px-Math.cos(ang)*hl,by=py-Math.sin(ang)*hl;
-    s+=`<g data-annot="${ai}"><line x1="${tx}" y1="${ty}" x2="${bx}" y2="${by}" stroke="${col}" stroke-width="${FIG_PT*1.5}" stroke-linecap="round"/><polygon points="${px},${py} ${bx+Math.sin(ang)*hw},${by-Math.cos(ang)*hw} ${bx-Math.sin(ang)*hw},${by+Math.cos(ang)*hw}" fill="${col}" stroke="${stroke}" stroke-width="${FIG_PT*0.3}"/></g>`;}
+    // 矢印全体を 1 つの多角形（軸＋三角）にして、縁取りは外周だけに付ける（軸と三角の継ぎ目に線が出ない）
+    const ux=Math.cos(ang),uy=Math.sin(ang),nx=-uy,ny=ux,sw=FIG_PT*0.75;const f=v=>v.toFixed(2);
+    const pts=[[px,py],[bx+nx*hw,by+ny*hw],[bx+nx*sw,by+ny*sw],[tx+nx*sw,ty+ny*sw],[tx-nx*sw,ty-ny*sw],[bx-nx*sw,by-ny*sw],[bx-nx*hw,by-ny*hw]].map(q=>f(q[0])+','+f(q[1])).join(' ');
+    s+=`<polygon data-annot="${ai}" points="${pts}" fill="${col}" stroke="${stroke}" stroke-width="${FIG_PT*0.35}" stroke-linejoin="round"/>`;}
   else if(a.t==='head'){const len=(+a.len||0.1)*Math.min(c.w,c.h);const dir=((a.dir==null?225:+a.dir)*Math.PI/180);const ang=dir+Math.PI;const bx=px-Math.cos(ang)*len,by=py-Math.sin(ang)*len;s+=`<polygon data-annot="${ai}" points="${px},${py} ${bx+Math.sin(ang)*len*0.45},${by-Math.cos(ang)*len*0.45} ${bx-Math.sin(ang)*len*0.45},${by+Math.cos(ang)*len*0.45}" fill="${col}" stroke="${stroke}" stroke-width="${FIG_PT*0.3}"/>`;}
   else if(a.t==='star')s+=figImgTxt(px,py+fs*0.6,'*',{size:fs*1.8,fill:col,stroke,extra:`data-annot="${ai}"`});
   else if(a.t==='text')s+=figImgTxt(px,py+fs*0.35,a.text||'',{size:fs*(+a.size||1),fill:col,stroke,anchor:a.anchor||'middle',extra:`data-annot="${ai}"`});
