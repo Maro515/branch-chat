@@ -845,12 +845,12 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 <dialog id="tplEdit">
   <h2 id="tplEdTitle">自分のテンプレートを作る</h2>
   <div class="hint">本線の役割と分岐（枝）の名前・役割を決めると、「新しい会話」の一覧に並びます。役割の文は AI への指示としてそのまま渡ります。</div>
-  <label>名前</label><input id="tplEdName" type="text" placeholder="例: 症例報告">
-  <label>説明（一覧に出る短い文）</label><input id="tplEdDesc" type="text" placeholder="例: 本線で症例の要点を、分岐で各部を詰める">
-  <label>本線の役割（空なら自動で作ります）</label><textarea id="tplEdMain" rows="3" placeholder="この会話は「症例報告」のテンプレートです。本線では投稿先・字数・症例の要点を決め、各分岐の整合を取ります。"></textarea>
-  <label>分岐（1 行に 1 つ。「名前: 役割」の形。役割は省略可）</label><textarea id="tplEdBranches" rows="6" placeholder="症例提示: 経過を時系列で、検査値は表に&#10;考察: 既報との比較と本症例の教訓&#10;文献: 引用する文献の選定と要約"></textarea>
-  <label>最初の未解決項目（1 行に 1 つ。省略可）</label><textarea id="tplEdAgenda" rows="2" placeholder="投稿先と字数を決める&#10;症例の教訓を 1 文で決める"></textarea>
-  <label>本線の最初の説明文（Markdown。空なら自動で作ります）</label><textarea id="tplEdSeed" rows="3"></textarea>
+  <label>名前</label><input id="tplEdName" type="text">
+  <label>説明（一覧に出る短い文）</label><input id="tplEdDesc" type="text">
+  <label>本線の役割（空なら自動で作ります）</label><textarea id="tplEdMain" rows="4"></textarea>
+  <label>分岐（1 行に 1 つ。「名前: 役割」の形。役割は省略可）</label><textarea id="tplEdBranches" rows="7"></textarea>
+  <label>最初の未解決項目（1 行に 1 つ。省略可）</label><textarea id="tplEdAgenda" rows="2"></textarea>
+  <label>本線の最初の説明文（Markdown。空なら自動で作ります）</label><textarea id="tplEdSeed" rows="5"></textarea>
   <div class="btns"><button id="tplEdFromConv" class="small" style="margin-right:auto" data-tip="今開いている会話の枝の名前と役割、未解決項目をこの欄に写す">今の会話の枝から作る</button><button id="tplEdDel" class="small">削除</button><button id="tplEdCancel">キャンセル</button><button id="tplEdSave" class="primary">保存</button></div>
 </dialog>
 <dialog id="qDlg">
@@ -1996,6 +1996,7 @@ function tplSeedOf(t){return `# ${t.name}テンプレート\n\n${t.desc?t.desc+'
 function openTplEdit(t,fromConv){
   const $=s=>document.querySelector(s);const isNew=!t;t=t||{id:'u_'+Date.now().toString(36),name:'',desc:'',main:'',branches:[],agenda:[],seed:'',user:true};
   if(fromConv&&conv){t.name=t.name||(conv.title||'').slice(0,20);t.main=t.main||(B('main').instr||'');t.branches=Object.values(conv.branches).filter(b=>b.id!=='main').sort((a,b)=>(a.seq||0)-(b.seq||0)).map(b=>[b.name,b.instr||'']);t.agenda=((conv.agenda&&conv.agenda.items)||[]).filter(i=>i.status==='open').map(i=>i.text);}
+  {const ex=TEMPLATES[0];$('#tplEdName').placeholder='例: '+ex.name;$('#tplEdDesc').placeholder='例: '+ex.desc;$('#tplEdMain').placeholder='例: '+ex.main;$('#tplEdBranches').placeholder='例:\n'+ex.branches.map(b=>b[0]+': '+b[1]).join('\n');$('#tplEdAgenda').placeholder='例:\n'+ex.agenda.join('\n');$('#tplEdSeed').placeholder='例: '+ex.seed;} // 入力例は組み込みの「論文」と同じ（利用者の指示）
   $('#tplEdTitle').textContent=isNew?'自分のテンプレートを作る':'テンプレートを編集';$('#tplEdName').value=t.name;$('#tplEdDesc').value=t.desc||'';$('#tplEdMain').value=t.main||'';
   $('#tplEdBranches').value=(t.branches||[]).map(b=>b[1]?`${b[0]}: ${b[1]}`:b[0]).join('\n');$('#tplEdAgenda').value=(t.agenda||[]).join('\n');$('#tplEdSeed').value=t.seed||'';
   $('#tplEdDel').style.display=isNew?'none':'';$('#tplEdFromConv').style.display=conv&&Object.keys(conv.branches).length>1?'':'none';
