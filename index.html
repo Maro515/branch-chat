@@ -111,7 +111,7 @@ textarea:focus{outline:none;border-color:var(--glow);box-shadow:0 0 12px rgba(18
 .card.pinned{box-shadow:0 0 0 1px var(--bc) inset,0 0 18px -4px var(--bc)}
 .card.plans{--bc:var(--yellow)}
 .card.plans .item{display:flex;gap:6px;align-items:center;justify-content:space-between;padding:4px 0;border-top:1px dashed rgba(255,217,61,.3);font-size:12px}
-svg text:not(.figblock text,.figPreview text,#figJsonPrev text){font-size:11px;fill:var(--ink);font-family:"IBM Plex Sans JP",sans-serif}
+svg text:not(.figblock text,.figPreview text,#figJsonPrev text,.figGalCard text){font-size:11px;fill:var(--ink);font-family:"IBM Plex Sans JP",sans-serif}
 .node{cursor:pointer}
 .node:hover .core{stroke-width:3}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--ink);padding:18px 20px;max-width:560px;width:92vw;box-shadow:0 0 40px rgba(181,232,107,.25);backdrop-filter:blur(10px)}
@@ -175,7 +175,7 @@ textarea:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(31,74,43,.15
 .card.plans{--bc:var(--ystroke)}
 .card.plans h3{color:var(--ystroke)}
 .card.plans .item{border-top:1.5px dashed #e6c76a}
-svg text:not(.figblock text,.figPreview text,#figJsonPrev text){fill:var(--indigo);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:13px}
+svg text:not(.figblock text,.figPreview text,#figJsonPrev text,.figGalCard text){fill:var(--indigo);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:13px}
 #toast{background:#fff;color:var(--indigo);border:2px solid var(--indigo);box-shadow:0 4px 20px rgba(31,74,43,.25)}
 
 /* 選択テキストから質問するポップアップ */
@@ -471,6 +471,18 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 #agenda .empty{color:var(--indigo2);font-size:11.5px;padding:2px 4px}
 #agendaBtn.on{border-color:var(--glow);color:#fff}
 @media (max-width:1100px){#agenda{width:250px}}
+/* ===== 図の一覧（見本から選ぶ） ===== */
+#figGalDlg{width:min(1120px,96vw);max-width:96vw;max-height:92vh}
+#figGalDlg .figGalHead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#figGalBody{max-height:72vh;overflow:auto;padding:2px 4px 8px 2px}
+.figGalSec h3{font-size:12.5px;margin:12px 0 6px;color:var(--ink)}
+.figGalGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.figGalCard{display:flex;flex-direction:column;gap:4px;padding:6px;border:1.5px solid var(--line);border-radius:10px;background:rgba(255,255,255,.04);cursor:pointer;color:var(--ink);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;text-align:center}
+.figGalCard:hover{border-color:var(--glow);background:rgba(181,232,107,.1)}
+.figGalCard.on{border-color:var(--glow);box-shadow:0 0 0 2px var(--glow) inset}
+.figGalCard .th{display:flex;align-items:center;justify-content:center;height:112px;background:#fff;border-radius:6px;overflow:hidden;pointer-events:none}
+.figGalCard .th svg{max-width:100%;max-height:112px;width:auto;height:auto}
+.figGalCard .nm{font-size:11px;line-height:1.35}.figGalCard{position:relative}.figGalCard.same::after,.figGalDot{content:'';display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--glow);box-shadow:0 0 0 2px rgba(0,0,0,.25)}.figGalCard.same::after{position:absolute;right:9px;top:9px}
 /* ===== テンプレート選択 ===== */
 #tplDlg{width:min(760px,94vw)}
 .tplList{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;max-height:62vh;overflow:auto;padding:2px}
@@ -804,7 +816,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <label>画像（上から順に並びます。チェックした画像は「合成セル」にまとめられます）</label>
       <div class="imgList" id="figImgList"></div>
       <div class="figRow"><button id="figImgMerge" class="small">チェックした画像で合成セルを足す</button></div>
-      <label>置いた注釈（文字・矢印など。プレビューで注釈をクリックすると、その行が光ります）</label>
+      <label>置いた注釈（プレビューで注釈をクリックすると、その行が光ります。ROI 枠・拡大図は、選ぶと四隅に出る ■ をドラッグして大きさを変えられます）</label>
       <div class="imgList" id="figImgAnnots"></div>
       <div id="figImgStats" class="figStats"></div>
     </div>
@@ -822,7 +834,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div class="figRow"><label>データ（タブ・カンマ区切り、または Markdown の表を貼り付け）</label><button id="figFileBtn" class="small" data-tip="CSV / TSV / Excel（.xlsx）を読み込む">📂 ファイルから読む</button><input type="file" id="figFile" accept=".csv,.tsv,.txt,.xlsx" hidden></div>
       <textarea id="figData" spellcheck="false"></textarea>
       <div class="figRow"><label>表の型</label><select id="figKind"><option value="column">Column（列＝群、行＝反復）</option><option value="grouped">Grouped（行＝カテゴリ、列＝群）</option><option value="xy">XY（1列目＝X、以降＝Y）</option></select></div>
-      <div class="figRow"><label>グラフ</label><select id="figType"></select></div>
+      <div class="figRow"><label>グラフ</label><select id="figType"></select><button id="figGalBtn" class="small" data-tip="図の見本の一覧から選ぶ">▦ 一覧</button></div>
       <div class="figRow" id="figCmpRow"><label>有意差</label><select id="figCmp"><option value="none">なし</option><option value="all">全比較（Welch t / ANOVA+Tukey）</option><option value="dunnett">対照群と比較（Dunnett）</option></select><select id="figCtrl" style="display:none"></select></div>
       <div class="figRow"><label>誤差</label><select data-fopt="errType"><option value="SD">SD</option><option value="SEM">SEM</option><option value="CI">95% CI</option><option value="none">なし</option></select></div>
       <div class="figRow"><label>題名</label><input id="figTitle" type="text" placeholder="任意"></div>
@@ -879,6 +891,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 <script src="figure-image.js"></script>
 <script src="figure-schematic.js"></script>
 <script src="figure-omics.js"></script>
+<script src="figure-gallery.js"></script>
 <script>
 /* ========== 基本ユーティリティ ========== */
 const $=s=>document.querySelector(s);

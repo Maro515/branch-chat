@@ -293,7 +293,8 @@ data はタブ区切り。column は列＝群・行＝反復、grouped は1列�
 // 各項目: {k:opts のキー, t:種類 select|num|check|color|text|btn, l:ラベル, o:選択肢, min,max,step, act:ボタンの動作}
 const FIG_TOOLS=[
  {id:'graph',l:'グラフ',items:[
-   {k:'__type',t:'select',l:'種類',o:()=>(FIG_TYPES[figState.kind]||FIG_TYPES.column)},
+   {k:'__gallery',t:'btn',l:'▦ 図の一覧から選ぶ（見本つき）'},
+   {k:'__type',t:'select',l:'種類（いまの表の形で描けるもの）',o:()=>(FIG_TYPES[figState.kind]||FIG_TYPES.column)},
    {k:'errType',t:'select',l:'誤差',o:[['SD','SD'],['SEM','SEM'],['CI','95% CI'],['none','なし']]},
    {k:'errDir',t:'select',l:'誤差棒の向き',o:[['auto','自動（棒は上のみ）'],['both','上下'],['up','上のみ']]},
    {k:'capW',t:'num',l:'キャップ幅（棒幅×）',min:0,max:1.5,step:0.1},
@@ -351,7 +352,7 @@ function figRestore(snap){const j=JSON.parse(snap);Object.assign(figState,j);con
 function figUndoBtns(){const u=document.querySelector('#figUndoBtn'),r=document.querySelector('#figRedoBtn');if(u)u.disabled=figUndo.length<2;if(r)r.disabled=!figRedo.length;}
 function figDoUndo(){if(figUndo.length<2)return;figRedo.push(figUndo.pop());figRestore(figUndo[figUndo.length-1]);figUndoBtns();}
 function figDoRedo(){if(!figRedo.length)return;const s=figRedo.pop();figUndo.push(s);figRestore(s);figUndoBtns();}
-function figToolsHTML(){return `<div class="figTools"><button class="small" id="figUndoBtn" data-tip="元に戻す">↶</button><button class="small" id="figRedoBtn" data-tip="やり直す">↷</button><span class="sep"></span>${FIG_TOOLS.map(g=>`<div class="ftm" data-ftm="${g.id}"><button class="small">${g.l} ▾</button><div class="ftp" id="ftp-${g.id}"></div></div>`).join('')}<span class="sep"></span><button class="small" data-fact="copy" data-tip="画像をコピー">⧉ コピー</button><button class="small" data-fact="png" data-tip="PNG 300 dpi">PNG</button><button class="small" data-fact="png600" data-tip="PNG 600 dpi">PNG 600</button><button class="small" data-fact="svg" data-tip="SVG">SVG</button></div>`;}
+function figToolsHTML(){return `<div class="figTools"><button class="small" id="figUndoBtn" data-tip="元に戻す">↶</button><button class="small" id="figRedoBtn" data-tip="やり直す">↷</button><span class="sep"></span><button class="small primary" data-fact="gallery" data-tip="図の見本の一覧から種類を選ぶ">▦ 図の一覧</button>${FIG_TOOLS.map(g=>`<div class="ftm" data-ftm="${g.id}"><button class="small">${g.l} ▾</button><div class="ftp" id="ftp-${g.id}"></div></div>`).join('')}<span class="sep"></span><button class="small" data-fact="copy" data-tip="画像をコピー">⧉ コピー</button><button class="small" data-fact="png" data-tip="PNG 300 dpi">PNG</button><button class="small" data-fact="png600" data-tip="PNG 600 dpi">PNG 600</button><button class="small" data-fact="svg" data-tip="SVG">SVG</button></div>`;}
 function figToolPanel(g){
   const st=figState,o=st.opts;const val=k=>k==='__type'?st.type:k==='__title'?st.title:k==='__cmp'?st.cmp:k==='__noteSize'?(st.noteSize||'0.85'):k==='__noteColor'?(st.noteColor||'#000000'):k==='__preset'?(Object.entries(FIG_PRESETS).find(([n,v])=>v[0]==+(o.wIn||3)&&v[1]==+(o.hIn||2))||['custom'])[0]:(o[k]===undefined?(FIG_DEF[k]===undefined?'':FIG_DEF[k]):o[k]);
   if(!g.items.length)return '<div class="hint">この図種に固有の設定はありません</div>';
@@ -367,6 +368,7 @@ function figToolPanel(g){
 }
 function figApplyTool(k,v){
   const st=figState,o=st.opts;const $=s=>document.querySelector(s);
+  if(k==='__gallery'){document.querySelectorAll('#figToolbar .ftm.open').forEach(x=>x.classList.remove('open'));figGalleryOpen();return;}
   if(k==='__noteSize'){st.noteSize=v;return;}if(k==='__noteColor'){st.noteColor=v;return;}
   if(k==='__noteAdd'){st.noteTool=!st.noteTool;document.querySelectorAll('#figToolbar .ftm.open').forEach(x=>x.classList.remove('open'));toast(st.noteTool?'右のプレビュー（グラフ）の、文字を書きたい場所をクリックしてください':'文字の書き込みをやめました');return;}
   if(k==='__noteDel'){if(o.notes&&o.notes.length){o.notes.pop();figSync();figPushUndo();}else toast('消す文字がありません');return;}
@@ -385,7 +387,7 @@ function figToolsInit(){
   bar.querySelectorAll('.ftp').forEach(p=>p.addEventListener('click',e=>e.stopPropagation()));
   document.addEventListener('click',()=>bar.querySelectorAll('.ftm.open').forEach(x=>x.classList.remove('open')));
   bar.querySelector('#figUndoBtn').onclick=figDoUndo;bar.querySelector('#figRedoBtn').onclick=figDoRedo;
-  bar.querySelectorAll('[data-fact]').forEach(b=>b.onclick=()=>{const act=b.dataset.fact;if(act==='copy')document.querySelector('#figCopy').click();else if(act==='svg')document.querySelector('#figSvg').click();else figSavePng(act==='png600'?600:300);});
+  bar.querySelectorAll('[data-fact]').forEach(b=>b.onclick=()=>{const act=b.dataset.fact;if(act==='gallery')figGalleryOpen();else if(act==='copy')document.querySelector('#figCopy').click();else if(act==='svg')document.querySelector('#figSvg').click();else figSavePng(act==='png600'?600:300);});
   document.addEventListener('keydown',e=>{if(!document.querySelector('#figDlg').open)return;const mod=e.metaKey||e.ctrlKey;if(mod&&e.key==='z'&&!e.shiftKey){e.preventDefault();figDoUndo();}else if(mod&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){e.preventDefault();figDoRedo();}});
 }
 function figBindTools(panel){panel.querySelectorAll('[data-tbtn]').forEach(b=>{b.addEventListener('click',()=>figApplyTool(b.dataset.tbtn,true));});panel.querySelectorAll('[data-tk]').forEach(el=>{el.addEventListener(el.type==='checkbox'||el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.tk;let v=el.type==='checkbox'?el.checked:el.value;if(k==='bold'||k==='showNs'||k==='ylog'||k==='barDots')v=!!v;figApplyTool(k,v);const g=FIG_TOOLS.find(x=>x.id===panel.id.replace('ftp-',''));if(g&&g.id==='graph'&&k==='__type'){panel.innerHTML=figToolPanel(g);figBindTools(panel);}});});}
@@ -472,7 +474,7 @@ function figInit(){
   const $=s=>document.querySelector(s);
   $('#figData').addEventListener('input',()=>figSync(false));
   $('#figKind').onchange=e=>{figState.kind=e.target.value;figSync(false);};
-  $('#figType').onchange=e=>{figState.type=e.target.value;figSync(false);};
+  $('#figType').onchange=e=>{figState.type=e.target.value;figSync(false);};{const gb=$('#figGalBtn');if(gb)gb.onclick=()=>figGalleryOpen();}
   $('#figTitle').addEventListener('input',()=>figSync(false));
   $('#figCmp').onchange=e=>{figState.cmp=e.target.value;figSync(false);};
   $('#figCtrl').onchange=e=>{figState.ctrl=+e.target.value;figSync(false);};
