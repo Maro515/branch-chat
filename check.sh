@@ -25,6 +25,8 @@ python3 -c "import ast,sys;ast.parse(open('bridge.py').read());print('OK   bridg
 for f in desktop/main.js desktop/engines.js figure.js figure-stats.js figure-more.js figure-more2.js figure-layout.js figure-image.js figure-schematic.js figure-omics.js figure-gallery.js; do
   if node --check "$f" 2>/dev/null; then echo "OK   $f 構文"; else echo "FAIL $f 構文"; fail=1; fi
 done
+# 他社の製品名（商標）を画面・AI への指示文・コード・文書に書いていないか（旧名の読み替え表 FIG_SCHEME_OLD の 1 行だけ許す）
+if grep -n -i -E 'prism|graphpad' index.html figure*.js desktop/main.js desktop/engines.js bridge.py README.md PLAN.md AGENTS.md | grep -v 'FIG_SCHEME_OLD=' | grep -q .; then echo "FAIL 他社の製品名が残っている:"; grep -n -i -E 'prism|graphpad' index.html figure*.js desktop/main.js desktop/engines.js bridge.py README.md PLAN.md AGENTS.md | grep -v 'FIG_SCHEME_OLD=' | cut -c1-120; fail=1; else echo "OK   他社の製品名が無い"; fi
 # bridge.py と engines.js の安全側フラグが揃っているか
 for flag in -- '--strict-mcp-config' '--no-session-persistence' '--setting-sources' 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC' '--ephemeral' '--ignore-user-config' '--ignore-rules' 'read-only'; do
   [ "$flag" = "--" ] && continue

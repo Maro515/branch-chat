@@ -1,7 +1,7 @@
-// BranCHAT Figure（Prism 9 同等の統計グラフ・P1 コア）
-// 要件: ~/Applications/prism9-figure-spec/03_...要件定義書.md §6（描画エンジン）・付録B（既定値）に沿う。
+// BranCHAT Figure（統計グラフ・P1 コア）
+// 要件: 手元の要件定義書（リポジトリ外）の §6（描画エンジン）・付録B（既定値）に沿う。
 // データ表 → 解析（記述統計・t検定/ANOVA+Tukey）→ グラフ（SVG）→ 書き出し（SVG/PNG）→ チャットへ添付。
-// 統計は figure-stats.js（PrismLab 流用）。描画はここで要件書の既定値から作り直した。
+// 統計は figure-stats.js（自作の統計アプリの数学コアを流用）。描画はここで要件書の既定値から作り直した。
 'use strict';
 
 /* ---------- 既定値（付録B） ---------- */
@@ -14,7 +14,7 @@ const FIG_DEF={
   errType:'SD',capRatio:0.5,   // キャップ幅＝棒幅の 0.5
   barGap:{adj:0.5,group:1.0,first:0.5,last:0.5},
   boxWidth:0.65,violinWidth:0.85,
-  bracketShape:'long',pThr:0.05,pStyle:'GP',
+  bracketShape:'long',pThr:0.05,pStyle:'star',
   barDots:false,legendPos:'right',frame:'L',grid:'none',tickDir:'out',ylog:false,xRot:0,barEdge:'series',fontFamily:'arial',refLine:'',errDir:'auto',fillAlpha:1,capW:0.5,axisColor:'#000000',
 };
 const FIG_FONTS={arial:"Arial, Helvetica, 'Liberation Sans', sans-serif",helvetica:"Helvetica, Arial, 'Liberation Sans', sans-serif",times:"'Times New Roman', Times, serif",noto:"'IBM Plex Sans JP', 'Hiragino Sans', sans-serif"};
@@ -107,7 +107,7 @@ function figSymbol(x,y,r,shape,fill,stroke){if(!(r>0))return '';
 const figEsc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function figHalf(hex){return hex+'80';} // 50% 透明
 
-// 散布ドットの Standard 配置: 値を幅ごとのビンに入れ、同じビンの点を中心から左右に並べる（Prism の見た目に近い決定的な配置）
+// 散布ドットの Standard 配置: 値を幅ごとのビンに入れ、同じビンの点を中心から左右に並べる（乱数を使わない決定的な配置）
 function figArrangeDots(vals,yOf,r,maxW){
   const items=vals.map((v,i)=>({v,y:yOf(v),i})).sort((a,b)=>a.y-b.y);const out=new Array(vals.length);const binH=r*2.1;let bin=[],binY=null;
   const flush=()=>{const n=bin.length;const step=Math.min(r*2.2,maxW/Math.max(1,n-1)||r*2.2);bin.forEach((it,k)=>{const off=(k-(n-1)/2)*step;out[it.i]={dx:Math.max(-maxW/2,Math.min(maxW/2,off)),y:it.y};});bin=[];};
@@ -267,8 +267,9 @@ function figNoteDragEnd(fb,k,dx,dy){if(fb.id==='figPreview'){const st=figState;c
 function figSpecFromState(st){return Object.assign({},st.opts.x||{},{title:st.title||'',kind:st.kind,type:st.type,err:st.opts.errType,compare:st.cmp||'none',ctrl:st.ctrl||0,ytitle:st.opts.yTitle||'',xtitle:st.opts.xTitle||'',ymin:st.opts.ymin||'',ymax:st.opts.ymax||'',data:st.text,style:figStyleOf(st.opts)});}
 const FIG_STYLE_KEYS=['notes','fontPt','bold','axisPt','tickLen','wIn','hIn','symPt','linePt','barFill','bracketShape','pStyle','showNs','legend','scheme','series','barDots','legendPos','frame','grid','tickDir','ylog','xRot','barEdge','fontFamily','refLine','errDir','fillAlpha','capW','axisColor'];
 function figStyleOf(o){const st={};for(const k of FIG_STYLE_KEYS)if(o[k]!==undefined&&o[k]!==''&&o[k]!==null)st[k]=o[k];return st;}
-function figStateFromSpec(j){j=j||{};const opts=Object.assign({errType:j.err||'SD',pThr:0.05,pStyle:'GP',showNs:false,yTitle:j.ytitle||'',xTitle:j.xtitle||'',ymin:j.ymin==null?'':j.ymin,ymax:j.ymax==null?'':j.ymax,barFill:'solid',bracketShape:'long'},j.style||{});
+function figStateFromSpec(j){j=j||{};const opts=Object.assign({errType:j.err||'SD',pThr:0.05,pStyle:'star',showNs:false,yTitle:j.ytitle||'',xTitle:j.xtitle||'',ymin:j.ymin==null?'':j.ymin,ymax:j.ymax==null?'':j.ymax,barFill:'solid',bracketShape:'long'},j.style||{});
   const known=new Set(['title','kind','type','err','compare','ctrl','ytitle','xtitle','ymin','ymax','data','style']);const x={};for(const k of Object.keys(j))if(!known.has(k))x[k]=j[k];if(Object.keys(x).length)opts.x=x; // 図種固有の追加項目（GSEA の nes/pval/fdr など）は opts.x に保ち、書き戻しで元に戻す
+  if(FIG_SCHEME_OLD[opts.scheme])opts.scheme=FIG_SCHEME_OLD[opts.scheme];if(opts.pStyle&&opts.pStyle!=='num')opts.pStyle='star';
   if(opts.scheme&&FIG_SCHEMES[opts.scheme])opts.colors=FIG_SCHEMES[opts.scheme];
   return {text:String(j.data||'').trim(),kind:j.kind||'',type:j.type||'',opts,title:j.title||'',cmp:j.compare||'none',ctrl:+(j.ctrl||0)};}
 function figRenderSpec(j){if(typeof figRenderLayout==='function'&&figIsLayout(j))return figRenderLayout(j); // figure-layout.js
@@ -276,7 +277,8 @@ function figRenderSpec(j){if(typeof figRenderLayout==='function'&&figIsLayout(j)
   if(typeof figRenderSchematic==='function'&&figIsSchematic(j))return figRenderSchematic(j); // figure-schematic.js
   const st=figStateFromSpec(j);const parsed=figParseTable(st.text);if(!parsed)return null;const kind=st.kind||figAutoKind(parsed);const data=figBuildData(parsed,kind);if(!data)return null;const types=FIG_TYPES[kind]||FIG_TYPES.column;const type=types.some(t=>t[0]===st.type)?st.type:types[0][0];
   const compare=st.cmp!=='none'?(kind==='column'?figCompare(data.groups,st.cmp,st.ctrl):kind==='grouped'?figCompareGrouped(data,st.cmp,st.ctrl):null):null;return figRender({data,type,opts:st.opts,title:st.title,compare,cmp:st.cmp,ctrl:st.ctrl,legend:st.opts.legend||'right'});}
-const FIG_SCHEMES={prism:['#0000FF','#FF0000','#00C000','#A000E0','#FF8000','#000000','#906020','#000080','#600050'],colorblind:['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#F0E442','#000000'],gray:['#000000','#707070','#B0B0B0','#404040','#909090','#D0D0D0'],nature:['#E64B35','#4DBBD5','#00A087','#3C5488','#F39B7F','#8491B4','#91D1C2','#DC0000']};
+const FIG_SCHEME_OLD={prism:'classic'}; // 旧名の読み替え（保存済みの図の指定用。他社製品名はここ以外に書かない）
+const FIG_SCHEMES={classic:['#0000FF','#FF0000','#00C000','#A000E0','#FF8000','#000000','#906020','#000080','#600050'],colorblind:['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#F0E442','#000000'],gray:['#000000','#707070','#B0B0B0','#404040','#909090','#D0D0D0'],nature:['#E64B35','#4DBBD5','#00A087','#3C5488','#F39B7F','#8491B4','#91D1C2','#DC0000']};
 // AI に渡す書き方の説明（buildContext から参照）
 let FIG_PROMPT=`## 図（Figure）の作り方
 利用者に図・グラフを求められたら、説明のあとに次の形の \`\`\`figure ブロックを1つ出してください（アプリがその場で描画します）。データは利用者が示した数値を使い、無ければ仮の数値だと明記します。
@@ -284,12 +286,12 @@ let FIG_PROMPT=`## 図（Figure）の作り方
 {"title":"任意","kind":"column|grouped|xy","type":"scatter|bar|box|violin|grouped-bar|grouped-scatter|xy-line|xy-points","err":"SD|SEM|CI","compare":"none|all|dunnett","ytitle":"Y 軸の題","xtitle":"X 軸の題","data":"A\\tB\\tC\\n1\\t2\\t3\\n..."}
 \`\`\`
 data はタブ区切り。column は列＝群・行＝反復、grouped は1列目＝カテゴリで同名の列が反復、xy は1列目＝X。compare は column と grouped で使える（all=全比較: 2 群なら Welch t、3 群以上は ANOVA+Tukey。dunnett=対照群と比較。grouped はカテゴリごとに群を比較してブラケットを付ける）。
-"style" で指定できる主な項目（利用者が「点も重ねて」「幅を広く」などと言ったら使う。編集画面の設定と同じもの）: wIn/hIn（プロット領域の幅・高さ in、既定 3×2）, fontPt（文字 pt、既定 12）, barDots:true（棒・箱・バイオリンに個々の点を重ねる）, legendPos:"right|bottom|none", scheme:"prism|colorblind|gray|nature", series:[{color,symbol,symPt,fill:"open"}], ylog:true, refLine（基準線の Y）, xRot（X ラベルの角度）, grid:"major", frame:"box", stackLabels:"percent|value"（積み上げ棒の区分の文字）, errDir, capW。
+"style" で指定できる主な項目（利用者が「点も重ねて」「幅を広く」などと言ったら使う。編集画面の設定と同じもの）: wIn/hIn（プロット領域の幅・高さ in、既定 3×2）, fontPt（文字 pt、既定 12）, barDots:true（棒・箱・バイオリンに個々の点を重ねる）, legendPos:"right|bottom|none", scheme:"classic|colorblind|gray|nature", series:[{color,symbol,symPt,fill:"open"}], ylog:true, refLine（基準線の Y）, xRot（X ラベルの角度）, grid:"major", frame:"box", stackLabels:"percent|value"（積み上げ棒の区分の文字）, errDir, capW。
 図種固有の項目は「図種の設定」と同じキー: survCI/survMedian/survRisk（生存）, rocFill/rocCutoff, forestLog:"true|false"/forestNull（フォレスト: OR/HR/RR なら対数軸）, pcaEllipse:true（PCA の 95% 楕円）, hmCluster:"rows|cols|both"/hmZ（ヒートマップ）, regBand:"ci|pi", doseBand/doseCI（用量反応）, spColor:"subject"（SuperPlot を個体ごとに色分け）, pieLabels:"percent|value|both", volLabels, mhLabels。
 注意: できないと決めつけない。幅・高さ・文字サイズ・点の重ね描き・楕円・HR・at-risk 表・対数軸はすべて指定できる。ROC の AUC と 95% CI、KM の log-rank P と HR、用量反応の EC50/IC50・Hill・R²、酵素反応の Vmax/Km、回帰の r/R²/P は自動で図に書かれる（「要確認」と言わず、書かれると説明する）。xy で記号を消すには style.symPt を 0。bland-altman の差は 1 列目 − 2 列目（ytitle もその向きで書く）。列名は意味が伝わるもの（例: OR, Lower, Upper, P）にする。`;
 
 
-/* ---------- ツールメニュー（Prism のリボンにならった編集ボタン） ---------- */
+/* ---------- ツールメニュー（リボン型の編集ボタン） ---------- */
 // 各項目: {k:opts のキー, t:種類 select|num|check|color|text|btn, l:ラベル, o:選択肢, min,max,step, act:ボタンの動作}
 const FIG_TOOLS=[
  {id:'graph',l:'グラフ',items:[
@@ -327,14 +329,14 @@ const FIG_TOOLS=[
    {k:'xTitle',t:'text',l:'X 軸の題'},
  ]},
  {id:'color',l:'配色',items:[
-   {k:'scheme',t:'select',l:'配色セット',o:[['prism','既定（青・赤・緑…）'],['colorblind','色覚多様性に配慮'],['nature','誌面風'],['gray','グレースケール']]},
+   {k:'scheme',t:'select',l:'配色セット',o:[['classic','既定（青・赤・緑…）'],['colorblind','色覚多様性に配慮'],['nature','誌面風'],['gray','グレースケール']]},
    {k:'__seriesColors',t:'series'},
  ]},
  {id:'annot',l:'注釈',items:[
    {k:'__noteHint',t:'hint',l:'自由な文字（例: n = 20、p = 0.03、≥ 6.8）をグラフの好きな場所に書き込めます。ボタンを押してからプレビューの書きたい場所をクリック → 文字を入力。書いた文字はドラッグで動かせます。'},{k:'__noteAdd',t:'btn',l:'＋ グラフに文字を書き込む'},{k:'__noteSize',t:'select',l:'書き込む文字の大きさ',o:[['0.7','小'],['0.85','ふつう'],['1','本文と同じ'],['1.2','大']]},{k:'__noteColor',t:'color',l:'書き込む文字の色'},{k:'__noteDel',t:'btn',l:'最後に書き込んだ文字を消す'},
    {k:'__cmp',t:'select',l:'有意差',o:[['none','なし'],['all','全比較'],['dunnett','対照群と比較']]},
    {k:'bracketShape',t:'select',l:'ブラケットの形',o:[['long','長脚'],['short','短脚']]},
-   {k:'pStyle',t:'select',l:'P の表示',o:[['GP','アスタリスク'],['num','数値']]},
+   {k:'pStyle',t:'select',l:'P の表示',o:[['star','アスタリスク'],['num','数値']]},
    {k:'showNs',t:'check',l:'ns も表示'},
    {k:'legendPos',t:'select',l:'凡例',o:[['right','右'],['bottom','下'],['none','なし']]},
  ]},
@@ -399,7 +401,7 @@ const FIG_SYMBOLS=[['circle','● 丸'],['square','■ 四角'],['triangle','▲
 let figState=null;
 function figOpen(init){
   const $=s=>document.querySelector(s);
-  figState=Object.assign({text:'',kind:'',type:'',opts:{errType:'SD',pThr:0.05,pStyle:'GP',showNs:false,yTitle:'',xTitle:'',ymin:'',ymax:'',barFill:'solid',bracketShape:'long',legend:'right',scheme:'prism'},title:'',cmp:'none',ctrl:0,sel:null,src:null},init||{});
+  figState=Object.assign({text:'',kind:'',type:'',opts:{errType:'SD',pThr:0.05,pStyle:'star',showNs:false,yTitle:'',xTitle:'',ymin:'',ymax:'',barFill:'solid',bracketShape:'long',legend:'right',scheme:'classic'},title:'',cmp:'none',ctrl:0,sel:null,src:null},init||{});
   if(!figState.text)figState.text='Control\tTreated\n12.1\t15.4\n11.8\t16.0\n12.6\t14.9\n13.0\t15.8\n12.3\t16.3';
   $('#figData').value=figState.text;$('#figTitle').value=figState.title||'';$('#figKind').value=figState.kind||'column';$('#figCmp').value=figState.cmp||'none';
   document.querySelectorAll('#figDlg [data-fopt]').forEach(el=>{const v=figState.opts[el.dataset.fopt];if(el.type==='checkbox')el.checked=!!v;else el.value=v==null?'':v;});
@@ -433,8 +435,8 @@ function figStatsHTML(data,compare,note,st){
   if(typeof figStatsMore==='function'){const h=figStatsMore(data,st);if(h!=null)return h;}
   let stat='';
   if(data){if(data.kind==='column'){stat='<table><tr><th>群</th><th>n</th><th>平均</th><th>SD</th><th>SEM</th><th>中央値</th></tr>'+data.groups.map(g=>{const v=g.values;const e=figErr(v,'SD');return `<tr><td>${figEsc(g.name)}</td><td>${v.length}</td><td>${v.length?e.m.toFixed(3):''}</td><td>${v.length>1?e.e.toFixed(3):''}</td><td>${v.length>1?(e.e/Math.sqrt(v.length)).toFixed(3):''}</td><td>${v.length?median(v).toFixed(3):''}</td></tr>`;}).join('')+'</table>';
-      if(compare&&compare.pairs){stat+=`<div class="hint">${figEsc(compare.test)}${compare.anova&&isFinite(compare.anova.p)?` ／ 分散分析 P = ${compare.anova.p<0.0001?'<0.0001':compare.anova.p.toFixed(4)}`:''}</div>`;if(compare.pairs.length)stat+='<table><tr><th>比較</th><th>P 値</th><th>要約</th></tr>'+compare.pairs.map(p=>`<tr><td>${figEsc(data.groups[p.a].name)} vs ${figEsc(data.groups[p.b].name)}</td><td>${p.p<0.0001?'<0.0001':p.p.toFixed(4)}</td><td>${figStars(p.p,'GP')}</td></tr>`).join('')+'</table>';if(note)stat+=`<div class="hint">${figEsc(note)}</div>`;}}
-    else if(data.kind==='grouped'){stat=`<div class="hint">カテゴリ ${data.cats.length} × 群 ${data.groups.length}（同名の列を反復として平均±${figEsc(st.opts.errType)}）</div>`;if(compare&&compare.pairs){stat+=`<div class="hint">${figEsc(compare.test)}</div><table><tr><th>カテゴリ</th><th>比較</th><th>P 値</th><th>要約</th></tr>`+compare.pairs.map(p=>`<tr><td>${figEsc(data.cats[p.ci])}</td><td>${figEsc(data.groups[p.a].name)} vs ${figEsc(data.groups[p.b].name)}</td><td>${p.p<0.0001?'<0.0001':p.p.toFixed(4)}</td><td>${figStars(p.p,'GP')}</td></tr>`).join('')+'</table>';}}
+      if(compare&&compare.pairs){stat+=`<div class="hint">${figEsc(compare.test)}${compare.anova&&isFinite(compare.anova.p)?` ／ 分散分析 P = ${compare.anova.p<0.0001?'<0.0001':compare.anova.p.toFixed(4)}`:''}</div>`;if(compare.pairs.length)stat+='<table><tr><th>比較</th><th>P 値</th><th>要約</th></tr>'+compare.pairs.map(p=>`<tr><td>${figEsc(data.groups[p.a].name)} vs ${figEsc(data.groups[p.b].name)}</td><td>${p.p<0.0001?'<0.0001':p.p.toFixed(4)}</td><td>${figStars(p.p,'star')}</td></tr>`).join('')+'</table>';if(note)stat+=`<div class="hint">${figEsc(note)}</div>`;}}
+    else if(data.kind==='grouped'){stat=`<div class="hint">カテゴリ ${data.cats.length} × 群 ${data.groups.length}（同名の列を反復として平均±${figEsc(st.opts.errType)}）</div>`;if(compare&&compare.pairs){stat+=`<div class="hint">${figEsc(compare.test)}</div><table><tr><th>カテゴリ</th><th>比較</th><th>P 値</th><th>要約</th></tr>`+compare.pairs.map(p=>`<tr><td>${figEsc(data.cats[p.ci])}</td><td>${figEsc(data.groups[p.a].name)} vs ${figEsc(data.groups[p.b].name)}</td><td>${p.p<0.0001?'<0.0001':p.p.toFixed(4)}</td><td>${figStars(p.p,'star')}</td></tr>`).join('')+'</table>';}}
     else{stat=`<div class="hint">X: ${figEsc(data.xname)} ／ 系列 ${data.groups.length}（同名の列を反復として平均±${figEsc(st.opts.errType)}）</div>`;}}
   return stat;
 }
@@ -456,9 +458,9 @@ function figInspector(){
   else if(sel==='axes'){title='軸と目盛';h+=row('軸の太さ (pt)',num('axisPt',o.axisPt||1,0.25,0.25,4))+row('目盛の長さ (数字の高さ×)',num('tickLen',o.tickLen||0.7,0.1,0,3))+row('文字の大きさ (pt)',num('fontPt',o.fontPt||12,1,6,24))+row('太字',selx('bold',o.bold===false?'0':'1',[['1','太字'],['0','標準']]))+row('Y の最小',`<input type="text" data-ik="ymin" value="${figEsc(o.ymin||'')}" placeholder="自動">`)+row('Y の最大',`<input type="text" data-ik="ymax" value="${figEsc(o.ymax||'')}" placeholder="自動">`);}
   else if(sel==='ytitle'||sel==='xtitle'){title=sel==='ytitle'?'Y 軸の題':'X 軸の題';h+=row('文字',`<input type="text" data-ik="${sel==='ytitle'?'yTitle':'xTitle'}" value="${figEsc(sel==='ytitle'?o.yTitle:o.xTitle)}">`);}
   else if(sel==='title'){title='題名';h+=row('文字',`<input type="text" data-ik="title" value="${figEsc(st.title)}">`);}
-  else if(sel==='brackets'){title='有意差のブラケット';h+=row('形',selx('bracketShape',o.bracketShape||'long',[['long','長脚'],['short','短脚']]))+row('P の表示',selx('pStyle',o.pStyle||'GP',[['GP','アスタリスク'],['num','数値']]))+row('ns も表示',selx('showNs',o.showNs?'1':'0',[['0','表示しない'],['1','表示する']]));}
+  else if(sel==='brackets'){title='有意差のブラケット';h+=row('形',selx('bracketShape',o.bracketShape||'long',[['long','長脚'],['short','短脚']]))+row('P の表示',selx('pStyle',o.pStyle||'star',[['star','アスタリスク'],['num','数値']]))+row('ns も表示',selx('showNs',o.showNs?'1':'0',[['0','表示しない'],['1','表示する']]));}
   else if(sel==='legend'){title='凡例';h+=row('表示',selx('legend',o.legend||'right',[['right','右に表示'],['none','表示しない']]));const gs=(st.data&&st.data.groups)||[];if(gs.length)h+='<div class="hint">凡例の文字（系列の表示名）。空なら列名のまま</div>'+gs.map((g,i)=>row(figEsc(g.name),`<input type="text" data-ik="sname.${i}" value="${figEsc(figSeriesOpt(o,i).name||'')}" placeholder="${figEsc(g.name)}">`)).join('');}
-  else{h+=row('配色',selx('scheme',o.scheme||'prism',[['prism','既定（青・赤・緑…）'],['colorblind','色覚多様性に配慮'],['nature','誌面風（赤・水色・緑…）'],['gray','グレースケール']]))+row('文字の大きさ (pt)',num('fontPt',o.fontPt||12,1,6,24))+row('記号の大きさ (pt)',num('symPt',o.symPt||5.5,0.5,2,20))+row('軸の太さ (pt)',num('axisPt',o.axisPt||1,0.25,0.25,4))+row('幅 (in)',num('wIn',o.wIn||3,0.25,1,8))+row('高さ (in)',num('hIn',o.hIn||2,0.25,1,8))+row('棒の塗り',selx('barFill',o.barFill||'solid',[['solid','塗り'],['open','白抜き']]))+`<div class="hint">プレビューの点・棒・軸・題名・ブラケット・凡例をクリックすると、その要素の設定に切り替わります。</div>`;}
+  else{h+=row('配色',selx('scheme',o.scheme||'classic',[['classic','既定（青・赤・緑…）'],['colorblind','色覚多様性に配慮'],['nature','誌面風（赤・水色・緑…）'],['gray','グレースケール']]))+row('文字の大きさ (pt)',num('fontPt',o.fontPt||12,1,6,24))+row('記号の大きさ (pt)',num('symPt',o.symPt||5.5,0.5,2,20))+row('軸の太さ (pt)',num('axisPt',o.axisPt||1,0.25,0.25,4))+row('幅 (in)',num('wIn',o.wIn||3,0.25,1,8))+row('高さ (in)',num('hIn',o.hIn||2,0.25,1,8))+row('棒の塗り',selx('barFill',o.barFill||'solid',[['solid','塗り'],['open','白抜き']]))+`<div class="hint">プレビューの点・棒・軸・題名・ブラケット・凡例をクリックすると、その要素の設定に切り替わります。</div>`;}
   box.innerHTML=`<h4>${title}${sel?' <button class="small" data-iact="unsel">全体の設定へ</button>':''}</h4>${h}`;
   box.querySelectorAll('[data-ik]').forEach(el=>{el.addEventListener(el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.ik;let v=el.value;
     if(k.startsWith('sname.')){const i=+k.slice(6);o.series=o.series||{};o.series[i]=o.series[i]||{};if(v)o.series[i].name=v;else delete o.series[i].name;}

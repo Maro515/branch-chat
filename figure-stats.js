@@ -1,4 +1,4 @@
-// BranCHAT Figure: 数学コア（PrismLab から流用。t/F/χ²/Studentized range の分布、記述統計、検定、Tukey/Dunnett、KM など。PrismLab 側で scipy と照合済み）
+// BranCHAT Figure: 数学コア（自作の統計アプリから流用。t/F/χ²/Studentized range の分布、記述統計、検定、Tukey/Dunnett、KM など。流用元で scipy と照合済み）
 'use strict';
 /* ---------------- 数学コア：特殊関数 ---------------- */
 const LANCZOS=[676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
@@ -657,7 +657,7 @@ function coxPH(times,events,X,names){ // Cox比例ハザード（Efron法）
 }
 
 /* =====================================================================
-   PrismLab 拡張統計エンジン
+   拡張統計エンジン
    ===================================================================== */
 /* ---- 高速な正規分布関数（多重比較の数値積分用） ---- */
 const ERFC_COF=[-1.3026537197817094,6.4196979235649026e-1,1.9476473204185836e-2,-9.561514786808631e-3,
@@ -750,7 +750,7 @@ function bhFDR(ps){ // Benjamini-Hochberg
   idx.forEach(([p,i],r)=>{const rank=m-r;const adj=Math.min(prev,p*m/rank);out[i]=adj;prev=adj;});
   return out;
 }
-/* ---- 記述統計（Prism仕様のフルセット） ---- */
+/* ---- 記述統計（フルセット） ---- */
 function describeFull(v,ci=0.95){
   const n=v.length;
   if(n===0)return null;
