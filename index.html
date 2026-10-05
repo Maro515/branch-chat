@@ -361,11 +361,11 @@ header{z-index:5}
 /* ===== ＋メニュー（Web検索 / MCP / 画像） ===== */
 .plusWrap{position:relative;align-self:flex-end}
 #plusBtn{width:44px;height:44px;border-radius:12px;font-size:22px;line-height:1;padding:0;display:inline-flex;align-items:center;justify-content:center}
-#plusPop{position:absolute;left:0;bottom:calc(100% + 8px);width:min(360px,calc(100vw - 32px));background:#fff;border:1.5px solid var(--indigo);border-radius:12px;box-shadow:0 8px 30px rgba(31,74,43,.28);padding:8px;z-index:30;display:none;color:var(--indigo);max-height:70vh;overflow:auto}
+#plusPop{position:absolute;left:0;bottom:calc(100% + 8px);width:min(400px,calc(100vw - 32px));background:#fff;border:1.5px solid var(--indigo);border-radius:12px;box-shadow:0 8px 30px rgba(31,74,43,.28);padding:8px;z-index:30;display:none;color:var(--indigo);max-height:70vh;overflow:auto}
 #plusPop.on{display:block}
 #plusPop .prow{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:8px 10px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--indigo);font-size:13px}
 #plusPop .prow:hover{background:#eef6e9;border-color:var(--line);box-shadow:none}
-#plusPop .prow .st{margin-left:auto;font-size:11px;color:var(--indigo2)}
+#plusPop .prow > .ui:first-child{white-space:nowrap;flex-shrink:0}#plusPop .prow .st{margin-left:auto;font-size:11px;color:var(--indigo2);text-align:right}
 #plusPop .prow.on .st{color:var(--c1);font-weight:700}
 #plusPop #mcpPop{position:static;display:none;width:auto;box-shadow:none;border:0;border-top:1px dashed var(--line);border-radius:0;padding:6px 4px 0;margin-top:4px;max-height:40vh}
 #plusPop #mcpPop.on{display:block}
@@ -648,7 +648,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div id="imgStrip"></div>
       <div class="row">
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
-          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure を作る</span><span class="st ui">統計グラフ・作図</span></button><button id="figImgBtn" class="prow"><span class="ui">🔬 画像パネル作成</span><span class="st ui">顕微鏡・IHC・ブロットの画像を並べる</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
+          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure を作る</span><span class="st ui">統計グラフ・作図</span></button><button id="figImgBtn" class="prow"><span class="ui">🔬 画像パネル作成</span><span class="st ui">顕微鏡・IHC・ブロットを並べる</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
         <textarea id="input" rows="1" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）"></textarea>
         <div class="sendCol"><div id="modelPop"></div><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
