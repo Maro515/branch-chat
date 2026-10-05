@@ -133,7 +133,7 @@ function figImageCellClick(fb,cellEl,ev){if(!figImgTool||figImgTool.fb!==fb)retu
 function figImgDragEnd(fb,ai,dx,dy){const nid=fb.dataset.fignode,idx=+fb.dataset.figidx;const n=N(nid);if(!n)return;const b=figFindBlocks(n.content)[idx];if(!b)return;let j;try{j=JSON.parse(b.json);}catch(e){return;}if(!figIsImage(j))return;const a=(j.annots||[])[ai];if(!a)return;
   const r=figRenderSpec(j);const c=r&&r.cells&&r.cells[a.cell||0];if(!c)return;const fx=dx/c.w,fy=dy/c.h;const cl=v=>+Math.max(0,Math.min(1,v)).toFixed(3);a.x=cl((+a.x||0)+fx);a.y=cl((+a.y||0)+fy);if(a.t==='line'){a.x2=cl((+a.x2||0)+fx);a.y2=cl((+a.y2||0)+fy);}
   n.content=n.content.slice(0,b.start)+'```figure\n'+JSON.stringify(j)+'\n```'+n.content.slice(b.end);persist();renderAll();}
-// ＋メニュー「画像パネルを作る」: 画像を保存し、入力欄に ```figure を入れる（AI に見せるため縮小版も添付）
+// ＋メニュー「画像パネル作成」: 画像を保存し、入力欄に ```figure を入れる（AI に見せるため縮小版も添付）
 async function figImportImages(files){const list=[...files].filter(f=>/^image\/(png|jpeg|jpg|webp|gif|bmp|tiff?)$/i.test(f.type)||/\.tiff?$/i.test(f.name)).slice(0,12);if(!list.length){toast('画像ファイルを選んでください');return;}const imgs=[];for(const f of list){try{imgs.push(...await figImgStoreAny(f));}catch(e){toast(f.name+': '+e.message);}}if(!imgs.length)return;
   const spec={kind:'image',type:'grid',cols:Math.min(imgs.length,3),images:imgs.map(m=>({img:m.id,label:m.name})),scale:{umPerPx:0,len:20,unit:'µm',labelOn:'first'}};persist();
   const t=document.querySelector('#input');t.value=(t.value?t.value+'\n':'')+'```figure\n'+JSON.stringify(spec)+'\n```\n';if(typeof fitInput==='function')fitInput();t.focus();

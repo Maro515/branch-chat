@@ -648,7 +648,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div id="imgStrip"></div>
       <div class="row">
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
-          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure を作る</span><span class="st ui">統計グラフ・作図</span></button><button id="figImgBtn" class="prow"><span class="ui">🔬 画像パネルを作る</span><span class="st ui">顕微鏡・IHC・ブロットの画像を並べる</span></button><button id="tblBtn" class="prow"><span class="ui">📂 表ファイルを渡す</span><span class="st ui">CSV / Excel を表として入力欄に（図の依頼用）</span></button><input type="file" id="tblFile" accept=".csv,.tsv,.xlsx" multiple hidden><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
+          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure を作る</span><span class="st ui">統計グラフ・作図</span></button><button id="figImgBtn" class="prow"><span class="ui">🔬 画像パネル作成</span><span class="st ui">顕微鏡・IHC・ブロットの画像を並べる</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
         <textarea id="input" rows="1" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）"></textarea>
         <div class="sendCol"><div id="modelPop"></div><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
@@ -2208,7 +2208,7 @@ document.querySelectorAll('#noteWin .nwGrip').forEach(g=>{let st=null;
   g.addEventListener('dblclick',()=>{delete settings.noteW;delete settings.noteH;saveSettings();applyNoteSize();});
 });
 $('#figBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');figOpen({});};
-$('#tblBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');$('#tblFile').click();};$('#tblFile').onchange=async()=>{await insertTableFiles([...$('#tblFile').files]);$('#tblFile').value='';};
+
 $('#figImgBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');$('#figImgFile').click();};$('#figImgFile').onchange=async()=>{await figImgOpenWithFiles($('#figImgFile').files);$('#figImgFile').value='';};
 $('#nwClose').onclick=()=>{noteCur=null;$('#noteWin').hidden=true;if(dropEmptyNotes()){persist();markNotes();}};
 $('#nwDel').onclick=async()=>{const n=noteCur&&notesOf()[noteCur];if(!n)return;if(noteBusy){toast('生成中は消せません');return;}if(!(await askConfirm(`「${excerpt(n.text,20)}」についてのこのチャット（${n.items.filter(i=>i.role==='user').length}件の質問）を消しますか？\n同じ言葉のほかのチャットは残ります。`,'消す')))return;delete notesOf()[n.id];noteCur=null;$('#noteWin').hidden=true;persist();renderAll();};
