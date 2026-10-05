@@ -477,7 +477,7 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 .tpl{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;background:rgba(255,255,255,.04);text-align:left;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;color:var(--ink);display:flex;flex-direction:column;gap:4px;min-height:110px}
 .tpl:hover{border-color:var(--glow);background:rgba(181,232,107,.08)}
 .tpl b{font-size:14px}
-.tpl .d{font-size:11.5px;color:var(--muted);line-height:1.5}
+.tpl .d{font-size:11.5px;color:var(--muted);line-height:1.5}.tpl{position:relative}.tpl.user{border-style:dashed}.tpl .tplEd{position:absolute;right:8px;top:8px;font-size:13px;padding:2px 6px;border-radius:6px;color:var(--muted)}.tpl .tplEd:hover{background:rgba(181,232,107,.18);color:var(--ink)}.tplSep{grid-column:1/-1;font-size:11.5px;color:var(--muted);margin-top:4px}#tplEdit{width:min(640px,94vw)}#tplEdit label{display:block;font-size:11.5px;color:var(--muted);margin:8px 0 3px}#tplEdit input,#tplEdit textarea{width:100%;box-sizing:border-box}
 .tpl .br{font-size:10.5px;color:var(--glow);margin-top:auto}
 .tpl.blank{border-style:dashed}
 /* ===== Figure 作成 ===== */
@@ -840,7 +840,18 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 <dialog id="tplDlg">
   <h2>新しい会話</h2>
   <div class="tplList" id="tplList"></div>
-  <div class="btns"><button id="tplCancel">キャンセル</button></div>
+  <div class="btns"><button id="tplNew" class="small" style="margin-right:auto">＋ 自分のテンプレートを作る</button><button id="tplCancel">キャンセル</button></div>
+</dialog>
+<dialog id="tplEdit">
+  <h2 id="tplEdTitle">自分のテンプレートを作る</h2>
+  <div class="hint">本線の役割と分岐（枝）の名前・役割を決めると、「新しい会話」の一覧に並びます。役割の文は AI への指示としてそのまま渡ります。</div>
+  <label>名前</label><input id="tplEdName" type="text" placeholder="例: 症例報告">
+  <label>説明（一覧に出る短い文）</label><input id="tplEdDesc" type="text" placeholder="例: 本線で症例の要点を、分岐で各部を詰める">
+  <label>本線の役割（空なら自動で作ります）</label><textarea id="tplEdMain" rows="3" placeholder="この会話は「症例報告」のテンプレートです。本線では投稿先・字数・症例の要点を決め、各分岐の整合を取ります。"></textarea>
+  <label>分岐（1 行に 1 つ。「名前: 役割」の形。役割は省略可）</label><textarea id="tplEdBranches" rows="6" placeholder="症例提示: 経過を時系列で、検査値は表に&#10;考察: 既報との比較と本症例の教訓&#10;文献: 引用する文献の選定と要約"></textarea>
+  <label>最初の未解決項目（1 行に 1 つ。省略可）</label><textarea id="tplEdAgenda" rows="2" placeholder="投稿先と字数を決める&#10;症例の教訓を 1 文で決める"></textarea>
+  <label>本線の最初の説明文（Markdown。空なら自動で作ります）</label><textarea id="tplEdSeed" rows="3"></textarea>
+  <div class="btns"><button id="tplEdFromConv" class="small" style="margin-right:auto" data-tip="今開いている会話の枝の名前と役割、未解決項目をこの欄に写す">今の会話の枝から作る</button><button id="tplEdDel" class="small">削除</button><button id="tplEdCancel">キャンセル</button><button id="tplEdSave" class="primary">保存</button></div>
 </dialog>
 <dialog id="qDlg">
   <h2 id="qTitle">確認</h2>
@@ -1870,14 +1881,14 @@ async function exportAllConvs(){
   const alive=new Set();for(const c of list)for(const b of Object.keys(c.branches))alive.add(c.id+'/'+b);
   const lk={};for(const [k,v] of Object.entries(links)){const [a,b]=k.split('|');if(alive.has(a)&&alive.has(b))lk[k]=v;}
   const imgs=typeof figImgsExport==='function'?await figImgsExport(list):{}; // 画像パネルの画像（別端末でも開けるよう同梱）
-  await saveTextFile(`BranCHAT-backup_${bkStamp()}.json`,JSON.stringify({app:'BranCHAT',kind:'backup',format:1,exportedAt:Date.now(),active:conv.id,convs:cs,links:lk,imgs}));
+  await saveTextFile(`BranCHAT-backup_${bkStamp()}.json`,JSON.stringify({app:'BranCHAT',kind:'backup',format:1,exportedAt:Date.now(),active:conv.id,convs:cs,links:lk,imgs,templates:userTemplates}));
 }
 async function exportOneConv(){if(!conv.order.length){toast('今の会話はまだ空です');return;}await saveTextFile(`BranCHAT_${conv.title.replace(/[\\/:*?"<>|]/g,'_')}.json`,JSON.stringify(conv,null,1));}
 async function importBackupText(text){
   let j;try{j=JSON.parse(text);}catch(e){toast('読み込めませんでした（BranCHAT のファイルではありません）');return;}
   const okConv=c=>c&&typeof c==='object'&&c.nodes&&c.branches&&c.branches.main&&Array.isArray(c.order);
   let incoming=[],inLinks=null;
-  if(j&&j.kind==='backup'&&j.convs&&typeof j.convs==='object'){incoming=Object.values(j.convs).filter(okConv);inLinks=j.links&&typeof j.links==='object'?j.links:null;if(j.imgs&&typeof figImgsImport==='function')await figImgsImport(j.imgs);}
+  if(j&&j.kind==='backup'&&j.convs&&typeof j.convs==='object'){incoming=Object.values(j.convs).filter(okConv);inLinks=j.links&&typeof j.links==='object'?j.links:null;if(Array.isArray(j.templates)){for(const t of j.templates){if(t&&t.id&&t.name&&Array.isArray(t.branches)&&!userTemplates.some(x=>x.id===t.id))userTemplates.push(Object.assign({},t,{user:true}));}saveUserTemplates();}if(j.imgs&&typeof figImgsImport==='function')await figImgsImport(j.imgs);}
   else if(okConv(j)){if(!j.id)j.id=uid();incoming=[j];}
   if(!incoming.length){toast('読み込めませんでした（会話が入っていません）');return;}
   if(busy){toast('生成中は読み込めません。完了か停止のあとで行ってください');return;}
@@ -1954,11 +1965,11 @@ const TEMPLATES=[
   branches:[['Introduction','この枝では Introduction だけを扱う。背景→既知→未知→本研究の問い、の流れで、本線で決めた投稿先の形式と字数に合わせる。'],['Methods','この枝では Methods だけを扱う。再現できる粒度（対象、期間、定義、解析、倫理）で書き、本線で決めた研究の問いに沿う。'],['Results','この枝では Results だけを扱う。Figure/Table ごとに何を示すかを決め、解釈は入れず事実だけを書く。本線の構成に沿う。'],['Discussion','この枝では Discussion だけを扱う。主要な知見→既報との比較→限界→意義の順で、Results の内容と矛盾しないようにする。']],
   agenda:['投稿先と形式（字数・図表数・引用形式）を決める','研究の問いと主要な知見を1文で決める','Figure/Table の構成を決める'],
   seed:'# 論文テンプレート\n\nこの会話は論文を書くための骨組みです。\n\n- **本線**（この枝）: 全体の監視。投稿先に合わせて構成を考え、各分岐の結論を見渡し、投稿直前に全体を修正します。\n- **分岐**: Introduction / Methods / Results / Discussion。上のタブからどこからでも始められます。\n\n何から手を付けるか迷ったら、まずここ（本線）で「投稿先」「研究の問い」「主要な知見」を決めてから、分岐で内容を詰めてください。右の「進捗」に未解決項目が並びます。'},
- {id:'abstract',name:'学会抄録',desc:'字数制限の中で主張を通す。背景・方法・結果・結論を分けて詰める',
-  main:'この会話は「学会抄録」のテンプレートです。本線では学会の字数制限、主張、各部の字数配分、タイトル案を決め、分岐の結論を組み合わせて最終版を整えます。',
-  branches:[['背景・目的','背景と目的だけを扱う。2〜3文で問いに至る。'],['方法','方法だけを扱う。対象・期間・評価項目・解析を簡潔に。'],['結果','結果だけを扱う。数値を主語にして事実だけ。'],['結論','結論だけを扱う。結果から言える範囲で、言い過ぎない。'],['タイトル案','タイトル案を複数出し、字数と訴求で比較する。']],
-  agenda:['学会名・字数制限・締切を決める','抄録で一番伝えたい主張を1文で決める'],
-  seed:'# 学会抄録テンプレート\n\n本線では字数制限・主張・配分を決め、分岐（背景・目的 / 方法 / 結果 / 結論 / タイトル案）で各部を詰めます。最後に本線で全体を字数内に整えます。'},
+ {id:'grant',name:'研究費申請',desc:'科研費の研究計画調書を手本に。本線で種目・締切・核心の「問い」を決め、調書の各欄を分岐で詰める',
+  main:'この会話は「研究費申請」のテンプレートです（科研費の研究計画調書の構成を手本にしています）。本線（この枝）は全体を監視する場所です。研究種目（若手・基盤 C など）、審査区分、締切、ページ数と様式、研究課題名、核心をなす学術的「問い」を決め、各分岐（概要 / 背景と問い / 目的・独自性 / 方法と計画 / 遂行能力・環境 / 経費・法令）の内容が一つの筋で通っているか（問い→目的→方法→計画→経費）を見渡し、提出前に審査の観点（学術的意義・独自性・遂行可能性・計画と経費の妥当性）で全体を点検します。各欄の本文は分岐で詰めるよう促し、本線では方針・整合・点検に集中してください。実在の制度の数値（上限額・締切など）は最新の公募要領で利用者が確認するよう促してください。',
+  branches:[['概要','「研究目的、研究方法など」の冒頭の概要欄だけを扱う。背景→問い→目的→方法→期待される成果を、審査員が最初に読む数百字にまとめる。本線で決めた課題名と「問い」に沿う。'],['背景と問い','「本研究の学術的背景、研究課題の核心をなす学術的「問い」」の欄だけを扱う。既知→未知→なぜ今この問いか、の流れで、引用できる根拠を添える。'],['目的・独自性','「本研究の目的および学術的独自性と創造性」の欄だけを扱う。何を明らかにするか（目的）と、既存研究に対して何が新しいか（独自性）、どんな発展が見込めるか（創造性）を分けて書く。'],['方法と計画','「本研究で何をどのように、どこまで明らかにしようとするのか」の欄だけを扱う。研究項目ごとの方法、年次計画（初年度・次年度以降）、準備状況、うまくいかない場合の代替案を書く。本線の「問い」と目的に対応させる。'],['遂行能力・環境','「応募者の研究遂行能力及び研究環境」の欄だけを扱う。これまでの研究活動（主要な業績と本研究との関係）、使える設備・試料・共同研究者、所属機関の支援を具体的に書く。'],['経費・法令','「研究経費とその必要性」（設備備品費・消耗品費・旅費・人件費/謝金・その他を年度別に）と「これまでに受けた研究費とその成果」、「人権の保護及び法令等の遵守への対応」の欄を扱う。経費は方法と計画の項目に一対一で対応させる。']],
+  agenda:['研究種目・審査区分・締切・ページ数を決める','研究課題名と、核心をなす学術的「問い」を1文で決める','年次計画と経費の総額（年度別）を決める'],
+  seed:'# 研究費申請テンプレート（科研費の研究計画調書を手本に）\n\nこの会話は研究費の申請書を書くための骨組みです。\n\n- **本線**（この枝）: 全体の監視。研究種目・締切・様式を決め、課題名と核心をなす学術的「問い」を定め、各分岐の内容が一つの筋（問い→目的→方法→計画→経費）で通っているかを見渡し、提出前に審査の観点で点検します。\n- **分岐**: 概要 / 背景と問い / 目的・独自性 / 方法と計画 / 遂行能力・環境 / 経費・法令。調書の欄に対応しています。上のタブからどこからでも始められます。\n\n迷ったら、まずここ（本線）で「研究種目」「課題名」「問い」を決めてから、分岐で各欄を詰めてください。右の「進捗」に未解決項目が並びます。上限額や締切などの制度の数値は、最新の公募要領で確認してください。'},
  {id:'talk',name:'学会発表',desc:'持ち時間に合わせたストーリー設計と、スライドごとの作り込み、想定質問',
   main:'この会話は「学会発表」のテンプレートです。本線では持ち時間、聴衆、ストーリー（1枚で言うなら何か）、スライド構成を決め、分岐の内容を通しで確認します。',
   branches:[['イントロ','導入のスライドだけを扱う。聴衆が知っている前提から問いへ。'],['症例提示・方法','症例提示または方法のスライドだけを扱う。要点を絞る。'],['結果','結果のスライドだけを扱う。1枚1メッセージ。'],['考察・結語','考察と結語のスライドだけを扱う。持ち帰ってほしい1点を明確に。'],['想定質問','質疑で聞かれそうな質問と回答案を作る。']],
@@ -1975,6 +1986,37 @@ const TEMPLATES=[
   agenda:['目的と利用者を1文で決める','最初に作る最小の機能を決める'],
   seed:'# アプリ開発テンプレート\n\n本線で目的・要件・全体設計を決め、分岐（画面 / データ / API・外部連携 / テスト / 公開・運用）で詰めます。'},
 ];
+// 自分のテンプレート（bc.templates.v1）。組み込みと同じ形 {id:'u_…',name,desc,main,branches:[[名前,役割]…],agenda:[…],seed,user:true}
+const TPL_KEY='bc.templates.v1';
+let userTemplates=(()=>{try{const a=JSON.parse(lsGetSafe(TPL_KEY)||'[]');return Array.isArray(a)?a.filter(t=>t&&t.id&&t.name):[];}catch(e){return [];}})();
+function saveUserTemplates(){lsSetSafe(TPL_KEY,JSON.stringify(userTemplates));}
+function allTemplates(){return TEMPLATES.concat(userTemplates);}
+function tplSeedOf(t){return `# ${t.name}テンプレート\n\n${t.desc?t.desc+'\n\n':''}- **本線**（この枝）: 全体の監視と方針の決定。\n- **分岐**: ${t.branches.map(b=>b[0]).join(' / ')}。上のタブからどこからでも始められます。\n\n右の「進捗」に未解決項目が並びます。`;}
+// 編集画面（#tplEdit）。t が無ければ新規。fromConv を渡すと今の会話の枝から埋める
+function openTplEdit(t,fromConv){
+  const $=s=>document.querySelector(s);const isNew=!t;t=t||{id:'u_'+Date.now().toString(36),name:'',desc:'',main:'',branches:[],agenda:[],seed:'',user:true};
+  if(fromConv&&conv){t.name=t.name||(conv.title||'').slice(0,20);t.main=t.main||(B('main').instr||'');t.branches=Object.values(conv.branches).filter(b=>b.id!=='main').sort((a,b)=>(a.seq||0)-(b.seq||0)).map(b=>[b.name,b.instr||'']);t.agenda=((conv.agenda&&conv.agenda.items)||[]).filter(i=>i.status==='open').map(i=>i.text);}
+  $('#tplEdTitle').textContent=isNew?'自分のテンプレートを作る':'テンプレートを編集';$('#tplEdName').value=t.name;$('#tplEdDesc').value=t.desc||'';$('#tplEdMain').value=t.main||'';
+  $('#tplEdBranches').value=(t.branches||[]).map(b=>b[1]?`${b[0]}: ${b[1]}`:b[0]).join('\n');$('#tplEdAgenda').value=(t.agenda||[]).join('\n');$('#tplEdSeed').value=t.seed||'';
+  $('#tplEdDel').style.display=isNew?'none':'';$('#tplEdFromConv').style.display=conv&&Object.keys(conv.branches).length>1?'':'none';
+  $('#tplEdit').dataset.id=t.id;$('#tplEdit').showModal();$('#tplEdName').focus();
+}
+function tplEditRead(){
+  const $=s=>document.querySelector(s);const lines=v=>String(v||'').split('\n').map(l=>l.trim()).filter(Boolean);
+  const branches=lines($('#tplEdBranches').value).map(l=>{const m=/^([^:：]+)[:：]\s*(.*)$/.exec(l);return m?[m[1].trim(),m[2].trim()]:[l,''];}).filter(b=>b[0]);
+  const t={id:$('#tplEdit').dataset.id,name:$('#tplEdName').value.trim(),desc:$('#tplEdDesc').value.trim(),main:$('#tplEdMain').value.trim(),branches,agenda:lines($('#tplEdAgenda').value),seed:$('#tplEdSeed').value.trim(),user:true};
+  if(!t.seed)t.seed=tplSeedOf(t);if(!t.main)t.main=`この会話は「${t.name}」のテンプレートです。本線（この枝）は全体を監視する場所です。方針を決め、各分岐（${branches.map(b=>b[0]).join(' / ')}）の結論を見渡して整合を取ってください。各部の内容は分岐で詰めるよう促し、本線では方針と整合に集中してください。`;
+  return t;
+}
+function tplEditInit(){
+  const $=s=>document.querySelector(s);
+  $('#tplEdSave').onclick=()=>{const t=tplEditRead();if(!t.name){toast('テンプレートの名前を入れてください');$('#tplEdName').focus();return;}if(!t.branches.length){toast('分岐を 1 つ以上入れてください（1 行に 1 つ）');$('#tplEdBranches').focus();return;}
+    const k=userTemplates.findIndex(x=>x.id===t.id);if(k>=0)userTemplates[k]=t;else userTemplates.push(t);saveUserTemplates();$('#tplEdit').close();toast(`テンプレート「${t.name}」を保存しました`);openTplDlg();};
+  $('#tplEdCancel').onclick=()=>$('#tplEdit').close();
+  $('#tplEdDel').onclick=async()=>{const id=$('#tplEdit').dataset.id;const t=userTemplates.find(x=>x.id===id);if(!t)return;if(!await askConfirm(`テンプレート「${t.name}」を削除します。作成済みの会話には影響しません。`,'削除'))return;userTemplates=userTemplates.filter(x=>x.id!==id);saveUserTemplates();$('#tplEdit').close();openTplDlg();};
+  $('#tplEdFromConv').onclick=()=>{const cur=tplEditRead();openTplEdit(Object.assign(cur,{name:'',main:'',branches:[],agenda:[]}),true);$('#tplEdTitle').textContent='今の会話の枝から作る';};
+  $('#tplNew').onclick=()=>{$('#tplDlg').close();openTplEdit(null);};
+}
 function templateInstr(cur){
   const m=B('main'),b=B(cur);let t='';
   if(m&&m.instr)t+=`## この会話の進め方（テンプレート）\n${m.instr}\n${TPL_COMMON}\n\n`;
@@ -1990,11 +2032,12 @@ function applyTemplate(t){
   conv.activeNodeId=seed.id;persist();showFocus();$('#input').focus();toast(`「${t.name}」の骨組みを作りました。どの枝からでも始められます`);
 }
 function openTplDlg(){
-  $('#tplList').innerHTML=`<button class="tpl blank" data-tpl=""><b>空の会話</b><span class="d">テンプレートなし。本線だけで始めて、必要なときに分岐します。</span></button>`+TEMPLATES.map(t=>`<button class="tpl" data-tpl="${t.id}"><b>${esc(t.name)}</b><span class="d">${esc(t.desc)}</span><span class="br">本線 ＋ ${t.branches.map(b=>esc(b[0])).join(' / ')}</span></button>`).join('');
-  $('#tplList').querySelectorAll('[data-tpl]').forEach(el=>el.onclick=()=>{$('#tplDlg').close();const t=TEMPLATES.find(x=>x.id===el.dataset.tpl);if(t)applyTemplate(t);else{conv=newConversation();persist();showFocus();$('#input').focus();}});
+  const card=t=>`<button class="tpl${t.user?' user':''}" data-tpl="${esc(t.id)}">${t.user?`<span class="tplEd" data-tpledit="${esc(t.id)}" data-tip="このテンプレートを編集・削除する">✎</span>`:''}<b>${esc(t.name)}</b><span class="d">${esc(t.desc||'')}</span><span class="br">本線 ＋ ${t.branches.map(b=>esc(b[0])).join(' / ')}</span></button>`;
+  $('#tplList').innerHTML=`<button class="tpl blank" data-tpl=""><b>空の会話</b><span class="d">テンプレートなし。本線だけで始めて、必要なときに分岐します。</span></button>`+TEMPLATES.map(card).join('')+(userTemplates.length?`<div class="tplSep">自分のテンプレート</div>`:'')+userTemplates.map(card).join('');
+  $('#tplList').querySelectorAll('[data-tpl]').forEach(el=>el.onclick=e=>{const ed=e.target.closest('[data-tpledit]');if(ed){e.stopPropagation();$('#tplDlg').close();openTplEdit(userTemplates.find(x=>x.id===ed.dataset.tpledit));return;}$('#tplDlg').close();const t=allTemplates().find(x=>x.id===el.dataset.tpl);if(t)applyTemplate(t);else{conv=newConversation();persist();showFocus();$('#input').focus();}});
   $('#tplDlg').showModal();
 }
-$('#tplCancel').onclick=()=>$('#tplDlg').close();
+$('#tplCancel').onclick=()=>$('#tplDlg').close();tplEditInit();
 
 /* ========== イベント ========== */
 $('#sendBtn').onclick=()=>{if(busy){if(abortCtl)abortCtl.abort();return;}const t=$('#input').value;if(!t.trim()&&!pendingImgs.length)return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';fitInput();const imgs=pendingImgs;pendingImgs=[];renderPlus();send(t.trim()||'（画像を添付）',{branchId:bid,parentId:conv.activeNodeId,images:imgs});};
