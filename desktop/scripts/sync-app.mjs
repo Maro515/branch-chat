@@ -20,5 +20,12 @@ if (existsSync(join(vendorFonts, 'fonts.css'))) {
 }
 for (const f of ['figure.js', 'figure-stats.js', 'figure-more.js', 'figure-more2.js', 'figure-layout.js', 'figure-image.js', 'figure-schematic.js', 'figure-omics.js', 'figure-gallery.js']) { const src = join(here, '..', '..', f); if (existsSync(src)) cpSync(src, join(appDir, f)); } // Figure モジュール
 { const assets = join(here, '..', '..', 'assets'); if (existsSync(assets)) cpSync(assets, join(appDir, 'assets'), { recursive: true }); } // 画像などの素材
+{ const ic = join(here, '..', 'build', 'icon.png'); if (existsSync(ic)) { mkdirSync(join(appDir, 'assets'), { recursive: true }); cpSync(ic, join(appDir, 'assets', 'icon.png')); } } // 「このアプリについて」のアイコン
+{ // ライセンス文の同梱: フォント（SIL OFL、リポジトリの licenses/）と Electron（MIT）、Electron に含まれる Chromium・Node.js などの一覧。「このアプリについて」から読める
+  const lic = join(appDir, 'licenses'); mkdirSync(lic, { recursive: true });
+  const own = join(here, '..', '..', 'licenses'); if (existsSync(own)) cpSync(own, lic, { recursive: true });
+  const el = join(here, '..', 'node_modules', 'electron', 'dist');
+  for (const [src, dst] of [['LICENSE', 'Electron-MIT.txt'], ['LICENSES.chromium.html', 'LICENSES.chromium.html']]) { const f = join(el, src); if (existsSync(f)) cpSync(f, join(lic, dst)); else console.warn('ライセンス文が見つかりません: ' + f); }
+}
 writeFileSync(join(appDir, 'index.html'), html);
 console.log(`synced index.html -> desktop/app/index.html（フォント: ${fonts}）`);

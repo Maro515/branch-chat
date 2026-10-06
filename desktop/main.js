@@ -37,6 +37,13 @@ async function handle(request) {
     if (b.reveal) shell.showItemInFolder(fp); else await shell.openPath(fp);
     return Response.json({ ok: true });
   }
+  if (url.pathname === '/api/about') return Response.json({ version: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node }); // 「このアプリについて」用
+  if (url.pathname === '/api/licenses/chromium') { // Electron に含まれる Chromium・Node.js などのライセンス一覧（同梱の HTML）を別窓で開く
+    if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
+    const w = new BrowserWindow({ width: 900, height: 700, title: 'ライセンス一覧（Electron / Chromium / Node.js など）', webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false } });
+    w.setMenuBarVisibility(false); w.loadURL('app://branchat/licenses/LICENSES.chromium.html');
+    return Response.json({ ok: true });
+  }
   if (url.pathname === '/api/login') { // ログイン用のターミナルを開く（固定コマンドのみ）
     if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
     let b = {}; try { b = await request.json(); } catch (e) { /* 空でよい */ }
@@ -162,12 +169,15 @@ function createWindow() {
 function buildMenu() {
   const isMac = process.platform === 'darwin';
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    ...(isMac ? [{ role: 'appMenu' }] : []),
+    ...(isMac ? [{ label: app.name, submenu: [{ label: 'BranCHAT について', click: openAbout }, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] }] : []),
     { role: 'fileMenu' }, { role: 'editMenu' },
     { label: '表示', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }] },
     { role: 'windowMenu' },
+    { role: 'help', submenu: [{ label: 'BranCHAT について（バージョンとライセンス）', click: openAbout }] },
   ]));
 }
+// 画面の「このアプリについて」を開く（レンダラの openAbout を呼ぶだけ）
+function openAbout() { const w = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed()); if (w) w.webContents.executeJavaScript('typeof openAbout==="function"&&openAbout()').catch(() => {}); }
 
 async function runSmoke(win) {
   // 自動確認: 画面が出るか、エンジン検出、ダミー送信、（SMOKE_LIVE=1 のとき）実モデルへ最小の1回
@@ -550,6 +560,10 @@ async function runSmoke(win) {
         await figImgOpenWithFiles([await mk('#303040',400,300)]);await new Promise(x=>setTimeout(x,400));$('#figImgTools [data-figdtool="roi"]').click();const cb=$('#figImgPreview [data-cellbox="0"]');const bx=cb.getBoundingClientRect();cb.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:bx.left+bx.width*0.5,clientY:bx.top+bx.height*0.5}));await new Promise(x=>setTimeout(x,200));
         const hs=[...document.querySelectorAll('#figImgPreview .roiHandle')];r.fig11.handles=hs.length;if(hs.length===4){const hr=hs[3].getBoundingClientRect();hs[3].dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,clientX:hr.left+2,clientY:hr.top+2,pointerId:1}));document.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:hr.left+2+bx.width*0.2,clientY:hr.top+2+bx.height*0.1,pointerId:1}));document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,clientX:hr.left+2+bx.width*0.2,clientY:hr.top+2+bx.height*0.1,pointerId:1}));await new Promise(x=>setTimeout(x,200));const a=figImgState.spec.annots[0];r.fig11.resized=Math.abs(a.w-0.45)<0.02&&Math.abs(a.h-0.35)<0.02&&a.x>0.55;}
         const sh=$('#figImgAnnots select[data-ak="shape"]');sh.value='circle';sh.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(x=>setTimeout(x,100));const wi=$('#figImgAnnots input[data-ak="w"]');wi.value='60';wi.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(x=>setTimeout(x,100));r.fig11.shape=!!$('#figImgPreview ellipse[data-annot="0"]')&&figImgState.spec.annots[0].w===0.6;
+      }
+      if(${process.env.SMOKE_ABOUT === '1'}){ // このアプリについて: バージョン・同梱物のライセンス文が読めること
+        const $=s=>document.querySelector(s);openAbout();await new Promise(x=>setTimeout(x,800));const ver=$('#aboutVer').textContent;r.about={open:$('#aboutDlg').open,ver,rt:$('#aboutRt').textContent.slice(0,40),plex:$('#licPlex').textContent.includes('SIL OPEN FONT LICENSE'),electron:$('#licElectron').textContent.includes('MIT License')||$('#licElectron').textContent.includes('Permission is hereby granted')};
+        const okCh=await (await fetch('/api/licenses/chromium',{method:'POST'})).json();r.about.chromium=okCh.ok;$('#aboutClose').click();
       }
       if(${process.env.SMOKE_TUT === '1'}){openTut(${Number(process.env.SMOKE_TUT_PAGE) || 1});await new Promise(x=>setTimeout(x,1500));r.tutBadges=[...document.querySelectorAll('#tutBody .badge')].map(b=>b.textContent);}
       return r;})()`);

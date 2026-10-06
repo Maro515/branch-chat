@@ -483,6 +483,9 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 .figGalCard .th{display:flex;align-items:center;justify-content:center;height:112px;background:#fff;border-radius:6px;overflow:hidden;pointer-events:none}
 .figGalCard .th svg{max-width:100%;max-height:112px;width:auto;height:auto}
 .figGalCard .nm{font-size:11px;line-height:1.35}.figGalCard{position:relative}.figGalCard.same::after,.figGalDot{content:'';display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--glow);box-shadow:0 0 0 2px rgba(0,0,0,.25)}.figGalCard.same::after{position:absolute;right:9px;top:9px}
+/* ===== このアプリについて ===== */
+#aboutDlg{max-width:640px}#aboutDlg h3{font-size:12.5px;margin:14px 0 4px}#aboutDlg .aboutHead{display:flex;gap:12px;align-items:flex-start}#aboutDlg .aboutHead img{width:56px;height:56px;border-radius:12px;flex-shrink:0}#aboutDlg .aboutHead b{font-size:16px}
+#aboutDlg details.lic{border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-top:6px;font-size:12px}#aboutDlg details.lic summary{cursor:pointer}#aboutDlg details.lic pre{white-space:pre-wrap;font:11px Menlo,monospace;max-height:40vh;overflow:auto;background:rgba(10,28,16,.6);padding:8px;border-radius:6px;margin:6px 0 0}
 /* ===== テンプレート選択 ===== */
 #tplDlg{width:min(760px,94vw)}
 .tplList{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;max-height:62vh;overflow:auto;padding:2px}
@@ -764,7 +767,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   <input type="number" id="sBudget" value="60000" min="4000" step="1000">
   <label>アシスタントの追加指示（任意）</label>
   <input type="text" id="sExtra" placeholder="例: 医療者向けに専門用語で簡潔に">
-  <div class="btns"><button id="sCancel">閉じる</button><button class="primary" id="sSave">保存</button></div>
+  <div class="btns"><button id="sAbout" class="small" style="margin-right:auto" type="button">このアプリについて</button><button id="sCancel">閉じる</button><button class="primary" id="sSave">保存</button></div>
 </dialog>
 
 
@@ -848,6 +851,18 @@ table.md tr:nth-child(even) td{background:#f8fafd}
     </div>
     <div class="figInspect" id="figInspect"></div>
   </div>
+</dialog>
+<dialog id="aboutDlg">
+  <h2>BranCHAT について</h2>
+  <div class="aboutHead"><img src="assets/icon.png" alt="" onerror="this.style.display='none'"><div><b>BranCHAT</b> <span id="aboutVer" class="hint"></span><div class="hint">分岐する会話で、すべての枝を AI が把握したまま考えを進めるチャット。統計グラフ・作図（Figure 作成）を内蔵。</div><div class="hint" id="aboutRt"></div></div></div>
+  <h3>利用条件</h3>
+  <div class="hint" id="aboutOwn">© 2026 BranCHAT の作者。このアプリの著作権は作者に帰属します。アプリの複製・再配布・改変したものの配布は、作者の許可なく行えません。会話の内容と API キーはこの端末の中にだけ保存され、作者には送られません（AI への送信先は利用者が設定した接続先のみ）。</div>
+  <h3>同梱しているもののライセンス</h3>
+  <div class="hint">このアプリは次のソフトウェアとフォントを含みます。各ライセンスの条件に従って同梱しています。</div>
+  <details class="lic"><summary>IBM Plex Sans JP（フォント）— SIL Open Font License 1.1 <span class="hint">© 2017 IBM Corp. Reserved Font Name "Plex"</span></summary><pre id="licPlex">読み込み中…</pre></details>
+  <details class="lic" id="licElectronBox"><summary>Electron — MIT License</summary><pre id="licElectron">読み込み中…</pre></details>
+  <div class="hint" id="licChromiumRow">Electron に含まれる Chromium、Node.js、V8 などのライセンス一覧（英語、長文）は別の窓で開きます。<button class="small" id="licChromiumBtn" type="button">一覧を開く</button></div>
+  <div class="btns"><button id="aboutClose">閉じる</button></div>
 </dialog>
 <dialog id="tplDlg">
   <h2>新しい会話</h2>
@@ -2100,6 +2115,14 @@ $('#sOaFetch').onclick=async()=>{const base=$('#sOaBase').value.trim();if(!base)
 $('#sSave').addEventListener('click',()=>{settings.oaBase=$('#sOaBase').value.trim().replace(/\/+$/,'');settings.oaKey=$('#sOaKey').value.trim();settings.oaModels=$('#sOaModels').value.trim();settings.oaSum=$('#sOaSum').value.trim();
   if($('#sProvider').value==='openai'&&(!settings.oaBase||!oaModels().length))toast('接続先の URL とモデル名を入れてください');});
 $('#sCancel').onclick=()=>{$('#settings').close();refreshModelCatalog();};
+// このアプリについて（バージョン、利用条件、同梱物のライセンス）。設定の「このアプリについて」とメニューから
+async function openAbout(){const d=$('#aboutDlg');$('#aboutVer').textContent=IS_DESKTOP?'':'ブラウザ版';$('#aboutRt').textContent='';$('#licElectronBox').style.display=IS_DESKTOP?'':'none';$('#licChromiumRow').style.display=IS_DESKTOP?'':'none';
+  if(!d.open)d.showModal();
+  if(IS_DESKTOP){try{const j=await (await fetch('/api/about')).json();$('#aboutVer').textContent='バージョン '+j.version;$('#aboutRt').textContent=`Electron ${j.electron} ／ Chromium ${j.chrome} ／ Node.js ${j.node}`;}catch(e){}}
+  const load=async(id,file)=>{const el=$(id);if(!el)return;try{const r=await fetch(file);if(!r.ok)throw 0;el.textContent=await r.text();}catch(e){el.textContent='ライセンス文を読み込めませんでした（'+file+'）';}};
+  load('#licPlex','licenses/IBM-Plex-OFL.txt');if(IS_DESKTOP)load('#licElectron','licenses/Electron-MIT.txt');}
+$('#sAbout').onclick=()=>{$('#settings').close();openAbout();};$('#aboutClose').onclick=()=>$('#aboutDlg').close();
+$('#licChromiumBtn').onclick=()=>fetch('/api/licenses/chromium',{method:'POST'}).catch(()=>toast('開けませんでした'));
 $('#sSave').onclick=()=>{settings.provider=$('#sProvider').value;settings.apiKey=$('#sKey').value.trim();settings.model=$('#sModel').value;settings.sumModel=$('#sSumModel').value;settings.budget=+$('#sBudget').value||60000;settings.extra=$('#sExtra').value.trim();
   if(settings.provider==='api'&&!settings.apiKey)toast('APIキーが未入力です');
   if(settings.provider==='bridge'&&!bridgeOk)toast('ブリッジが見つかりません（python3 bridge.py）');
