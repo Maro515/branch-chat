@@ -22,7 +22,7 @@ no(r'IS_ARTIFACT\s*=\s*true|claude\.use\(',idx,'Artifact 版の名残が無い')
 sys.exit(bad)
 PY
 python3 -c "import ast,sys;ast.parse(open('bridge.py').read());print('OK   bridge.py 構文')" || fail=1
-for f in desktop/main.js desktop/engines.js figure.js figure-stats.js figure-more.js figure-more2.js figure-layout.js figure-image.js figure-schematic.js figure-omics.js figure-gallery.js; do
+for f in desktop/main.js desktop/engines.js figure.js figure-stats.js figure-more.js figure-more2.js figure-layout.js figure-image.js figure-schematic.js figure-omics.js figure-more3.js figure-gallery.js; do
   if node --check "$f" 2>/dev/null; then echo "OK   $f 構文"; else echo "FAIL $f 構文"; fail=1; fi
 done
 # 他社の製品名（商標）を画面・AI への指示文・コード・文書に書いていないか（旧名の読み替え表 FIG_SCHEME_OLD の 1 行だけ許す）

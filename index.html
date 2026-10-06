@@ -482,7 +482,7 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 .figGalCard.on{border-color:var(--glow);box-shadow:0 0 0 2px var(--glow) inset}
 .figGalCard .th{display:flex;align-items:center;justify-content:center;height:112px;background:#fff;border-radius:6px;overflow:hidden;pointer-events:none}
 .figGalCard .th svg{max-width:100%;max-height:112px;width:auto;height:auto}
-.figGalCard .nm{font-size:11px;line-height:1.35}.figGalCard{position:relative}.figGalCard.same::after,.figGalDot{content:'';display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--glow);box-shadow:0 0 0 2px rgba(0,0,0,.25)}.figGalCard.same::after{position:absolute;right:9px;top:9px}
+.figGalCard .nm{font-size:11px;line-height:1.35}.figGalCard .fav{position:absolute;left:8px;top:7px;z-index:2;font-size:15px;line-height:1;color:#9aa;cursor:pointer;padding:1px 3px;border-radius:5px}.figGalCard .fav:hover{background:rgba(255,255,255,.7);color:#d4a017}.figGalCard .fav.on{color:#f0b429;text-shadow:0 0 3px rgba(0,0,0,.4)}.figGalCard{position:relative}.figGalCard.same::after,.figGalDot{content:'';display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--glow);box-shadow:0 0 0 2px rgba(0,0,0,.25)}.figGalCard.same::after{position:absolute;right:9px;top:9px}
 /* ===== このアプリについて ===== */
 #aboutDlg{max-width:640px}#aboutDlg h3{font-size:12.5px;margin:14px 0 4px}#aboutDlg .aboutHead{display:flex;gap:12px;align-items:flex-start}#aboutDlg .aboutHead img{width:56px;height:56px;border-radius:12px;flex-shrink:0}#aboutDlg .aboutHead b{font-size:16px}
 #aboutDlg details.lic{border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-top:6px;font-size:12px}#aboutDlg details.lic summary{cursor:pointer}#aboutDlg details.lic pre{white-space:pre-wrap;font:11px Menlo,monospace;max-height:40vh;overflow:auto;background:rgba(10,28,16,.6);padding:8px;border-radius:6px;margin:6px 0 0}
@@ -906,6 +906,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 <script src="figure-image.js"></script>
 <script src="figure-schematic.js"></script>
 <script src="figure-omics.js"></script>
+<script src="figure-more3.js"></script>
 <script src="figure-gallery.js"></script>
 <script>
 /* ========== 基本ユーティリティ ========== */

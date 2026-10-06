@@ -6,10 +6,10 @@
 
 const FIG_DEFAULT_TEXT='Control\tTreated\n12.1\t15.4\n11.8\t16.0\n12.6\t14.9\n13.0\t15.8\n12.3\t16.3';
 // 一覧の見出し（表の型ごと）
-const FIG_GAL_KINDS=[['群の比較（列＝群、行＝反復）',['column']],['カテゴリ × 群',['grouped']],['XY・あてはめ',['xy']],['臨床（生存・ROC・フォレスト・ウォーターフォール・スイマー・スパイダー）',['survival','roc','forest','waterfall','swimmer','spider']],['行列・多変数（ヒートマップ・PCA・SuperPlot・重要度）',['heatmap','multi','nested','importance']],['遺伝子・オミクス',['feature','omics']]];
+const FIG_GAL_KINDS=[['群の比較（列＝群、行＝反復）',['column']],['カテゴリ × 群',['grouped']],['XY・あてはめ',['xy']],['臨床（生存・ROC・フォレスト・ウォーターフォール・スイマー・スパイダー）',['survival','roc','forest','waterfall','swimmer','spider']],['行列・多変数（ヒートマップ・PCA・SuperPlot・重要度・集合）',['heatmap','multi','nested','importance','sets']],['遺伝子・オミクス',['feature','omics','tracks']],['予測モデル',['nomogram']]];
 
 /* ---------- 例のデータ ---------- */
-function figSample(kind,type){
+function figSample(kind,type){if(typeof figSampleP5==='function'){const s5=figSampleP5(kind,type);if(s5)return s5;}
   const R=figRng(20261006+kind.length*131+type.length*17+type.charCodeAt(0));const nrm=(m,s)=>m+s*R.n();const f1=v=>(+v).toFixed(1),f2=v=>(+v).toFixed(2);
   const J=(h,rows)=>[h.join('\t')].concat(rows.map(r=>r.join('\t'))).join('\n');const rep=(n,fn)=>Array.from({length:n},(_,i)=>fn(i));
   const sp=(data,extra)=>Object.assign({kind,type,data},extra||{});
@@ -67,6 +67,11 @@ const figGalCache={}; // 'kind/type' → SVG 文字列（'' は描けなかっ�
 function figGalThumb(kind,type){const key=kind+'/'+type;if(key in figGalCache)return figGalCache[key];let svg='';try{const s=figSample(kind,type);const r=s&&figRenderSpec(s);if(r&&r.svg&&!(r.res&&r.res.error))svg=r.svg.replace(/ data-(sel|note|cut|annot|node|panel)="[^"]*"/g,'');}catch(e){svg='';}figGalCache[key]=svg;return svg;}
 function figGalList(){const out=[];for(const [label,kinds] of FIG_GAL_KINDS){const types=[];for(const kind of kinds)for(const t of (FIG_TYPES[kind]||[]))if(t[0]!=='auto')types.push({kind,type:t[0],name:t[1]});if(types.length)out.push({label,types});}return out;}
 
+/* ---------- お気に入り（settings.figFav に 'kind/type' の配列。星をクリックで出し入れ） ---------- */
+function figFavList(){try{return Array.isArray(settings.figFav)?settings.figFav.slice():[];}catch(e){return [];}}
+function figFavHas(kind,type){return figFavList().includes(kind+'/'+type);}
+function figFavToggle(kind,type){const k=kind+'/'+type;let a=figFavList();if(a.includes(k))a=a.filter(x=>x!==k);else a.push(k);settings.figFav=a;saveSettings();}
+
 /* ---------- 一覧の画面 ---------- */
 function figGalleryOpen(){
   let dlg=document.querySelector('#figGalDlg');
@@ -75,12 +80,14 @@ function figGalleryOpen(){
     document.body.appendChild(dlg);
     dlg.querySelector('#figGalClose').onclick=()=>dlg.close();
     dlg.querySelector('#figGalQ').addEventListener('input',figGalFilter);
-    dlg.querySelector('#figGalBody').addEventListener('click',e=>{const c=e.target.closest('[data-galkind]');if(c)figGalleryPick(c.dataset.galkind,c.dataset.galtype);});}
+    dlg.querySelector('#figGalBody').addEventListener('click',e=>{const c=e.target.closest('[data-galkind]');if(!c)return;if(e.target.closest('[data-galfav]')){e.stopPropagation();figFavToggle(c.dataset.galkind,c.dataset.galtype);const sc=dlg.querySelector('#figGalBody').scrollTop;const q=dlg.querySelector('#figGalQ').value;figGalleryOpen();dlg.querySelector('#figGalQ').value=q;figGalFilter();dlg.querySelector('#figGalBody').scrollTop=sc;return;}figGalleryPick(c.dataset.galkind,c.dataset.galtype);});}
   const st=figState||{};const list=figGalList();
   dlg.querySelector('#figGalHint').innerHTML='図をクリックすると、その種類に切り替わります。<span class="figGalDot"></span> 印の図は、いまのデータのまま切り替えられます。それ以外（表の形が違う図）を選ぶと例のデータが入ります（自分のデータがあるときは確認します）。';
-  dlg.querySelector('#figGalBody').innerHTML=list.map(g=>`<div class="figGalSec"><h3>${figEsc(g.label)}</h3><div class="figGalGrid">${g.types.map(t=>`<button type="button" class="figGalCard${st.kind===t.kind&&st.type===t.type?' on':''}${st.kind===t.kind?' same':''}" data-galkind="${t.kind}" data-galtype="${t.type}" data-q="${figEsc((t.name+' '+t.type+' '+t.kind).toLowerCase())}"${st.kind===t.kind?' title="いまのデータのまま切り替えられます"':''}><span class="th"></span><span class="nm">${figEsc(t.name)}</span></button>`).join('')}</div></div>`).join('');
-  dlg.querySelector('#figGalQ').value='';dlg.showModal();
-  const cur=dlg.querySelector('.figGalCard.on');if(cur)cur.scrollIntoView({block:'center'});
+  const card=t=>{const fav=figFavHas(t.kind,t.type);return `<button type="button" class="figGalCard${st.kind===t.kind&&st.type===t.type?' on':''}${st.kind===t.kind?' same':''}" data-galkind="${t.kind}" data-galtype="${t.type}" data-q="${figEsc((t.name+' '+t.type+' '+t.kind).toLowerCase())}"${st.kind===t.kind?' title="いまのデータのまま切り替えられます"':''}><span class="fav${fav?' on':''}" data-galfav="1" title="${fav?'お気に入りから外す':'お気に入りに入れる'}">${fav?'★':'☆'}</span><span class="th"></span><span class="nm">${figEsc(t.name)}</span></button>`;};
+  const favs=figFavList().map(k=>{const [kind,type]=k.split('/');const t=(FIG_TYPES[kind]||[]).find(x=>x[0]===type);return t?{kind,type,name:t[1]}:null;}).filter(Boolean);
+  dlg.querySelector('#figGalBody').innerHTML=`<div class="figGalSec" data-galsec="fav"><h3>★ お気に入り</h3>${favs.length?`<div class="figGalGrid">${favs.map(card).join('')}</div>`:'<div class="hint">まだありません。図の左上の ☆ を押すと、ここに入ります。</div>'}</div>`+list.map(g=>`<div class="figGalSec"><h3>${figEsc(g.label)}</h3><div class="figGalGrid">${g.types.map(card).join('')}</div></div>`).join('');
+  const reopen=dlg.open;dlg.querySelector('#figGalQ').value='';if(!reopen)dlg.showModal();
+  const cur=dlg.querySelector('.figGalCard.on');if(cur&&!reopen)cur.scrollIntoView({block:'center'});
   // サムネイルは少しずつ描く（初回だけ計算。以後はキャッシュ）
   const cards=[...dlg.querySelectorAll('.figGalCard')];const token=figGalleryOpen.token=(figGalleryOpen.token||0)+1;
   (async()=>{let n=0;const t0=Date.now();let slice=Date.now();for(const c of cards){if(figGalleryOpen.token!==token||!dlg.open)return;const svg=figGalThumb(c.dataset.galkind,c.dataset.galtype);c.querySelector('.th').innerHTML=svg||'<span class="hint">（見本なし）</span>';n++;if(Date.now()-slice>24){await new Promise(r=>setTimeout(r));slice=Date.now();}}})();

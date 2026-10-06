@@ -35,7 +35,7 @@ enrich-bar / enrich-dot: Term, Count, P または q（padj）, GeneRatio（任�
 oncoprint: 1 列目＝遺伝子、見出し＝検体名、セルは Missense/Nonsense/Frameshift/Splice/Amp/Del/Fusion か空／ logo: 1 列の配列（同じ長さ）または pos, A, C, G, T の PFM／ sankey: From, To, Value／ rank: Gene, Score／ network: From, To（Weight 任意）／ tree: 見出し tree、2 行目に Newick 文字列。`;
 
 /* ---------- 判定と組み立て ---------- */
-function figAutoKindP4(parsed){const cols=parsed.cols;const lc=figLC;const has=re=>cols.some(c=>re.test(lc(c)));
+function figAutoKindP4(parsed){if(typeof figAutoKindP5==='function'){const k=figAutoKindP5(parsed);if(k)return k;}const cols=parsed.cols;const lc=figLC;const has=re=>cols.some(c=>re.test(lc(c)));
   if(has(/^(chr|chrom|chromosome|染色体)$/)&&has(/^(bp|pos|position|base_pair|位置)$/)&&has(/^(p|pval|p_value|pvalue|p\.value)$/))return 'omics';
   if(has(/umap|tsne|t-sne|pc_?1$/))return 'omics';
   if(has(/^(term|pathway|go|description|経路|用語)$/)&&has(/count|size|遺伝子数|gene/)&&has(/^(p|q|padj|fdr|p\.adjust|pvalue|adj)/))return 'omics';
@@ -49,7 +49,7 @@ function figOmicsType(parsed){const cols=parsed.cols;const lc=figLC;const has=re
   if(has(/^(term|pathway|go|description|経路|用語)$/))return has(/ratio|generatio/)?'enrich-dot':'enrich-bar';if(has(/^(cluster|群)$/)&&has(/pct|percent|%/))return 'dotplot';if(cols[0]&&cols[0].raw.some(v=>/^[ACGT]\[[ACGT]>[ACGT]\][ACGT]$/i.test(v)))return 'sbs96';
   if(has(/^(from|source)$/)&&has(/^(to|target)$/))return has(/^(value|flow|count|n|値)$/)?'sankey':'network';if(/^tree$|newick/.test(lc(cols[0]||{})))return 'tree';if(has(/^(score|stat|statistic|logfc|log2fc)$/)&&parsed.firstColText)return 'rank';
   if(cols.length===1&&cols[0].raw.every(v=>/^[ACGTUN-]+$/i.test(v)))return 'logo';if(has(/^a$/)&&has(/^c$/)&&has(/^g$/)&&has(/^t$/))return 'logo';if(parsed.firstColText&&cols.slice(1).some(c=>c.raw.some(v=>/missense|nonsense|frameshift|splice|amp|del|fusion|変異/i.test(v))))return 'oncoprint';return null;}
-function figBuildDataP4(parsed,kind){if(kind!=='omics')return undefined;const cols=parsed.cols;const lc=figLC;const find=(re,ex)=>cols.find(c=>re.test(lc(c))&&!(ex||[]).includes(c))||null;const numc=c=>c&&c.vals.some(v=>v!==null);
+function figBuildDataP4(parsed,kind){if(typeof figBuildDataP5==='function'){const r=figBuildDataP5(parsed,kind);if(r!==undefined)return r;}if(kind!=='omics')return undefined;const cols=parsed.cols;const lc=figLC;const find=(re,ex)=>cols.find(c=>re.test(lc(c))&&!(ex||[]).includes(c))||null;const numc=c=>c&&c.vals.some(v=>v!==null);
   return {kind:'omics',parsed,groups:[],
     chr:find(/^(chr|chrom|chromosome|染色体)$/),bp:find(/^(bp|pos|position|base_pair|位置)$/),p:find(/^(p|pval|p_value|pvalue|p\.value|p値)$/),snp:find(/^(snp|rsid|id|marker|name)$/),
     x:find(/umap_?1|tsne_?1|t-sne_?1|^x$|_1$|pc_?1$/),y:find(/umap_?2|tsne_?2|t-sne_?2|^y$|_2$|pc_?2$/),cluster:find(/^(cluster|celltype|cell_type|group|群|type|label)$/),
@@ -60,7 +60,7 @@ function figBuildDataP4(parsed,kind){if(kind!=='omics')return undefined;const co
     first:cols[0],firstColText:parsed.firstColText,rowLabels:parsed.rowLabels,type:figOmicsType(parsed)};}
 
 /* ---------- 描画 ---------- */
-function figRenderP4(spec){const d=spec.data;if(!d||d.kind!=='omics')return null;const t=spec.type&&spec.type!=='auto'&&FIG_TYPES.omics.some(x=>x[0]===spec.type)?spec.type:(d.type||'manhattan');
+function figRenderP4(spec){if(typeof figRenderP5==='function'){const r=figRenderP5(spec);if(r)return r;}const d=spec.data;if(!d||d.kind!=='omics')return null;const t=spec.type&&spec.type!=='auto'&&FIG_TYPES.omics.some(x=>x[0]===spec.type)?spec.type:(d.type||'manhattan');
   const map={manhattan:figRenderManhattan,embedding:figRenderEmbedding,gsea:figRenderGSEA,'enrich-bar':figRenderEnrich,'enrich-dot':figRenderEnrich,dotplot:figRenderDotplot,sbs96:figRenderSBS96,oncoprint:figRenderOncoprint,logo:figRenderLogo,sankey:figRenderSankey,rank:figRenderRank,network:figRenderNetwork,tree:figRenderTree};
   const r=map[t]?map[t](spec,t):null;return r||{svg:'',w:0,h:0};}
 const figOmTxt=(x,y,s,o)=>figSchText(x,y,s,o);
@@ -214,7 +214,7 @@ function figRenderTree(spec){const d=spec.data,o=Object.assign({},FIG_DEF,spec.o
   const title=figTitle1(txt,W/2,fs*1.3,spec.title,W-fs,fs);return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/><g data-sel="series:0">${s}</g>${title}</svg>`,w:W,h:H,plot:{x0:padL,y0:padT,w:W0,h:nl*rowH},res:{leaves:nl,depth:depthMax,useLen}};}
 
 /* ---------- 結果表 ---------- */
-function figStatsP4(data,st){if(!data||data.kind!=='omics')return null;const r=st.res||{};const esc=figEsc;if(r.error)return `<div class="hint">${esc(r.error)}</div>`;const t=st.type;
+function figStatsP4(data,st){if(typeof figStatsP5==='function'){const h=figStatsP5(data,st);if(h!=null)return h;}if(!data||data.kind!=='omics')return null;const r=st.res||{};const esc=figEsc;if(r.error)return `<div class="hint">${esc(r.error)}</div>`;const t=st.type;
   if(t==='manhattan')return `<div class="hint">n = ${r.n}、染色体 ${r.chrs} ／ P < 5×10⁻⁸: ${r.gw} 点、P < 1×10⁻⁵: ${r.sug} 点</div>`+(r.top&&r.top.length?'<table><tr><th>上位</th><th>CHR</th><th>BP</th><th>P</th></tr>'+r.top.slice(0,5).map(p=>`<tr><td>${esc(p.id||'')}</td><td>${esc(p.cl)}</td><td>${figFmt(p.bp)}</td><td>${figSci(p.p)}</td></tr>`).join('')+'</table>':'');
   if(t==='embedding')return `<div class="hint">n = ${r.n}${r.cont?' ／ 色＝'+esc(r.cont):''}</div>`+(r.clusters&&r.clusters.length?'<table><tr><th>クラスタ</th><th>n</th></tr>'+r.clusters.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.n}</td></tr>`).join('')+'</table>':'');
   if(t==='gsea')return `<div class="hint">ES = ${r.es!=null?r.es.toFixed(4):'–'}（順位 ${r.atRank} / ${r.n}）、遺伝子セットのヒット ${r.hits}、leading edge ${r.leadingEdge}。重み p = 1（|指標|）。NES・P・FDR は順列検定が要るので JSON の nes / pval / fdr に GSEA ソフトの値を入れてください。</div>`;
