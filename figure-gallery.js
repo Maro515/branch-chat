@@ -1,6 +1,6 @@
 // BranCHAT Figure 拡張（図の一覧）
 // 「どんな図になるか」を見て選べるよう、図種ごとの例のデータ（figSample）を実際に描いた小さな図（サムネイル）を並べる。
-// 作成画面のツール行「▦ 図の一覧」、グラフメニューの「▦ 図の一覧から選ぶ」、左の「グラフ」の横の ▦ から開く（#figGalDlg は JS で生成）。
+// 作成画面のツール行「▦ グラフの種類」、グラフメニューの「▦ グラフの種類: …」、左の「グラフ」のボタンから開く（種類の選択はこの一覧だけ。プルダウンは出さない）（#figGalDlg は JS で生成）。
 // 選ぶと: 同じ表の型なら種類だけ変える。表の型が違う／「例のデータも入れる」なら例のデータを入れる（自分のデータがあるときは確認）。
 'use strict';
 
@@ -71,7 +71,7 @@ function figGalList(){const out=[];for(const [label,kinds] of FIG_GAL_KINDS){con
 function figGalleryOpen(){
   let dlg=document.querySelector('#figGalDlg');
   if(!dlg){dlg=document.createElement('dialog');dlg.id='figGalDlg';
-    dlg.innerHTML=`<div class="figGalHead"><h2 style="margin:0">▦ 図の一覧</h2><input id="figGalQ" type="text" placeholder="絞り込み（例: 生存、PCA、棒）" style="max-width:220px"><label class="hint" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="figGalData"> 例のデータも入れる</label><span class="spacer" style="flex:1"></span><button id="figGalClose">閉じる</button></div><div class="hint" id="figGalHint" style="margin:6px 0"></div><div id="figGalBody"></div>`;
+    dlg.innerHTML=`<div class="figGalHead"><h2 style="margin:0">▦ グラフの種類</h2><input id="figGalQ" type="text" placeholder="絞り込み（例: 生存、PCA、棒）" style="max-width:220px"><label class="hint" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="figGalData"> 例のデータも入れる</label><span class="spacer" style="flex:1"></span><button id="figGalClose">閉じる</button></div><div class="hint" id="figGalHint" style="margin:6px 0"></div><div id="figGalBody"></div>`;
     document.body.appendChild(dlg);
     dlg.querySelector('#figGalClose').onclick=()=>dlg.close();
     dlg.querySelector('#figGalQ').addEventListener('input',figGalFilter);

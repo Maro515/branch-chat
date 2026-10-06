@@ -837,7 +837,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div class="figRow"><label>データ（タブ・カンマ区切り、または Markdown の表を貼り付け）</label><button id="figFileBtn" class="small" data-tip="CSV / TSV / Excel（.xlsx）を読み込む">📂 ファイルから読む</button><input type="file" id="figFile" accept=".csv,.tsv,.txt,.xlsx" hidden></div>
       <textarea id="figData" spellcheck="false"></textarea>
       <div class="figRow"><label>表の型</label><select id="figKind"><option value="column">Column（列＝群、行＝反復）</option><option value="grouped">Grouped（行＝カテゴリ、列＝群）</option><option value="xy">XY（1列目＝X、以降＝Y）</option></select></div>
-      <div class="figRow"><label>グラフ</label><select id="figType"></select><button id="figGalBtn" class="small" data-tip="図の見本の一覧から選ぶ">▦ 一覧</button></div>
+      <div class="figRow"><label>グラフ</label><select id="figType" hidden></select><button id="figGalBtn" class="small" data-tip="見本の一覧からグラフの種類を選ぶ" style="max-width:none;flex:1;text-align:left"><span id="figTypeName">（未選択）</span> <span style="float:right">▦</span></button></div>
       <div class="figRow" id="figCmpRow"><label>有意差</label><select id="figCmp"><option value="none">なし</option><option value="all">全比較（Welch t / ANOVA+Tukey）</option><option value="dunnett">対照群と比較（Dunnett）</option></select><select id="figCtrl" style="display:none"></select></div>
       <div class="figRow"><label>誤差</label><select data-fopt="errType"><option value="SD">SD</option><option value="SEM">SEM</option><option value="CI">95% CI</option><option value="none">なし</option></select></div>
       <div class="figRow"><label>題名</label><input id="figTitle" type="text" placeholder="任意"></div>
