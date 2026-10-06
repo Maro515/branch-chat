@@ -21,6 +21,18 @@ no(r'ls(Get|Set)=[^;]*\{try\{(return )?ls(Get|Set)\(',idx,'保存ヘルパーが
 no(r'IS_ARTIFACT\s*=\s*true|claude\.use\(',idx,'Artifact 版の名残が無い')
 sys.exit(bad)
 PY
+python3 - <<'PY' || fail=1
+import re,sys
+s=open('index.html').read()
+m=re.search(r'/\*SOP-START\*/(.*?)/\*SOP-END\*/',s,re.S)
+if not m: print('FAIL AI_SOP が無い'); sys.exit(1)
+import glob
+ids=set(re.findall(r'id="([A-Za-z0-9_-]+)"',s))
+for f in glob.glob('figure*.js'): ids|=set(re.findall(r'id=\\?["\']([A-Za-z0-9_-]+)\\?["\']',open(f).read()))
+missing=sorted({x for x in re.findall(r'#([A-Za-z][A-Za-z0-9_-]*)',m.group(1)) if x not in ids and x not in ('id','ftp-')})
+if missing: print('FAIL AI_SOP が参照する id が index.html に無い: '+', '.join(missing)); sys.exit(1)
+print('OK   AI_SOP の参照 id が存在する')
+PY
 python3 -c "import ast,sys;ast.parse(open('bridge.py').read());print('OK   bridge.py 構文')" || fail=1
 for f in desktop/main.js desktop/engines.js figure.js figure-stats.js figure-more.js figure-more2.js figure-layout.js figure-image.js figure-schematic.js figure-omics.js figure-more3.js figure-gallery.js; do
   if node --check "$f" 2>/dev/null; then echo "OK   $f 構文"; else echo "FAIL $f 構文"; fail=1; fi

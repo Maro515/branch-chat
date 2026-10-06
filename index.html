@@ -322,6 +322,7 @@ header{z-index:5}
 #tutDlg .tbody h3:first-child{margin-top:0}
 #tutDlg .tbody ol,#tutDlg .tbody ul{margin:4px 0 8px;padding-left:22px}
 #tutDlg .tbody li{margin:3px 0}
+#tutDlg .tbody pre.sop{white-space:pre-wrap;font:11px Menlo,monospace;line-height:1.5;background:rgba(10,28,16,.6);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:46vh;overflow:auto;user-select:text}
 #tutDlg .tfoot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid var(--line)}
 #tutDlg .dots{display:flex;gap:6px;flex:1}
 #tutDlg .dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
@@ -2444,6 +2445,93 @@ function tutConnectHTML(){
     <div class="editBtns"><span class="hint ui">ログインを済ませたら</span><button class="small" id="tutRecheck">状態を再確認</button></div>
     <p class="hint">ログイン情報はこのアプリには保存されず、各ツールが自分で管理します。アプリが受け取るのは「ログイン済みかどうか」と「プランの種類」だけです。</p>`;
 }
+/*SOP-START*/ // AI エージェント（computer use など）向けの操作仕様書。「？ 使い方」の最後のページに出す。UI を変えたらここも直す（check.sh が #id の実在を検査）
+const AI_SOP=`# BranCHAT 操作仕様書・SOP（AI エージェント／computer use 向け）
+対象: BranCHAT デスクトップ版（Electron、macOS）。画面は単一の HTML。すべて日本語 UI。
+この文書は AI が BranCHAT を操作するための手順書。人向けの整形はしていない。セレクタは CSS セレクタ、「→」は順に操作。
+
+## 0. 前提と約束
+- 画面の操作は、クリックとキー入力で完結する。window.prompt/alert/confirm は使っていない。確認は <dialog id="qDlg">（本文 #qMsg、OK #qOk、取消 #qCancel、入力 #qInput）。文字入力の小窓は #figPromptDlg（入力 #figPromptIn、OK #figPromptOk）。
+- 送信は入力欄 #input に書いて Enter（改行は Shift+Enter）または #sendBtn。生成中は #sendBtn が「■ 停止」になる。生成中は会話の切り替え・新規作成・削除ができない。
+- データは端末内（localStorage と userData のファイル）。会話は左の一覧 #convList。全会話のバックアップは #bkBtn → #bkDlg。
+- すべての関数はグローバル。DevTools のコンソール（メニュー 表示 → Toggle Developer Tools）から呼べる: send(text,{branchId,parentId}), createBranch(nodeId,name), gotoBranch(id), figOpen(state), figRenderSpec(spec), figStateFromSpec(spec), figSpecFromState(figState), figGalleryPick(kind,type), figImgOpen(spec), loadDemo(), persist(), renderAll()。状態: conv（現在の会話）, settings, figState, figImgState。
+- 画面に出す文字列は利用者向けの日本語。英語の UI 文言は無い。
+
+## 1. 画面の地図
+- ヘッダー: ☰ #sideToggle（左の会話一覧）, 「デモ会話」#demoBtn, View（チャット／俯瞰図／知識マップ）, 「📋 進捗」#agendaBtn, 「バックアップ・引継ぎ」#bkBtn, 「？ 使い方」#helpBtn, 「⚙ 設定」#settingsBtn。
+- 左サイドバー #side: 「＋ 新しい会話」#newConv（テンプレート選択 #tplDlg が開く）, 会話一覧 #convList（各行 ✎ 名前変更 / 🗑 削除）。
+- ブランチの帯 #branchBar: タブ＝枝。クリックで移動、今いる枝をもう一度押すと名前変更。
+- チャット #focus > #msgs: 発言 .msg。AI の回答のボタン: ⧉ [data-copyall]（全文コピー）, ⑂ [data-fork]（ここから分岐）, ☆/★ [data-plan]（分岐予定）。自分の発言: ✎ [data-edit]（質問を編集して送り直す。途中の質問を直すと新しい枝になる）。
+- 回答の一部をドラッグ選択 → #selPop: 「これについて質問する」#selAsk → 「本線で質問」#selHere／「分岐して質問」#selFork／「サイドチャットで質問」#selSide。「説明してもらう」#selExplain → 簡単 #selEx1／一般的 #selEx2／詳細 #selEx3。サイドチャットの小窓は #noteWin（入力 #nwInput、送信 #nwSend）。
+- 入力欄の左の「＋」#plusBtn → #plusPop: 「🌐 Web検索」#webBtn（オン/オフ）, 「🔌 連携ツール（MCP）」#mcpBtn, 「🖼 画像を添付」#imgBtn（ファイル #imgFile、貼り付け・ドロップも可、最大4枚）, 「📊 Figure を作る」#figBtn, 「🔬 画像パネル作成」#figImgBtn（ファイル #figImgFile）。
+- 送信列: #modelBtn（枝ごとのモデルと思考量 → #modelPop）, #sendBtn。
+- 右側 #agenda: 進行中／未解決項目／解決済み。＋ #agAdd で追加、各項目に解決・編集・削除。
+- 右上 #miniMap: 枝の形の縮図。クリックで俯瞰図へ。
+- 俯瞰図 #overview: 丸＝発言（大きさ＝トークン量）、クリックで移動。右の #cards に各枝の要約（AI に毎回渡るもの）、「📌 全文を参照」「現在ブランチに合流」。
+- 知識マップ #know: 全会話の枝を点、関連度を線で表示。しきい値 #knowThr、範囲 #knowScope、「AIで関連度を判定」#knowAi、「整理」#knowTidy → #tidyDlg。
+- 設定 #settings: 接続 #sProvider（bridge=Claude Code/Codex の CLI、api=Claude API、openai=OpenAI 互換、dummy）, 既定モデル #sModel, 要約モデル #sSumModel, 関連度の判定役 #sJudge, Jev 接続（#sJevVia #sJevKey）, トークン予算 #sBudget, 追加指示 #sExtra, 「保存フォルダを開く」#sStoreOpen, 「このアプリについて」#sAbout, 保存 #sSave, 閉じる #sCancel。
+- ダイアログは <dialog>。閉じるボタン: #tutClose #figClose #figImgClose #bkClose #tidyClose #aboutClose #tplCancel #tplEdCancel。Esc でも閉じる。
+
+## 2. 基本 SOP
+### 2.1 新しい会話を始める
+1. #newConv をクリック → #tplDlg。2. テンプレートのカード .tpl[data-tpl=""]（空の会話）/ [data-tpl="paper"]（論文）/ "grant"（研究費申請）/ "talk"（学会発表）/ "study"（試験勉強）/ "app"（アプリ開発）/ 自分のテンプレート（data-tpl="u_…"）をクリック。3. テンプレートを選ぶと本線に骨組みの説明が置かれ、分岐が空のまま作られる（#branchBar のタブ）。空の枝のタブを押すとその枝が次の送信先になる。
+- 自分のテンプレートを作る: #tplDlg の「＋ 自分のテンプレートを作る」#tplNew → #tplEdit（名前 #tplEdName、説明 #tplEdDesc、本線の役割 #tplEdMain、分岐 #tplEdBranches（1 行 1 つ「名前: 役割」）、未解決項目 #tplEdAgenda、説明文 #tplEdSeed、「今の会話の枝から作る」#tplEdFromConv、保存 #tplEdSave、削除 #tplEdDel）。
+### 2.2 送る・分岐する
+1. #input に本文 → Enter。2. 回答の下の ⑂ [data-fork="発言id"] で分岐（新しい枝が作られ、#branchBar に増える。枝の名前は最初の発言から自動）。3. 迷うときは ☆ [data-plan] で印だけ。4. 未開始の枝は分岐点の下の「✕ 取り消す」。同じ回答からの未開始分岐は 1 つまで。
+- 枝に入るとチャットには「分岐元の回答 1 件＋その枝の発言」だけが出る（AI には祖先全体と全枝の要約が渡る）。
+- 枝ごとのモデル: #modelBtn → #modelPop で選ぶ。指定しない枝は分岐元→本線→全体の既定の順に継承。
+### 2.3 進捗（アジェンダ）
+- 右の #agenda。AI の要約が未解決項目を出し入れする。手動: #agAdd で追加、項目のボタンで解決／編集／削除。⧉ #agExport で Markdown をコピー。
+### 2.4 バックアップ
+- #bkBtn → #bkDlg: 「すべての会話を書き出す」#bkAll、「この会話だけ」#bkOne、読み込み #bkFile → #bkImport（足し合わせ。同じ id は新しい方）。画像パネルの画像と自分のテンプレートも同梱。
+
+## 3. Figure 作成（統計グラフ）SOP
+作成画面 #figDlg。開き方: #plusBtn → #figBtn、または回答中の図ブロック .figblock の「✎ 編集」[data-figedit]。
+### 3.1 画面の要素
+- 上のツール行 #figToolbar: ↶ #figUndoBtn ↷ #figRedoBtn、メニュー .ftm[data-ftm=graph|kind|axes|text|color|annot|size]（ボタンを押すと .ftp が開く。項目は [data-tk="キー"]、ボタン項目は [data-tbtn="キー"]）、⧉ コピー [data-fact=copy]、PNG [data-fact=png]、PNG 600 [data-fact=png600]、SVG [data-fact=svg]。
+- 左: データ #figData（タブ・カンマ区切り、または Markdown の表。1 行目＝見出し）、「📂 ファイルから読む」#figFileBtn（CSV/TSV/XLSX、#figFile）、表の型 #figKind、グラフ #figGalBtn（現在の種類名 #figTypeName。押すと見本の一覧 #figGalDlg）、有意差 #figCmp（none/all/dunnett）＋対照群 #figCtrl、題名 #figTitle、Y 軸の題・X 軸の題 [data-fopt=yTitle|xTitle]、結果表 #figStats。
+- 中央: プレビュー #figPreview（要素をクリックで右の欄がその要素の設定になる: [data-sel="axes|series:i|brackets|legend|title|ytitle|xtitle"]、文字 [data-note=k]、ROC のカットオフ文字 [data-cut=i]）。下に「チャットに添付して質問する」#figAttach、「回答の図を更新」#figUpdate（ブロックから開いたときだけ）、「画像をコピー」#figCopy、PNG #figPng、SVG #figSvg。
+- 右: 選んだ要素の設定 #figInspect（入力は [data-ik="キー"]。効かない項目は disabled＋「この図では使いません」）。
+### 3.2 手順
+1. データを #figData に貼る（例: 「Control\\tTreated\\n12.1\\t15.4\\n…」。列＝群、行＝反復。同名の列は反復としてまとまる）。
+2. 表の型が自動判定される（#figKind）。違えば選び直す: column（列＝群）、grouped（行＝カテゴリ、列＝群）、xy（1 列目＝X）、survival（Time, Event, Group）、roc（マーカー列, Class）、heatmap、forest（Study, Estimate, Lower, Upper）、waterfall（Patient, Change, Response）、multi（行＝個体、列＝変数）、nested（Group, Subject, Value）、swimmer、spider、feature（Gene, log2FC, P）、importance、omics、sets（列＝集合、1/0）、nomogram（Variable, Coef, Min, Max）、tracks（Track, Start, End, Value/Name）。
+3. グラフの種類は #figGalBtn → #figGalDlg の見本カード .figGalCard[data-galkind="…"][data-galtype="…"] をクリック（同じ表の型なら種類だけ変わる。違う型の図を選ぶと例のデータが入る。自分のデータがあるときは #qDlg で確認 → #qOk）。絞り込み #figGalQ。カード左上の ☆ [data-galfav] でお気に入り（一覧の先頭「★ お気に入り」に入る）。閉じる #figGalClose。
+4. 設定: #figToolbar のメニューから。例: 誤差 [data-tk=errType]=SD|SEM|CI|none、有意差 [data-tk=__cmp]=none|all|dunnett、Y 軸対数 [data-tk=ylog]、配色 [data-tk=scheme]=classic|colorblind|nature|gray、大きさ [data-tk=wIn] [data-tk=hIn]（インチ）、図種固有の項目は「図種の設定」[data-ftm=kind]。
+5. 文字を書き込む: 「注釈」メニュー → 「＋ グラフに文字を書き込む」[data-tbtn=__noteAdd] → プレビューの場所をクリック → #figPromptDlg に文字 → #figPromptOk。置いた文字はドラッグで移動、クリックで右の欄（文字・大きさ・色・削除）。
+6. 書き出し: PNG #figPng（300 dpi、pHYs 付き）／PNG 600／SVG #figSvg／画像をコピー #figCopy。チャットで続けるなら #figAttach（PNG を添付し、入力欄に \`\`\`figure の JSON が入る）。
+7. 回答の図を直した場合は #figUpdate で元の回答のブロックを書き換える。
+### 3.3 コンソールからの作図（画面操作の代わり）
+- spec = {kind:'column',type:'bar',title:'…',compare:'all',data:'Control\\tTreated\\n12.1\\t15.4\\n…',style:{errType:'SEM'}}; figOpen(figStateFromSpec(spec)) で作成画面に入る。figRenderSpec(spec).svg で SVG 文字列が得られる。figGalleryPick('survival','km') で種類を切り替え（例のデータが入る）。figSpecFromState(figState) で現在の指定を JSON に。
+- 全 type の一覧: FIG_TYPES（{kind:[[type,表示名],…]}）。見本のデータ: figSample(kind,type)。
+
+## 4. チャット内の図ブロック
+- AI の回答中の \`\`\`figure（JSON）は自動で図になる（.figblock[data-fignode][data-figidx]）。ボタン: ✎ 編集 [data-figedit]、PNG [data-figpng]、SVG [data-figsvg]、⧉ [data-figcopy]、{} JSON [data-figjson]。同じ回答に図が 2 つ以上あると最後のブロックに「⊞ 1 枚にまとめる」が出る（レイアウト {"kind":"layout","cols":2,"labels":"A","page":"2col","panels":[…]}）。
+- JSON の形: {title,kind,type,err,compare,ctrl,ytitle,xtitle,ymin,ymax,data(TSV 文字列),style{…}}。画像パネルは {"kind":"image","type":"grid|blot",…}、模式図は {"kind":"schematic","type":"diagram|pedigree|gene|venn|timeline|table",…}。
+- 図の上の文字 [data-note] と ROC のカットオフ [data-cut] はブロック上でドラッグ移動、ダブルクリックで書き換え。
+
+## 5. 画像パネル作成（顕微鏡・IHC・ウェスタンブロット）SOP
+画面 #figImgDlg。開き方: #plusBtn → #figImgBtn → ファイル選択（PNG/JPEG/TIFF、最大 60 枚）。回答中の画像ブロックの ✎ 編集でも開く。
+1. 型 #figImgType: grid（顕微鏡・IHC・写真）／blot（ゲル・ウェスタン）。題名 #figImgTitle。
+2. grid: 列数 #figImgCols、セル幅 #figImgCell、収め方 #figImgFit（cover/contain）、縦横比 #figImgAspect、行見出し #figImgRows、列見出し #figImgColsLab（カンマ区切り）、列見出しの色 #figImgColColorsUI（パレット .sws .sw[data-v]）、スケールバー: 1 px = #figImgUm µm（元画像の画素サイズ）、バーの長さ #figImgLen、単位 #figImgUnit、表示 #figImgLabelOn、色 #figImgSbColorUI、位置 #figImgSbPos。
+3. blot: 幅 #figImgWidth、レーン名の向き #figImgLaneRot、抗体名の側 #figImgNameSide、レーン #figImgLanes、条件行 #figImgConds（1 行 1 条件「名前: −, +, −, +」、「名前: wedge」で楔）、群見出し #figImgGroups（「Raji: 1-2, BC-1: 3-4」）。
+4. 画像リスト #figImgList: 各 .imgItem に セルの文字 [data-ik=label]、文字の色（パレット）、疑似カラー（パレット、channel）、LUT [data-ik=lut]、表示範囲 [data-ik=range0|range1]、γ [data-ik=gamma]、回転 [data-ik=rot]、反転 [data-ik=flip]、切り抜き [data-ik=crop]（x,y,w,h の割合）、▲▼ 並べ替え、✕ 外す。チェック [data-ik=chk] して「チェックした画像で合成セルを足す」#figImgMerge で疑似カラー合成。
+5. 注釈: ツール行 #figImgTools のボタン [data-figdtool=arrow|head|star|text|roi|inset|line] を押してから、プレビュー #figImgPreview の写真（[data-cellbox=k]）をクリック（line は始点と終点の 2 回）。色は [data-ik=annotColor] のパレット。⌫ [data-figdtool=undo] で最後を消す。置いた注釈は「置いた注釈」#figImgAnnots の行で文字・大きさ・向き・幅・高さ・形・色・✕。ROI 枠と拡大図は選ぶと四隅の ■ .roiHandle をドラッグで大きさ変更。ドラッグで移動。
+6. 書き出し: #figImgPng（300 dpi）、#figImgSvg、#figImgCopy、#figImgJson（指定の JSON を直接編集）。チャットへ #figImgAttach。回答のブロックを直すなら #figImgUpdate。
+- コンソール: figImgOpen(spec) で開く。画像は id（conv.imgs）で参照し、本文には入らない。
+
+## 6. 確認のしかた（エージェント向け）
+- 送信が終わったか: #sendBtn の文字が「送信」に戻る。回答は #msgs の最後の .msg。
+- 図ができたか: #figPreview > svg の有無、figState.svg.length > 0。結果表は #figStats。
+- 設定が効くか: 無効な項目は disabled。有効な項目を変えると #figPreview が描き直る。
+- エラーは右下の #toast に出る（数秒で消える）。
+- 画面はダークな緑。ダイアログは中央のモーダル。狭い画面では左の一覧が重なって出る。
+
+## 7. してはいけないこと
+- 設定の API キー・Jev のキーを読み出して外部へ送らない。会話データを外部へ送らない。
+- 生成中に会話を切り替えない。window.prompt を使う操作を試さない（存在しない）。
+- 実在薬の用量など医学的助言に見える内容をデモやサンプルに入れない。
+`;
+/*SOP-END*/
 const TUT_PAGES=[
   ()=>({t:'BranCHAT へようこそ',h:`<p>BranCHAT は、AIとの会話を<b>1本の線ではなく、枝分かれする地図</b>として進めるチャットです。</p>
     <ul><li>話が脇道にそれそうなときは<b>分岐</b>させ、本線はそのまま残せます。</li>
@@ -2486,6 +2574,9 @@ const TUT_PAGES=[
     <li>View の<b>「知識マップ」</b>では、すべての会話の枝が点で並び、内容が近いもの同士が線で結ばれます。線が太いほど関連が強く、「整理」でよく似た枝を片付けられます。</li></ul>
     <h3 class="ui">まず試すなら</h3><p>見本の会話を読み込むと、分岐・分岐予定・要約・俯瞰図をすぐ確認できます（架空の薬剤を使った例です）。</p>
     <div class="editBtns"><button class="small primary" id="tutDemo">デモ会話を読み込む</button></div>`}),
+  ()=>({t:'AI 向け仕様書（SOP）',h:`<p>AI エージェント（computer use など）に BranCHAT を操作させるための手順書です。画面の要素名（CSS セレクタ）と手順、コンソールから呼べる関数を書いてあります。人が読む用の体裁にはしていません。AI に渡すときは、コピーするか、ファイルに保存して読ませてください。</p>
+    <div class="editBtns"><button class="small primary" data-copy="__sop">全文をコピー</button><button class="small" id="tutSopSave">テキストファイルに保存</button></div>
+    <pre class="sop">${esc(AI_SOP)}</pre>`}),
 ];
 async function tutLoadAuth(force){
   if(IS_ARTIFACT)return;
@@ -2495,10 +2586,11 @@ function renderTut(){
   const pg=TUT_PAGES[tutPage]();$('#tutTitle').textContent=pg.t;$('#tutBody').innerHTML=pg.h;$('#tutBody').scrollTop=0;
   $('#tutDots').innerHTML=TUT_PAGES.map((_,i)=>`<i class="${i===tutPage?'on':''}"></i>`).join('');
   $('#tutPrev').disabled=tutPage===0;$('#tutNext').textContent=tutPage===TUT_PAGES.length-1?'はじめる':'次へ';
-  $('#tutBody').querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copy);b.textContent='コピーしました';}catch(e){const c=b.previousElementSibling;const r=document.createRange();r.selectNodeContents(c);const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='選択しました（Cmd/Ctrl+C）';}setTimeout(()=>b.textContent='コピー',1800);});
+  $('#tutBody').querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copy==='__sop'?AI_SOP:b.dataset.copy);b.textContent='コピーしました';}catch(e){const c=b.previousElementSibling;const r=document.createRange();r.selectNodeContents(c);const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='選択しました（Cmd/Ctrl+C）';}setTimeout(()=>b.textContent='コピー',1800);});
   $('#tutBody').querySelectorAll('[data-login]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await(await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({engine:b.dataset.login})})).json();toast(r.ok?'ターミナルを開きました。ブラウザでログインを済ませてから「状態を再確認」を押してください':'ターミナルを開けませんでした。上のコマンドを手で実行してください');}catch(e){toast('上のコマンドを手で実行してください');}b.disabled=false;});
   const rc=document.getElementById('tutRecheck');if(rc)rc.onclick=async()=>{rc.disabled=true;rc.textContent='確認中…';await tutLoadAuth(true);renderTut();renderAll();};
   const dm=document.getElementById('tutDemo');if(dm)dm.onclick=()=>{closeTut();loadDemo();};
+  const sv=document.getElementById('tutSopSave');if(sv)sv.onclick=()=>saveTextFile('BranCHAT_SOP_for_AI.txt',AI_SOP);
 }
 function openTut(page){tutPage=page||0;renderTut();$('#tutDlg').showModal();tutLoadAuth(false).then(()=>{if($('#tutDlg').open&&tutPage===1)renderTut();});}
 function closeTut(){lsSetSafe('bc.tutorialSeen','1');$('#tutDlg').close();}
