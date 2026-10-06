@@ -354,18 +354,38 @@ function figUndoBtns(){const u=document.querySelector('#figUndoBtn'),r=document.
 function figDoUndo(){if(figUndo.length<2)return;figRedo.push(figUndo.pop());figRestore(figUndo[figUndo.length-1]);figUndoBtns();}
 function figDoRedo(){if(!figRedo.length)return;const s=figRedo.pop();figUndo.push(s);figRestore(s);figUndoBtns();}
 function figToolsHTML(){return `<div class="figTools"><button class="small" id="figUndoBtn" data-tip="元に戻す">↶</button><button class="small" id="figRedoBtn" data-tip="やり直す">↷</button><span class="sep"></span>${FIG_TOOLS.map(g=>`<div class="ftm" data-ftm="${g.id}"><button class="small">${g.l} ▾</button><div class="ftp" id="ftp-${g.id}"></div></div>`).join('')}<span class="sep"></span><button class="small" data-fact="copy" data-tip="画像をコピー">⧉ コピー</button><button class="small" data-fact="png" data-tip="PNG 300 dpi">PNG</button><button class="small" data-fact="png600" data-tip="PNG 600 dpi">PNG 600</button><button class="small" data-fact="svg" data-tip="SVG">SVG</button></div>`;}
+// 設定項目がいまの図に効くか。値を変えて描き直し、SVG が変わるかで判定する（効かない項目は無効にして「この図では使いません」と示す）。
+// 判定は kind/type/データ/有意差/誤差の種類ごとにキャッシュ。乱数の id（グラデーション・マーカー）は比較前に取り除く
+let figApplCache={key:'',map:{}};
+function figApplicable(){const st=figState;if(!st)return {};const shape=st.data&&st.data.groups?st.data.groups.map(g=>g.name+':'+(g.values?g.values.length:g.points?g.points.length:g.cells?g.cells.length:'')).join(','):'';const key=[st.kind,st.type,st.cmp,st.opts.errType,st.opts.ylog,shape,(st.text||'').split('\n').length].join('|');if(figApplCache.key===key)return figApplCache.map;const map={};
+  const norm=v=>String(v||'').replace(/ id="[^"]*"/g,'').replace(/url\(#[^)]*\)/g,'url()');
+  const render=(opts,title,cmp)=>{try{const r=figRenderSpec(figSpecFromState(Object.assign({},st,{opts,title,cmp})));return norm(r&&r.svg);}catch(e){return 'ERR';}};
+  const base=render(st.opts,st.title,st.cmp);if(!base||base==='ERR'){figApplCache={key,map};return map;}
+  for(const g of FIG_TOOLS)for(const it of g.items){const k=it.k;if(!k||it.t==='series'||it.t==='btn'||it.t==='hint'||(k.startsWith('__')&&k!=='__cmp'&&k!=='__title'&&k!=='__preset'))continue;
+    if(k==='__preset'){map[k]=map.wIn!==false;continue;}
+    const cur=k==='__cmp'?st.cmp:k==='__title'?st.title:(st.opts[k]===undefined?FIG_DEF[k]:st.opts[k]);let alt;
+    if(it.t==='select'){const opts=typeof it.o==='function'?it.o():it.o;const other=(opts||[]).find(([a])=>String(a)!==String(cur));if(!other)continue;alt=other[0];}
+    else if(it.t==='check')alt=!(cur&&cur!=='0');
+    else if(it.t==='num'){const c=+cur||0,step=(it.step||1)*2;alt=c+step<=(it.max==null?1e9:it.max)?c+step:Math.max(it.min==null?-1e9:it.min,c-step);if(alt===c)continue;}
+    else if(it.t==='color')alt=String(cur||'').toLowerCase()==='#ff00ff'?'#00ff00':'#ff00ff';
+    else alt=(cur===''||cur==null)?(k==='ymin'?'-98765':k==='ymax'?'98765':k==='refLine'?'0.123':'probe'):'';
+    let o2=Object.assign({},st.opts,{[k]:alt});if(k==='scheme'){o2.colors=FIG_SCHEMES[alt];delete o2.series;}
+    const svg=k==='__cmp'?render(st.opts,st.title,alt):k==='__title'?render(st.opts,alt,st.cmp):render(o2,st.title,st.cmp);
+    map[k]=svg!==base;}
+  figApplCache={key,map};return map;}
+const FIG_NA_LABEL='この図では使いません';
 function figToolPanel(g){
   const st=figState,o=st.opts;const val=k=>k==='__type'?st.type:k==='__title'?st.title:k==='__cmp'?st.cmp:k==='__noteSize'?(st.noteSize||'0.85'):k==='__noteColor'?(st.noteColor||'#000000'):k==='__preset'?(Object.entries(FIG_PRESETS).find(([n,v])=>v[0]==+(o.wIn||3)&&v[1]==+(o.hIn||2))||['custom'])[0]:(o[k]===undefined?(FIG_DEF[k]===undefined?'':FIG_DEF[k]):o[k]);
-  if(!g.items.length)return '<div class="hint">この図種に固有の設定はありません</div>';
+  if(!g.items.length)return '<div class="hint">この図種に固有の設定はありません</div>';const app=figApplicable();
   return g.items.map(it=>{if(it.t==='series'){const gs=(st.data&&st.data.groups)||[];return gs.map((gr,i)=>{const so=figSeriesOpt(o,i);return `<div class="irow"><label>${figEsc(gr.name)}</label><span class="srow"><input type="color" data-tk="series.${i}.color" value="${so.color}"><select data-tk="series.${i}.symbol">${FIG_SYMBOLS.map(([a,b])=>`<option value="${a}"${a===so.symbol?' selected':''}>${b}</option>`).join('')}</select><select data-tk="series.${i}.fill"><option value="solid"${so.fill==='solid'?' selected':''}>塗り</option><option value="open"${so.fill==='open'?' selected':''}>白抜き</option></select></span></div>`;}).join('')||'<div class="hint">データを入れると系列ごとの色が出ます</div>';}
-    const v=val(it.k);const opts=typeof it.o==='function'?it.o():it.o;
-    if(it.t==='select')return `<div class="irow"><label>${it.l}</label><select data-tk="${it.k}">${(opts||[]).map(([a,b])=>`<option value="${a}"${String(a)===String(v)?' selected':''}>${b}</option>`).join('')}</select></div>`;
-    if(it.t==='num')return `<div class="irow"><label>${it.l}</label><input type="number" data-tk="${it.k}" value="${v===''?'':v}" min="${it.min}" max="${it.max}" step="${it.step}"></div>`;
-    if(it.t==='check')return `<label class="irow chk"><input type="checkbox" data-tk="${it.k}"${v&&v!=='0'?' checked':''}> ${it.l}</label>`;
-    if(it.t==='color')return `<div class="irow"><label>${it.l}</label><input type="color" data-tk="${it.k}" value="${v||'#000000'}"></div>`;
+    const v=val(it.k);const opts=typeof it.o==='function'?it.o():it.o;const na=app[it.k]===false;const dis=na?' disabled':'';const cls=na?' na':'';const lab=na?`${it.l} <span class="hint">（${FIG_NA_LABEL}）</span>`:it.l;
+    if(it.t==='select')return `<div class="irow${cls}"><label>${lab}</label><select data-tk="${it.k}"${dis}>${(opts||[]).map(([a,b])=>`<option value="${a}"${String(a)===String(v)?' selected':''}>${b}</option>`).join('')}</select></div>`;
+    if(it.t==='num')return `<div class="irow${cls}"><label>${lab}</label><input type="number" data-tk="${it.k}" value="${v===''?'':v}" min="${it.min}" max="${it.max}" step="${it.step}"${dis}></div>`;
+    if(it.t==='check')return `<label class="irow chk${cls}"><input type="checkbox" data-tk="${it.k}"${v&&v!=='0'?' checked':''}${dis}> ${lab}</label>`;
+    if(it.t==='color')return `<div class="irow${cls}"><label>${lab}</label><input type="color" data-tk="${it.k}" value="${v||'#000000'}"${dis}></div>`;
     if(it.t==='btn')return `<div class="irow"><button type="button" class="small" data-tbtn="${it.k}">${typeof it.l==='function'?it.l():it.l}</button></div>`;
     if(it.t==='hint')return `<div class="hint" style="margin:2px 0 6px">${it.l}</div>`;
-    return `<div class="irow"><label>${it.l}</label><input type="text" data-tk="${it.k}" value="${figEsc(v==null?'':v)}"></div>`;}).join('');
+    return `<div class="irow${cls}"><label>${lab}</label><input type="text" data-tk="${it.k}" value="${figEsc(v==null?'':v)}"${dis}></div>`;}).join('');
 }
 function figApplyTool(k,v){
   const st=figState,o=st.opts;const $=s=>document.querySelector(s);
@@ -461,6 +481,7 @@ function figInspector(){
   else if(sel==='legend'){title='凡例';h+=row('表示',selx('legend',o.legend||'right',[['right','右に表示'],['none','表示しない']]));const gs=(st.data&&st.data.groups)||[];if(gs.length)h+='<div class="hint">凡例の文字（系列の表示名）。空なら列名のまま</div>'+gs.map((g,i)=>row(figEsc(g.name),`<input type="text" data-ik="sname.${i}" value="${figEsc(figSeriesOpt(o,i).name||'')}" placeholder="${figEsc(g.name)}">`)).join('');}
   else{h+=row('配色',selx('scheme',o.scheme||'classic',[['classic','既定（青・赤・緑…）'],['colorblind','色覚多様性に配慮'],['nature','誌面風（赤・水色・緑…）'],['gray','グレースケール']]))+row('文字の大きさ (pt)',num('fontPt',o.fontPt||12,1,6,24))+row('記号の大きさ (pt)',num('symPt',o.symPt||5.5,0.5,2,20))+row('軸の太さ (pt)',num('axisPt',o.axisPt||1,0.25,0.25,4))+row('幅 (in)',num('wIn',o.wIn||3,0.25,1,8))+row('高さ (in)',num('hIn',o.hIn||2,0.25,1,8))+row('棒の塗り',selx('barFill',o.barFill||'solid',[['solid','塗り'],['open','白抜き']]))+`<div class="hint">プレビューの点・棒・軸・題名・ブラケット・凡例をクリックすると、その要素の設定に切り替わります。</div>`;}
   box.innerHTML=`<h4>${title}${sel?' <button class="small" data-iact="unsel">全体の設定へ</button>':''}</h4>${h}`;
+  if(!sel||sel==='axes'){const app=figApplicable();box.querySelectorAll('[data-ik]').forEach(el=>{const k=el.dataset.ik==='title'?'__title':el.dataset.ik;if(app[k]===false){el.disabled=true;const r=el.closest('.irow');if(r){r.classList.add('na');const lb=r.querySelector('label');if(lb&&!lb.querySelector('.hint'))lb.insertAdjacentHTML('beforeend',` <span class="hint">（${FIG_NA_LABEL}）</span>`);}}});}
   box.querySelectorAll('[data-ik]').forEach(el=>{el.addEventListener(el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.ik;let v=el.value;
     if(k.startsWith('sname.')){const i=+k.slice(6);o.series=o.series||{};o.series[i]=o.series[i]||{};if(v)o.series[i].name=v;else delete o.series[i].name;}
     else if(k.startsWith('note.')){const i=+st.sel.split(':')[1];const n=(o.notes||[])[i];if(n){const kk=k.slice(5);if(kk==='bold')n.bold=v==='1';else if(kk==='size')n.size=+v;else n[kk]=v;}}
