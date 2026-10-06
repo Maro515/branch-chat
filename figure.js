@@ -295,7 +295,7 @@ data はタブ区切り。column は列＝群・行＝反復、grouped は1列�
 // 各項目: {k:opts のキー, t:種類 select|num|check|color|text|btn, l:ラベル, o:選択肢, min,max,step, act:ボタンの動作}
 const FIG_TOOLS=[
  {id:'graph',l:'グラフ',items:[
-   {k:'__gallery',t:'btn',l:()=>{const t=(FIG_TYPES[figState.kind]||[]).find(x=>x[0]===figState.type);return '▦ グラフの種類: '+(t?t[1]:'未選択')+'（見本から選ぶ）';}},
+   {k:'__gallery',t:'btn',l:'▦ グラフを選択する'},
    {k:'errType',t:'select',l:'誤差',o:[['SD','SD'],['SEM','SEM'],['CI','95% CI'],['none','なし']]},
    {k:'errDir',t:'select',l:'誤差棒の向き',o:[['auto','自動（棒は上のみ）'],['both','上下'],['up','上のみ']]},
    {k:'capW',t:'num',l:'キャップ幅（棒幅×）',min:0,max:1.5,step:0.1},
@@ -353,7 +353,7 @@ function figRestore(snap){const j=JSON.parse(snap);Object.assign(figState,j);con
 function figUndoBtns(){const u=document.querySelector('#figUndoBtn'),r=document.querySelector('#figRedoBtn');if(u)u.disabled=figUndo.length<2;if(r)r.disabled=!figRedo.length;}
 function figDoUndo(){if(figUndo.length<2)return;figRedo.push(figUndo.pop());figRestore(figUndo[figUndo.length-1]);figUndoBtns();}
 function figDoRedo(){if(!figRedo.length)return;const s=figRedo.pop();figUndo.push(s);figRestore(s);figUndoBtns();}
-function figToolsHTML(){return `<div class="figTools"><button class="small" id="figUndoBtn" data-tip="元に戻す">↶</button><button class="small" id="figRedoBtn" data-tip="やり直す">↷</button><span class="sep"></span><button class="small primary" data-fact="gallery" data-tip="見本の一覧からグラフの種類を選ぶ">▦ グラフの種類</button>${FIG_TOOLS.map(g=>`<div class="ftm" data-ftm="${g.id}"><button class="small">${g.l} ▾</button><div class="ftp" id="ftp-${g.id}"></div></div>`).join('')}<span class="sep"></span><button class="small" data-fact="copy" data-tip="画像をコピー">⧉ コピー</button><button class="small" data-fact="png" data-tip="PNG 300 dpi">PNG</button><button class="small" data-fact="png600" data-tip="PNG 600 dpi">PNG 600</button><button class="small" data-fact="svg" data-tip="SVG">SVG</button></div>`;}
+function figToolsHTML(){return `<div class="figTools"><button class="small" id="figUndoBtn" data-tip="元に戻す">↶</button><button class="small" id="figRedoBtn" data-tip="やり直す">↷</button><span class="sep"></span>${FIG_TOOLS.map(g=>`<div class="ftm" data-ftm="${g.id}"><button class="small">${g.l} ▾</button><div class="ftp" id="ftp-${g.id}"></div></div>`).join('')}<span class="sep"></span><button class="small" data-fact="copy" data-tip="画像をコピー">⧉ コピー</button><button class="small" data-fact="png" data-tip="PNG 300 dpi">PNG</button><button class="small" data-fact="png600" data-tip="PNG 600 dpi">PNG 600</button><button class="small" data-fact="svg" data-tip="SVG">SVG</button></div>`;}
 function figToolPanel(g){
   const st=figState,o=st.opts;const val=k=>k==='__type'?st.type:k==='__title'?st.title:k==='__cmp'?st.cmp:k==='__noteSize'?(st.noteSize||'0.85'):k==='__noteColor'?(st.noteColor||'#000000'):k==='__preset'?(Object.entries(FIG_PRESETS).find(([n,v])=>v[0]==+(o.wIn||3)&&v[1]==+(o.hIn||2))||['custom'])[0]:(o[k]===undefined?(FIG_DEF[k]===undefined?'':FIG_DEF[k]):o[k]);
   if(!g.items.length)return '<div class="hint">この図種に固有の設定はありません</div>';
