@@ -22,7 +22,7 @@ class ClaudeSessions {
     const allowed = req.web ? ['WebSearch', 'WebFetch'] : [];
     if (mcpCfg && Object.keys(mcpCfg).length) { args.push('--mcp-config', JSON.stringify({ mcpServers: mcpCfg })); allowed.push(...Object.keys(mcpCfg).map((k) => 'mcp__' + k)); }
     if (allowed.length) args.push('--allowedTools', ...allowed);
-    if (req.effort && req.effort !== 'ultra' && !/haiku/.test(model)) args.push('--effort', req.effort);
+    if (req.effort && req.effort !== 'ultra' && !/haiku-4/.test(model)) args.push('--effort', req.effort); // Haiku 4.5 だけ effort 非対応（5.5 は対応）
     args.push('--no-session-persistence', '--strict-mcp-config', '--setting-sources', '', '--input-format', 'stream-json', '--output-format', 'stream-json', '--include-partial-messages', '--verbose');
     const child = spawn(this.claude, args, { cwd: os.tmpdir(), env: this.env, stdio: ['pipe', 'pipe', 'pipe'] });
     child.stdin.on('error', () => {});
