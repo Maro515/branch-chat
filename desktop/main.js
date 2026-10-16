@@ -192,6 +192,8 @@ async function runSmoke(win) {
       const r={title:document.title,origin:location.origin,bridgeOk,claudeCliOk,codex:codexInfo.ok,models:MODEL_OPTS.map(o=>o.l),fontsLocal:!!document.querySelector('link[href="fonts/fonts.css"]'),fontsReady:(await document.fonts.ready,document.fonts.check('15px "IBM Plex Sans JP"')),lsWorks:(()=>{try{localStorage.setItem('bc.smoke','1');return localStorage.getItem('bc.smoke')==='1';}catch(e){return false;}})()};
       settings.provider='dummy'; loadDemo();
       await send('スモークテスト'); r.dummyReply=N(conv.activeNodeId).content.slice(0,40);
+      // AI 回答オフ（ノート）: 切り替え → 送ると自分の発言だけ増えて AI の回答が無い → 戻す
+      {const n0=Object.keys(conv.nodes).length;document.getElementById('aiBtn').click();await new Promise(x=>setTimeout(x,80));await send('ノートのテスト');const n1=Object.keys(conv.nodes).length;const last=N(conv.activeNodeId);r.noteMode={off:B(effectiveBranchForSend()).noAi===true,added:n1-n0,lastRole:last.role,note:last.note===true,btn:document.getElementById('sendBtn').textContent};document.getElementById('aiBtn').click();await new Promise(x=>setTimeout(x,80));r.noteMode.back=!B(effectiveBranchForSend()).noAi&&document.getElementById('sendBtn').textContent==='送信';}
       // 中断: ダミー応答を途中で止める
       const pAbort=send('中断テスト'); await new Promise(x=>setTimeout(x,120)); document.getElementById('sendBtn').click(); await pAbort; r.abort=N(conv.activeNodeId).content.includes('中止しました');
       // バックアップ: 保存して読み戻す

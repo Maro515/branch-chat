@@ -293,6 +293,7 @@ header{z-index:5}
 .sendCol{display:flex;flex-direction:row;gap:6px;align-items:stretch;position:relative}
 .sendCol button{height:44px}
 #modelBtn{font-size:12px;padding:4px 10px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+#aiBtn{font-size:12px;padding:4px 10px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}#aiBtn.off{background:#6b6b6b;color:#fff;border-color:#555}#aiBtn.off:hover{background:#7a7a7a}#sendBtn.note{background:#6b6b6b;border-color:#555}
 #modelBtn .ov{width:8px;height:8px;border-radius:50%;background:var(--bc,#a8c9a3);flex:none}
 #modelPop{position:absolute;right:0;bottom:calc(100% + 8px);width:min(340px,calc(100vw - 32px));background:#fff;border:1.5px solid var(--indigo);border-radius:12px;box-shadow:0 8px 30px rgba(31,74,43,.28);padding:10px;z-index:30;display:none;color:var(--indigo);max-height:70vh;overflow:auto}
 #modelPop.on{display:block}
@@ -666,7 +667,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
           <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure を作る</span><span class="st ui">統計グラフ・作図</span></button><button id="figImgBtn" class="prow"><span class="ui">🔬 画像パネル作成</span><span class="st ui">顕微鏡・IHC・ブロットを並べる</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
         <textarea id="input" rows="1" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）"></textarea>
-        <div class="sendCol"><div id="modelPop"></div><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
+        <div class="sendCol"><div id="modelPop"></div><button id="aiBtn" title="この枝で AI が答えるかどうか（オフにするとノートとして書き留めるだけ）"></button><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
       <div id="status"></div>
     </div>
@@ -1256,7 +1257,7 @@ async function updateSummary(bid){
 /* ========== 送信 ========== */
 let busy=false;
 let abortCtl=null;
-function setSendBtn(running){const b=$('#sendBtn');b.textContent=running?'■ 停止':'送信';b.classList.toggle('stop',running);b.title=running?'生成を中断する':'';}
+function setSendBtn(running){const b=$('#sendBtn');const off=!!(B(effectiveBranchForSend())||{}).noAi;b.textContent=running?'■ 停止':(off?'書き留める':'送信');b.classList.toggle('stop',running);b.classList.toggle('note',off&&!running);b.title=running?'生成を中断する':'';}
 async function send(text,opts={}){
   if(busy||!text.trim())return;busy=true;followTail=true;abortCtl=new AbortController();setSendBtn(true);
   let bid=opts.branchId||currentBranchId();
@@ -1268,6 +1269,7 @@ async function send(text,opts={}){
   const u=addNode('user',text,parentId,bid);
   if(conv.title==='新しい会話'){conv.title=excerpt(text,20);conv.titleAuto=true;} // 仮の題名。最初の要約ができたら AI が付け直す
   if(opts.images&&opts.images.length)u.images=opts.images.map(p=>p.thumb); // 表示用の縮小版だけ保存（送信用の原寸は保存しない）
+  if(B(bid)&&B(bid).noAi){u.note=true;conv.activeNodeId=u.id;busy=false;persist();renderAll();setSendBtn(false);setStatus('書き留めました（AI 回答はオフ）');return;} // ノートとして保存するだけ
   const a=addNode('assistant','',u.id,bid);a.streaming=true;if(opts.mergedFrom)a.mergedFrom=opts.mergedFrom;
   conv.activeNodeId=a.id;persist();renderAll();
   const web=!!settings.web&&!IS_ARTIFACT&&settings.provider!=='openai'; // OpenAI互換の接続では Web検索を使えない
@@ -1317,7 +1319,7 @@ function stopFollow(){if(followTail){followTail=false;updateJumpBtn();}}
 })();
 
 /* ========== 描画: フォーカス ========== */
-function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderMini();renderModelBtn();renderWebBtn();renderMcpBtn();renderAgenda();if($('#overview').classList.contains('on'))renderOverview();if($('#know').classList.contains('on'))renderKnow();}
+function renderAll(){renderConvSel();renderBranchBar();renderFocus();renderMini();renderModelBtn();renderAiBtn();renderWebBtn();renderMcpBtn();renderAgenda();if($('#overview').classList.contains('on'))renderOverview();if($('#know').classList.contains('on'))renderKnow();}
 function convLastTs(c){const id=c.order&&c.order[c.order.length-1];return (id&&c.nodes[id]&&c.nodes[id].ts)||c.createdAt||0;}
 function renderConvSel(){ // 左の会話一覧（名前は以前のプルダウンのまま）
   const list=Object.values(convs).sort((a,b)=>convLastTs(b)-convLastTs(a));
@@ -2071,6 +2073,7 @@ function openTplDlg(){
 $('#tplCancel').onclick=()=>$('#tplDlg').close();tplEditInit();
 
 /* ========== イベント ========== */
+$('#aiBtn').onclick=()=>{const b=B(effectiveBranchForSend());if(!b)return;b.noAi=!b.noAi;persist();renderAll();toast(b.noAi?`「${b.name}」では AI が答えません（ノートとして書き留めます）`:`「${b.name}」で AI が答えるようになりました`);};
 $('#sendBtn').onclick=()=>{if(busy){if(abortCtl)abortCtl.abort();return;}const t=$('#input').value;if(!t.trim()&&!pendingImgs.length)return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';fitInput();const imgs=pendingImgs;pendingImgs=[];renderPlus();send(t.trim()||'（画像を添付）',{branchId:bid,parentId:conv.activeNodeId,images:imgs});};
 $('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!busy)$('#sendBtn').click();}});
 // 入力欄は1行から内容に合わせて伸びる（上限は CSS の max-height）
@@ -2377,6 +2380,10 @@ function effLabel(bid){const e=effEffort(bid);return modelLabel(effModel(bid))+(
 function modelSource(bid){const a=resolveUp(bid,'model',validModel).src,b=EFFORT_OPTS.length?resolveUp(bid,'effort',validEffort).src:'global';if(a===bid||b===bid)return bid;return a!=='global'?a:b;}
 const sourceName=(src,bid)=>src===bid?'このブランチの設定':(src==='global'||src==='main')?'本線の設定':`分岐元「${B(src).name}」の設定`;
 let mpScope='branch';
+// 枝ごとの「AI 回答 オン/オフ」。オフの枝ではノートとして書き留めるだけ（AI は答えず、要約も更新しない）
+function renderAiBtn(){const b=B(effectiveBranchForSend());const off=!!(b&&b.noAi);const btn=$('#aiBtn');if(!btn)return;btn.classList.toggle('off',off);btn.innerHTML=`<span class="ui">${off?'🤖 AI 回答: オフ':'🤖 AI 回答: オン'}</span>`;
+  const inp=$('#input');if(inp)inp.placeholder=off?'ノート（Enterで書き留める / Shift+Enterで改行。この枝では AI は答えません）':'メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）';
+  const sb=$('#sendBtn');if(sb&&!busy){sb.textContent=off?'書き留める':'送信';sb.classList.toggle('note',off);}}
 function renderModelBtn(){
   migrateConvModel();
   const bid=effectiveBranchForSend();const src=modelSource(bid);
@@ -2464,7 +2471,7 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（AI エージェント／compute
 - チャット #focus > #msgs: 発言 .msg。AI の回答のボタン: ⧉ [data-copyall]（全文コピー）, ⑂ [data-fork]（ここから分岐）, ☆/★ [data-plan]（分岐予定）。自分の発言: ✎ [data-edit]（質問を編集して送り直す。途中の質問を直すと新しい枝になる）。
 - 回答の一部をドラッグ選択 → #selPop: 「これについて質問する」#selAsk → 「本線で質問」#selHere／「分岐して質問」#selFork／「サイドチャットで質問」#selSide。「説明してもらう」#selExplain → 簡単 #selEx1／一般的 #selEx2／詳細 #selEx3。サイドチャットの小窓は #noteWin（入力 #nwInput、送信 #nwSend）。
 - 入力欄の左の「＋」#plusBtn → #plusPop: 「🌐 Web検索」#webBtn（オン/オフ）, 「🔌 連携ツール（MCP）」#mcpBtn, 「🖼 画像を添付」#imgBtn（ファイル #imgFile、貼り付け・ドロップも可、最大4枚）, 「📊 Figure を作る」#figBtn, 「🔬 画像パネル作成」#figImgBtn（ファイル #figImgFile）。
-- 送信列: #modelBtn（枝ごとのモデルと思考量 → #modelPop）, #sendBtn。
+- 送信列: #aiBtn（この枝の「AI 回答 オン/オフ」。オフ＝ノート。押すたびに切り替わり、枝ごとに記憶される。オフの枝では #sendBtn が「書き留める」になり、送った文は自分の発言として残るだけで AI は答えない）, #modelBtn（枝ごとのモデルと思考量 → #modelPop）, #sendBtn。
 - 右側 #agenda: 進行中／未解決項目／解決済み。＋ #agAdd で追加、各項目に解決・編集・削除。
 - 右上 #miniMap: 枝の形の縮図。クリックで俯瞰図へ。
 - 俯瞰図 #overview: 丸＝発言（大きさ＝トークン量）、クリックで移動。右の #cards に各枝の要約（AI に毎回渡るもの）、「📌 全文を参照」「現在ブランチに合流」。
