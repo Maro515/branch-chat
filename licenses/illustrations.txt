@@ -1,0 +1,186 @@
+BranCHAT グラフィックスのイラストの出典
+========================================
+
+グラフィックス（🧩 グラフィックス）のイラストの多くは、次の公開素材集の絵をもとにしています。
+元の絵の形は保ったまま、次の変更を加えています（CC BY の「変更の表示」）:
+  座標の正規化と簡略化、文字・ぼかしの影の削除、色の付け方（5 つの絵柄: 陰影＋細い輪郭／ベタ塗り＋細い輪郭／
+  陰影・輪郭なし／ベタ塗り・輪郭なし／立体・光沢）の変更、一部の切り出し、複数の絵の組み合わせ。
+記号・グラフなど、ここに載っていないイラストは BranCHAT の作者が描き起こしたものです。
+
+■ Servier Medical Art（Servier）
+  https://smart.servier.com
+  ライセンス: Creative Commons Attribution 4.0（https://creativecommons.org/licenses/by/4.0/）
+  入手元: Bioicons（https://bioicons.com 、https://github.com/duerrsimon/bioicons）。Bioicons では同じ絵が
+  Creative Commons Attribution 3.0（https://creativecommons.org/licenses/by/3.0/）として配布されています。
+
+■ DBCLS TogoTV（ライフサイエンス統合データベースセンター）
+  https://togotv.dbcls.jp/pics.html
+  ライセンス: Creative Commons Attribution 4.0（https://creativecommons.org/licenses/by/4.0/）
+  入手元: Bioicons
+
+■ NIH BioArt Source（NIAID, National Institutes of Health）
+  https://bioart.niaid.nih.gov
+  ライセンス: パブリックドメイン（各項目のページに記載）。出典の表記は求められていませんが、推奨されています。
+
+論文・スライドで使うときの表記の例（グラフィックスの作成画面の「出典」からコピーできます）:
+  Illustrations adapted from Servier Medical Art (smart.servier.com), licensed under CC BY 4.0;
+  NIAID NIH BioArt Source (bioart.niaid.nih.gov).
+
+イラストごとの出典
+------------------
+
+細胞（cell_generic）: Servier「normal-cell-1」（CC BY 3.0）
+がん細胞（cancer_cell）: Servier「cancerous-cell-1」（CC BY 3.0）
+T 細胞（t_cell）: Servier「t-lymphocyte」（CC BY 3.0）
+マクロファージ（macrophage）: Servier「macrophage」（CC BY 3.0）
+好中球（neutrophil）: Servier「neutrophil-granulocyte-1」（CC BY 3.0）
+樹状細胞（dendritic_cell）: Servier「dendritic-cell-2」（CC BY 3.0）
+赤血球（rbc）: Servier「erythrocyte-2」（CC BY 3.0）
+血小板（platelet）: Servier「platetelet-1」（CC BY 3.0）
+幹細胞（stem_cell）: Servier「pluripotent-stem-cell」（CC BY 3.0）
+神経細胞（neuron）: NIH BioArt「healthy neuron」（Public Domain、https://bioart.niaid.nih.gov/bioart/197）
+脂肪細胞（adipocyte）: Servier「adipocyte-3」（CC BY 3.0）
+細菌（bacteria）: NIH BioArt「Gram Negative Bacteria」（Public Domain、https://bioart.niaid.nih.gov/bioart/179）
+ウイルス（virus）: Servier「hepatits-virus」（CC BY 3.0）
+核（nucleus）: Servier「nucleus-full-3d」（CC BY 3.0）
+ミトコンドリア（mitochondria）: Servier「mitochondrium-1」（CC BY 3.0）
+小胞体（er）: Servier「endoplasmatic-reticulum-rough」（CC BY 3.0）
+リソソーム（lysosome）: NIH BioArt「Lysosomes」（Public Domain、https://bioart.niaid.nih.gov/bioart/306）
+エクソソーム・小胞（vesicle_exosome）: Servier「lipid-yellowgray」（CC BY 3.0） ＋ Servier「protein-12」（CC BY 3.0）
+細胞膜と受容体（membrane_receptor）: Servier「receptor_membrane-1」（CC BY 3.0）
+DNA（dna_helix）: Servier「dna-nucleotides」（CC BY 3.0）
+mRNA（rna_strand）: Servier「dna-single-stranded-ribbon」（CC BY 3.0）
+抗体（antibody）: Servier「antibody-9」（CC BY 3.0）
+タンパク質（protein_blob）: Servier「protein-12」（CC BY 3.0）
+サイトカイン・リガンド（ligand_cytokine）: NIH BioArt「Cytokines」（Public Domain、https://bioart.niaid.nih.gov/bioart/98）
+低分子化合物（small_molecule）: NIH BioArt「Bafilomycin A」（Public Domain、https://bioart.niaid.nih.gov/bioart/44）
+ナノ粒子（nanoparticle）: Servier「lipid-hdl-1」（CC BY 3.0）
+リポソーム・LNP（liposome_lnp）: Servier「lipid-yellowgray」（CC BY 3.0） ＋ Servier「dna-single-stranded-ribbon」（CC BY 3.0）
+注射（syringe）: Servier「syringe」（CC BY 3.0）
+錠剤・カプセル（pill）: Servier「drug-capsule-1」（CC BY 3.0）
+点滴（iv_drip）: Servier「perfusion-bag」（CC BY 3.0）
+マウス（mouse）: Servier「mouse-gray」（CC BY 3.0）
+人（human_figure）: NIH BioArt「Humanfemale Outline」（Public Domain、https://bioart.niaid.nih.gov/bioart/221）
+心臓（heart）: Servier「heart-front」（CC BY 3.0）
+肝臓（liver）: Servier「liver-3d」（CC BY 3.0）
+脳（brain）: Servier「brain-2」（CC BY 3.0）
+肺（lung）: Servier「healthy-lung」（CC BY 3.0）
+腎臓（kidney）: Servier「kidney-1」（CC BY 3.0）
+腸（intestine）: Servier「intestine」（CC BY 3.0）
+腫瘍（tumor_mass）: Servier「sessile-polyp」（CC BY 3.0）
+血管（blood_vessel）: Servier「vein-crossection-3d」（CC BY 3.0）
+顕微鏡（microscope）: Servier「microscope」（CC BY 3.0）
+ウェルプレート（plate_dish）: Servier「multiwell-plate-3d」（CC BY 3.0）
+フラスコ・試験管（tube_flask）: Servier「erlenmeyer-blue」（CC BY 3.0）
+オミクス・ヒートマップ（sequencer）: NIH BioArt「Graph」（Public Domain、https://bioart.niaid.nih.gov/bioart/718）
+B 細胞（b_cell）: Servier「b-lymphocyte」（CC BY 3.0）
+NK 細胞（nk_cell）: Servier「nk-cell」（CC BY 3.0）
+線維芽細胞（fibroblast）: Servier「fibroblast-1」（CC BY 3.0）
+内皮細胞（endothelial）: Servier「capillary」（CC BY 3.0）
+上皮（細胞の層）（epithelial）: Servier「epithelium-cell-column」（CC BY 3.0）
+肝細胞（hepatocyte）: Servier「cell-cuboid-1」（CC BY 3.0）
+オルガノイド（organoid）: NIH BioArt「Organoid」（Public Domain、https://bioart.niaid.nih.gov/bioart/664）
+皮膚（断面）（skin）: Servier「skin」（CC BY 3.0）
+骨・関節（bone_joint）: DBCLS「Anterior_view_of_knee_joint」（CC BY 4.0）
+膵臓（pancreas）: Servier「pancreas」（CC BY 3.0）
+胃（stomach）: Servier「stomach」（CC BY 3.0）
+骨格筋（muscle）: Servier「muscle-fiber」（CC BY 3.0）
+脂肪組織（adipose）: Servier「fat-tissue」（CC BY 3.0）
+患者（ベッド）（patient）: DBCLS「drip_iv_treatment」（CC BY 4.0）
+集団（コホート）（population）: NIH BioArt「Group of People」（Public Domain、https://bioart.niaid.nih.gov/bioart/185）
+医師・研究者（clinician）: NIH BioArt「Doctor Patient」（Public Domain、https://bioart.niaid.nih.gov/bioart/130）
+ウェスタンブロット（blot_gel）: NIH BioArt「Western Blot Gel」（Public Domain、https://bioart.niaid.nih.gov/bioart/581）
+AI・コンピュータ（computer_ai）: NIH BioArt「Laptop」（Public Domain、https://bioart.niaid.nih.gov/bioart/734）
+酵素（enzyme）: Servier「enzyme-blue」（CC BY 3.0）
+タンパク質複合体（complex）: NIH BioArt「Complement C1 Complex」（Public Domain、https://bioart.niaid.nih.gov/bioart/85）
+アポトーシス細胞（apoptotic_cell）: Servier「normal-cell-1」（CC BY 3.0）
+血栓（thrombus）: Servier「venous-thrombosis-1」（CC BY 3.0）
+曲がった矢印・循環（curved_arrow）: Servier「arrow-circular」（CC BY 3.0）
+ラット（rat）: Servier「rat-adult」（CC BY 3.0）
+ゼブラフィッシュ（zebrafish）: DBCLS「zebrafish_simplified」（CC BY 4.0）
+ショウジョウバエ（fly）: Servier「fruitfly_drosophila-redeyes」（CC BY 3.0）
+線虫（worm）: DBCLS「nematode_adult_female」（CC BY 4.0）
+サル（primate）: Servier「monkey」（CC BY 3.0）
+ブタ（pig_large_animal）: Servier「pig-pink」（CC BY 3.0）
+イヌ・ネコ（dog_cat）: Servier「dog_beagle」（CC BY 3.0）
+植物（plant）: DBCLS「tobacco」（CC BY 4.0）
+酵母（yeast）: DBCLS「fission_yeast」（CC BY 4.0）
+胚・胎児（embryo_fetus）: Servier「mouse-embryoearly」（CC BY 3.0）
+妊婦（pregnant）: NIH BioArt「Pregnant Human」（Public Domain、https://bioart.niaid.nih.gov/bioart/421）
+眼（eye）: Servier「eye-crosssection」（CC BY 3.0）
+脾臓（spleen）: Servier「spleen-1」（CC BY 3.0）
+リンパ節（lymph_node）: NIH BioArt「Lymph Node」（Public Domain、https://bioart.niaid.nih.gov/bioart/304）
+乳腺（breast）: Servier「breast-cancer-small」（CC BY 3.0）
+体と臓器（body_organ_map）: Servier「digestive-system」（CC BY 3.0）
+脊髄・神経（spinal_cord_nerve）: DBCLS「Corticospinal_tract」（CC BY 4.0）
+甲状腺（thyroid_endocrine）: Servier「thyroid-cancer」（CC BY 3.0）
+膀胱（bladder）: Servier「bladder」（CC BY 3.0）
+単球（monocyte）: Servier「monocyte-13」（CC BY 3.0）
+肥満細胞（mast_cell）: Servier「basophil-granulocyte-3」（CC BY 3.0）
+好酸球（eosinophil）: Servier「eosinophil-granulocyte-1」（CC BY 3.0）
+好塩基球（basophil）: Servier「basophil-granulocyte-1」（CC BY 3.0）
+形質細胞（plasma_cell）: Servier「b-lymphocyte」（CC BY 3.0） ＋ Servier「antibody-9」（CC BY 3.0）
+巨核球（megakaryocyte）: Servier「megakaryocyte」（CC BY 3.0）
+CAR-T 細胞（car_t）: Servier「t-lymphocyte」（CC BY 3.0） ＋ Servier「antibody-9」（CC BY 3.0）
+ミクログリア（microglia）: NIH BioArt「Dendritic Cell」（Public Domain、https://bioart.niaid.nih.gov/bioart/112）
+アストロサイト（astrocyte）: NIH BioArt「Astrocyte Blue」（Public Domain、https://bioart.niaid.nih.gov/bioart/670）
+軸索・髄鞘（axon_myelin）: NIH BioArt「Oligodendrocyte」（Public Domain、https://bioart.niaid.nih.gov/bioart/397）
+心筋細胞（cardiomyocyte）: Servier「adult-cardiomyocytes-1」（CC BY 3.0）
+破骨細胞（osteoclast）: Servier「monocyte-11」（CC BY 3.0） ＋ Servier「nucleus-full-3d」（CC BY 3.0）
+膵島・β細胞（beta_cell）: Servier「langerhans-islet-pancreas」（CC BY 3.0）
+真菌（fungus）: Servier「mushroom」（CC BY 3.0）
+寄生虫（トリパノソーマ）（parasite）: Servier「trypanosoma」（CC BY 3.0）
+老化細胞（senescent_cell）: NIH BioArt「T Cell Senescence」（Public Domain、https://bioart.niaid.nih.gov/bioart/513）
+杯細胞（goblet_cell）: Servier「gobelet-cell-1」（CC BY 3.0）
+周皮細胞（pericyte）: Servier「capillary」（CC BY 3.0） ＋ Servier「fibrocyte-1」（CC BY 3.0）
+細胞分裂（cell_division）: Servier「normal-cell-1」（CC BY 3.0）
+ゴルジ体（golgi）: Servier「golgi-3d-1」（CC BY 3.0）
+オートファゴソーム（autophagosome）: Servier「vacuole-round」（CC BY 3.0） ＋ Servier「mitochondrium-1」（CC BY 3.0） ＋ Servier「protein-12」（CC BY 3.0）
+細胞骨格（cytoskeleton）: Servier「cell-microtubule」（CC BY 3.0）
+染色体（chromosome）: Servier「chromosome-1」（CC BY 3.0）
+リボソーム（ribosome）: Servier「ribosome-translation」（CC BY 3.0）
+繊毛（cilia）: Servier「epithel-pseudostratified-columnar-small」（CC BY 3.0）
+脂肪滴（lipid_droplet）: Servier「adipocyte-5」（CC BY 3.0）
+ペルオキシソーム（peroxisome）: Servier「vacuole-round」（CC BY 3.0） ＋ Servier「hexagon-turquoise」（CC BY 3.0）
+核膜孔（nuclear_pore）: DBCLS「Nuclear_pore_complex」（CC BY 4.0）
+クロマチン・ヌクレオソーム（nucleosome）: DBCLS「histone」（CC BY 4.0）
+G タンパク質共役受容体（GPCR）（gpcr）: NIH BioArt「GPCR Red」（Public Domain、https://bioart.niaid.nih.gov/bioart/651）
+イオンチャネル（ion_channel）: Servier「channel-membrane-blue」（CC BY 3.0）
+リン脂質（phospholipid）: Servier「lipid-blue」（CC BY 3.0）
+金属イオン（metal_ion）: Servier「ions-gray」（CC BY 3.0）
+CRISPR-Cas9（crispr）: DBCLS「CRISPR-CAS9-pink」（CC BY 4.0）
+miRNA・非コード RNA（mirna_ncrna）: NIH BioArt「RNA Beige」（Public Domain、https://bioart.niaid.nih.gov/bioart/452）
+コラーゲン・細胞外マトリクス（collagen_ecm）: Servier「collagen-3d」（CC BY 3.0）
+tRNA（trna）: Servier「tRNA」（CC BY 3.0）
+受容体型チロシンキナーゼ（rtk）: NIH BioArt「Receptor Protein」（Public Domain、https://bioart.niaid.nih.gov/bioart/430）
+ピペット（pipette）: Servier「micropipette」（CC BY 3.0）
+シーケンサー（sequencer_device）: NIH BioArt「Next Gen Sequ」（Public Domain、https://bioart.niaid.nih.gov/bioart/386）
+フローサイトメトリー（flow_cytometry）: NIH BioArt「Flow Cytometry」（Public Domain、https://bioart.niaid.nih.gov/bioart/160）
+クライオ電顕（cryo_em）: NIH BioArt「Cryo TEM」（Public Domain、https://bioart.niaid.nih.gov/bioart/94）
+MRI・CT（imaging_scan）: NIH BioArt「CT Scanner」（Public Domain、https://bioart.niaid.nih.gov/bioart/373）
+遠心機（centrifuge）: Servier「centrifuge」（CC BY 3.0）
+PCR チューブ（pcr_tube）: Servier「microtube-closed- pink」（CC BY 3.0）
+培養フラスコ（culture_flask）: Servier「culture-flask-filled-lid」（CC BY 3.0）
+シャーレ（コロニー）（petri_dish）: Servier「petri-dish-with-colony-brown」（CC BY 3.0）
+放射線（radiation）: Servier「radio-tag」（CC BY 3.0）
+手術（メス）（scalpel）: Servier「knife」（CC BY 3.0）
+聴診器（stethoscope）: NIH BioArt「Stethoscope」（Public Domain、https://bioart.niaid.nih.gov/bioart/501）
+ワクチン・バイアル（vaccine_vial）: DBCLS「Vaccine_bottle」（CC BY 4.0）
+絆創膏・創傷（bandage）: Servier「patch」（CC BY 3.0）
+抗体薬物複合体（ADC）（adc）: Servier「antibody-9」（CC BY 3.0） ＋ Servier「hexagon-orange」（CC BY 3.0）
+細胞治療（輸注バッグ）（cell_therapy）: Servier「infusion-bag-blue」（CC BY 3.0）
+吸入器（inhaler）: Servier「inhaler」（CC BY 3.0）
+薬瓶（pill_bottle）: Servier「bottle-drug」（CC BY 3.0）
+錠剤シート（blister_pack）: Servier「drug-blister」（CC BY 3.0）
+食事（リンゴ）（diet_food）: Servier「salad」（CC BY 3.0）
+運動（exercise）: Servier「runner」（CC BY 3.0）
+喫煙（smoking）: Servier「cigarette」（CC BY 3.0）
+飲酒（alcohol）: Servier「wine」（CC BY 3.0）
+睡眠・概日（sleep）: Servier「night」（CC BY 3.0）
+加齢（高齢者）（aging）: Servier「old-man」（CC BY 3.0）
+地球・地域（globe）: Servier「earth」（CC BY 3.0）
+暑熱・日光（heat_sun）: Servier「sun」（CC BY 3.0）
+腸の絨毛（villi）: Servier「intestinal-villi」（CC BY 3.0）
+肺胞（alveoli）: Servier「intrapulmonary-airway-vene-artery」（CC BY 3.0）
+胎盤（placenta）: NIH BioArt「Mouse Placenta」（Public Domain、https://bioart.niaid.nih.gov/bioart/593）
+天秤・バランス（scale_balance）: Servier「scale-balanced」（CC BY 3.0）

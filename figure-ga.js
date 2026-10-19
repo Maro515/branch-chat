@@ -1,6 +1,6 @@
 // BranCHAT Figure 拡張（グラフィックス: グラフィカルアブストラクト・模式図・スライド用のイラスト図）
 // ```figure の {"kind":"ga","theme":"soft|flat|line|glossy|mono","accent":"#0E9F9A","w":960,"h":540,"title":"…","items":[…]} を描く。
-// イラストは医学・生化学の GA 300 件（15 ジャンル・41 誌）の調査で多かったモチーフを独自に描き起こしたもの（GA_LIB、87 種）。
+// イラストの一覧は GA_LIB（223 種）。細胞・臓器・生物・実験器具などの多くは、公開素材集（Servier Medical Art・DBCLS TogoTV・NIH BioArt）の絵を変換した GA_ART（figure-ga-art.js）で描き、記号・グラフなどは GA_LIB の自作の形で描く。
 // 形は 1 組だけ持ち、絵柄（テーマ）は 5 つから選ぶ: soft（ソフト陰影＋細い輪郭）/ flat（フラット）/ line（線画）/ glossy（立体）/ mono（モノトーン＋主役だけ 1 色）。
 // 色は SVG の中で確定させて書き出す（CSS 変数や color-mix を使わない）ので、保存した SVG を他のソフトで開いても色が崩れない。
 // items: {t:'motif',m,x,y,s,rot,flip,key,label} / {t:'text',x,y,text,size,bold,color,anchor} / {t:'arrow',x1,y1,x2,y2,kind:'arrow|inhibit|curved|dashed|double',color,width,label,bend} / {t:'box',x,y,w,h,title,fill,stroke,dash,r}
@@ -422,7 +422,7 @@ const MOTIFS={
  blister_pack:{ja:'錠剤シート',cat:'治療',c:['#F4F6F8','#E46B5D','#C9D3DE'],svg:
   R(14,10,72,80,6,'b acc')+[0,1,2,3,4,5].map(i=>E(36+(i%2)*28,26+Math.floor(i/2)*24,10,8,'b2')).join('')},
  // ---- 追加 5: 環境・生活 ----
- diet_food:{ja:'食事（リンゴ）',cat:'環境・生活',c:['#E46B5D','#6DBE6B','#F8CFC9'],svg:
+ diet_food:{ja:'食事',cat:'環境・生活',c:['#E46B5D','#6DBE6B','#F8CFC9'],svg:
   P('M50,28 C40,18 14,20 14,48 C14,74 34,92 50,86 C66,92 86,74 86,48 C86,20 60,18 50,28Z','b acc')+P('M50,28 C50,18 52,12 56,8','d')+P('M54,18 C62,8 74,8 78,14 C70,20 62,22 54,18Z','b2')+E(30,42,6,10,'hl','rotate(20 30 42)')},
  exercise:{ja:'運動',cat:'環境・生活',c:['#5B8DEF','#F2C9A9','#3B5FA8'],svg:
   C(58,14,9,'b2')+`<path d="M54,26 L44,52 L60,66 L54,92 M44,52 L28,76 L14,78 M52,32 L70,46 L84,40 M52,32 L36,40 L26,30" style="fill:none;stroke:var(--c1);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/>`},
@@ -507,9 +507,49 @@ function gaMotifDefs(th,c,uid){th=gaTheme(th);const [c1,c2,c3]=c;
   if(th==='glossy'){const g=(id,col)=>`<radialGradient id="${uid}${id}" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="${gaMix(col,'#ffffff',.35)}"/><stop offset=".55" stop-color="${col}"/><stop offset="1" stop-color="${gaMix(col,'#000000',.7)}"/></radialGradient>`;return `<defs>${g('a',c1)}${g('b',c2)}${g('c',c3)}<filter id="${uid}f" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".22"/></filter></defs>`;}
   if(th==='soft'||th==='softfill'){const g=(id,col)=>`<linearGradient id="${uid}${id}" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="${gaMix(col,'#ffffff',.45)}"/><stop offset="1" stop-color="${gaMix(col,'#ffffff',.92)}"/></linearGradient>`;return `<defs>${g('x',c1)}${g('y',c2)}${g('z',c3)}</defs>`;}
   return '';}
+/* ---------- 素材由来のイラスト（GA_ART、figure-ga-art.js） ----------
+   A={p:[[d,fill,group,flags,stroke,sw,opacity,clip,sop,cap,join]...], r:[まとまりの代表色], g:[グラデーション], ga:[その平均色], c:[切り抜きの形]}
+   または組み合わせ A={u:[[部品のキー,x,y,大きさ,回転,左右反転]...]}（部品は GA_ART の別のキー。_ で始まるキーは部品専用）
+   flags: b＝まとまりの主な面（輪郭を引く）、h＝ハイライト（ベタ塗りでは描かない）、t＝細い部品（輪郭を引かない）、n＝やや細い部品（輪郭を細く）、e＝evenodd、M/S/O＝乗算/スクリーン/オーバーレイの重ね塗り（どの絵柄でも元の色と重ね方で描く）
+   絵柄: soft＝元の陰影＋同系色の細い輪郭 / flatline＝まとまりごとの単色＋細い輪郭 / softfill＝元の陰影だけ / flat＝単色だけ / glossy＝元の陰影＋光沢と影 */
+const GA_HAS_ART=m=>typeof GA_ART!=='undefined'&&!!GA_ART[m]&&m[0]!=='_'; // _ で始まるのは組み合わせ用の部品
+function gaArtSVG(A,th,uid,depth){th=gaTheme(th);
+  if(A.u){if((depth||0)>3)return '';return A.u.map((q,i)=>{const B=GA_ART[q[0]];if(!B)return '';const k=(+q[3]||100)/100;const t=[`translate(${+q[1]||0} ${+q[2]||0})`,`scale(${k})`];if(q[4])t.push(`rotate(${+q[4]} 50 50)`);if(q[5])t.push('translate(100 0) scale(-1 1)');return `<g transform="${t.join(' ')}">${gaArtSVG(B,th,uid+'u'+i+'_',(depth||0)+1)}</g>`;}).join('');}
+  const P=A.p||[],R=A.r||[],G=A.g||[],GAV=A.ga||[],C=A.c||[];
+  const flat=th==='flat'||th==='flatline',outline=th==='soft'||th==='flatline',gloss=th==='glossy';const K='#141a22';
+  let defs='';
+  if(!flat)G.forEach((g,i)=>{const a=g.a,u=g.u==='u'?' gradientUnits="userSpaceOnUse"':'',m=g.m?` gradientTransform="matrix(${g.m.join(' ')})"`:'';const st=g.s.map(s=>`<stop offset="${s[0]}" stop-color="${s[1]}"${s[2]<1?` stop-opacity="${s[2]}"`:''}/>`).join('');
+    defs+=g.t==='l'?`<linearGradient id="${uid}g${i}" x1="${a[0]}" y1="${a[1]}" x2="${a[2]}" y2="${a[3]}"${u}${m}>${st}</linearGradient>`:`<radialGradient id="${uid}g${i}" cx="${a[0]}" cy="${a[1]}" r="${a[2]}" fx="${a[3]}" fy="${a[4]}"${u}${m}>${st}</radialGradient>`;});
+  C.forEach((d,i)=>{defs+=`<clipPath id="${uid}c${i}"><path d="${d}"/></clipPath>`;});
+  const rep=r=>R[r[2]]||(r[1]&&r[1][0]==='#'?r[1]:(r[1]&&r[1][0]==='g'?GAV[+r[1].slice(1)]:'#9aa5b1'))||'#9aa5b1';
+  const fillOf=r=>{const f=r[1];if(!f)return 'none';if(flat&&!/[MSO]/.test(r[3]||''))return rep(r);if(f[0]==='g')return flat?(GAV[+f.slice(1)]||'#9aa5b1'):`url(#${uid}g${+f.slice(1)})`;if(f[0]==='g')return `url(#${uid}g${+f.slice(1)})`;return f;};
+  const clipA=r=>r[7]!=null&&r[7]>=0?` clip-path="url(#${uid}c${r[7]})"`:'';
+  const rule=r=>r[3]&&r[3].indexOf('e')>=0?' fill-rule="evenodd"':'';
+  const capA=r=>(r[9]==='r'?' stroke-linecap="round"':r[9]==='s'?' stroke-linecap="square"':'')+(r[10]==='r'?' stroke-linejoin="round"':r[10]==='b'?' stroke-linejoin="bevel"':'');
+  let under='',body='',over='',sil='';
+  const owTh=th==='flatline'?1.05:.85,ulTh=th==='flatline'?2.6:2.2,mixT=th==='flatline'?.45:.6;
+  const BL={M:'multiply',S:'screen',O:'overlay'};
+  for(const r of P){const fl=r[3]||'';const hl=fl.indexOf('h')>=0;const bm=fl.match(/[MSO]/);if(flat&&hl)continue;
+    const hasFill=!!r[1];const op=r[6]!=null&&r[6]<1?r[6]:1;
+    let st='';
+    if(r[4]){const keep=!hasFill||op<.6||outline||gloss;if(keep)st=` stroke="${r[4]}" stroke-width="${r[5]}"${r[8]!=null&&r[8]<1?` stroke-opacity="${r[8]}"`:''}${capA(r)}`;}
+    body+=`<path d="${r[0]}" fill="${fillOf(r)}"${st}${op<1?` fill-opacity="${op}"`:''}${rule(r)}${clipA(r)}${bm?` style="mix-blend-mode:${BL[bm[0]]}"`:''}/>`;
+    if(hasFill&&!hl&&!bm&&op>.5){
+      if(outline&&fl.indexOf('t')<0){const nr=fl.indexOf('n')>=0?.5:1;const oc=gaMix(rep(r),K,mixT);under+=`<path d="${r[0]}" fill="${oc}" stroke="${oc}" stroke-width="${+(ulTh*nr).toFixed(2)}" stroke-linejoin="round"${rule(r)}${clipA(r)}/>`;if(fl.indexOf('b')>=0)over+=`<path d="${r[0]}" fill="none" stroke="${oc}" stroke-width="${+(owTh*(nr<1?.7:1)).toFixed(2)}" stroke-linejoin="round"${clipA(r)}/>`;}
+      if(gloss&&(r[7]==null||r[7]<0))sil+=`<path d="${r[0]}"${rule(r)?' clip-rule="evenodd"':''}/>`;}}
+  let gl='';
+  if(gloss){defs+=`<clipPath id="${uid}s">${sil}</clipPath><radialGradient id="${uid}sh" cx="34%" cy="26%" r="78%"><stop offset="0" stop-color="#fff" stop-opacity=".62"/><stop offset=".42" stop-color="#fff" stop-opacity="0"/><stop offset=".78" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".26"/></radialGradient><filter id="${uid}f" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="2.4" stdDeviation="2" flood-color="#000" flood-opacity=".25"/></filter>`;
+    gl=`<rect x="-2" y="-2" width="104" height="104" fill="url(#${uid}sh)" clip-path="url(#${uid}s)"/>`;}
+  return `${defs?`<defs>${defs}</defs>`:''}<g${gloss?` filter="url(#${uid}f)"`:''}>${under}${body}${over}${gl}</g>`;}
+/* ---------- イラストの出典（CC BY の表記） ---------- */
+const GA_SRC={Servier:{en:'Servier Medical Art (smart.servier.com), licensed under CC BY 4.0',ja:'Servier Medical Art（smart.servier.com、CC BY 4.0）',by:true},DBCLS:{en:'DBCLS TogoTV (togotv.dbcls.jp), licensed under CC BY 4.0',ja:'DBCLS TogoTV（togotv.dbcls.jp、CC BY 4.0）',by:true},'NIH BioArt':{en:'NIAID NIH BioArt Source (bioart.niaid.nih.gov)',ja:'NIH BioArt Source（bioart.niaid.nih.gov、パブリックドメイン）',by:false}};
+function gaCreditSources(j){const set=[];(j&&j.items||[]).forEach(it=>{if(it.t!=='motif'||!GA_HAS_ART(it.m))return;((typeof GA_ART_CREDIT!=='undefined'&&GA_ART_CREDIT[it.m])||[]).forEach(c=>{const a=c[0];if(GA_SRC[a]&&!set.includes(a))set.push(a);});});return ['Servier','DBCLS','NIH BioArt'].filter(a=>set.includes(a));}
+function gaCreditText(j,lang){const s=gaCreditSources(j);if(!s.length)return '';return lang==='ja'?'イラストの出典: '+s.map(a=>GA_SRC[a].ja).join('、')+'（一部を改変）':'Illustrations adapted from '+s.map(a=>GA_SRC[a].en).join('; ')+'.';}
 let gaSeq=0;
 // 1 つのイラスト（ネストした svg）。戻り値 {svg, css}
 function gaMotif(m,x,y,s,o){const M=GA_LIB[m];if(!M)return {svg:'',css:''};o=o||{};const th=gaTheme(o.theme);const uid='q'+(++gaSeq).toString(36)+(o.salt||'')+'_';const cls=uid+'m'; // 共通クラス gam と衝突しない名前（_ を含める）
+  if(GA_HAS_ART(m)&&!o.old){const tr=[];if(o.rot)tr.push(`rotate(${+o.rot} 50 50)`);if(o.flip)tr.push('translate(100 0) scale(-1 1)');
+    return {css:'',svg:`<svg class="gam" x="${x}" y="${y}" width="${s}" height="${s}" viewBox="0 0 100 100" overflow="visible"><g${tr.length?` transform="${tr.join(' ')}"`:''}>${gaArtSVG(GA_ART[m],th,uid)}</g></svg>`};}
   const st=gaMotifStyle(cls,th,M.c,!!o.key,o.acc||'#0E9F9A',uid);
   const inner=M.svg.replace(/var\(--s1\)/g,st.s1).replace(/var\(--s2\)/g,st.s2).replace(/var\(--c2\)/g,M.c[1]).replace(/var\(--c1\)/g,M.c[0]).replace(/var\(--c3\)/g,M.c[2]);
   const tr=[];if(o.rot)tr.push(`rotate(${+o.rot} 50 50)`);if(o.flip)tr.push('translate(100 0) scale(-1 1)');
@@ -539,6 +579,7 @@ function figRenderGA(j){const th=gaTheme(j.theme);const W=Math.max(200,+j.w||960
     else if(it.t==='arrow')body+=`<g ${a}>${gaArrow(it,th)}</g>`;
     else if(it.t==='motif'){const s=+it.s||100;const r=gaMotif(it.m,+it.x||0,+it.y||0,s,{theme:th,key:!!it.key,acc,rot:it.rot,flip:it.flip,salt});css+=r.css;const halo=it.key?`<circle cx="${(+it.x||0)+s/2}" cy="${(+it.y||0)+s/2}" r="${s*0.56}" fill="${acc}" fill-opacity=".16" stroke="${acc}" stroke-opacity=".55" stroke-width="1.5" stroke-dasharray="5 4"/>`:'';body+=`<g ${a}>${halo}${r.svg}${it.label?gaText((+it.x||0)+s/2,(+it.y||0)+s+12,it.label,{size:it.labelSize||13,color:'#3d4955'}):''}${r.svg?'':`<rect x="${+it.x||0}" y="${+it.y||0}" width="${s}" height="${s}" fill="none" stroke="#c33" stroke-dasharray="4 3"/>`}</g>`;}});
   const title=j.title?gaText(24,30,j.title,{size:j.titleSize||20,bold:true,anchor:'start',color:'#1f2933'}):'';
+  const ct=j.credit!==false?gaCreditText(j,'en'):'';if(ct)body+=`<text x="${W-8}" y="${H-7}" font-family="${GA_FONT}" font-size="${Math.max(7,Math.min(10,W/105))}" fill="#7a8591" text-anchor="end" data-gacredit="1">${gaEsc(ct)}</text>`;
   return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><style>${css}</style><rect width="100%" height="100%" fill="${j.bg||'#ffffff'}"/>${title}${body}</svg>`,w:W,h:H,ga:true,plot:{x0:0,y0:0,w:W,h:H}};}
 
 /* ---------- ひな形 ---------- */
@@ -634,6 +675,7 @@ function gaDlgBind(d){const $=s=>d.querySelector(s);
   ins.addEventListener('click',e=>{const sw=e.target.closest('[data-gsw]');if(sw){gaSetProp(sw.dataset.gsw,sw.dataset.v);gaPush();if(sw.dataset.gsw==='accent'){gaRenderThemes();gaRenderPal();}gaSync();return;}
     const b=e.target.closest('[data-gact]');if(!b)return;const a=b.dataset.gact,k=gaState.sel,items=gaState.spec.items;
     if(a==='del'&&k!=null){items.splice(k,1);gaState.sel=null;}else if(a==='dup'&&k!=null){gaDup(k);return;}else if(a==='front'&&k!=null){const [x]=items.splice(k,1);items.push(x);gaState.sel=items.length-1;}else if(a==='back'&&k!=null){const [x]=items.splice(k,1);items.unshift(x);gaState.sel=0;}
+    else if(a==='credit'){const t=gaCreditText(gaState.spec,'en');navigator.clipboard.writeText(t).then(()=>toast('出典の表記をコピーしました')).catch(()=>toast('コピーできませんでした'));return;}
     else if(a==='replace'){gaState.replace=!gaState.replace;toast(gaState.replace?'左の一覧で、差し替えたいイラストを押してください':'差し替えをやめました');gaInspector();return;}
     else if(a==='tpl'){const v=ins.querySelector('[data-gtpl]').value;const sp=gaState.spec;const go=()=>{sp.items=gaTemplate(v,+sp.w||960,+sp.h||540);gaState.sel=null;gaPush();gaSync();};if(sp.items.some(x=>x.t!=='box'&&x.t!=='arrow')){askConfirm('いま置いてあるものを消して、ひな形に置き換えます。','置き換える').then(ok=>{if(ok)go();});}else go();return;}
     gaPush();gaSync();});
@@ -653,6 +695,8 @@ function gaSetProp(key,v){const sp=gaState.spec;const k=gaState.sel;const it=k!=
   if(key.startsWith('g.')){const kk=key.slice(2);if(kk==='size'){const z=GA_SIZES.find(x=>x[0]===v);if(z){const fx=z[2]/(+sp.w||960),fy=z[3]/(+sp.h||540);sp.items.forEach(it=>{if(it.t==='arrow'){it.x1=Math.round(it.x1*fx);it.x2=Math.round(it.x2*fx);it.y1=Math.round(it.y1*fy);it.y2=Math.round(it.y2*fy);}else{it.x=Math.round((+it.x||0)*fx);it.y=Math.round((+it.y||0)*fy);if(it.t==='box'){it.w=Math.round(it.w*fx);it.h=Math.round(it.h*fy);}}});sp.w=z[2];sp.h=z[3];}}else sp[kk]=v;return;}
   if(key==='accent'){sp.accent=v;return;}
   if(!it)return;if(typeof v==='boolean'){if(v)it[key]=true;else delete it[key];return;}if(num.includes(key)){const n=parseFloat(v);if(isFinite(n))it[key]=n;return;}if(v==='')delete it[key];else it[key]=v;}
+function gaCreditPanel(sp){const src=gaCreditSources(sp);if(!src.length)return `<div class="irow"><label>イラストの出典</label><div class="hint">いま置いてあるイラストには、出典の表記が要るものはありません。</div></div>`;
+  return `<div class="irow"><label>イラストの出典</label><div class="hint" style="user-select:text">${gaEsc(gaCreditText(sp,'ja'))}</div>${src.some(a=>GA_SRC[a].by)?'<div class="hint">CC BY の素材です。論文・スライドに使うときは出典の表記が必要です（図の中か図の説明文に）。</div>':''}<label class="irow chk"><input type="checkbox" data-gp="g.credit"${sp.credit!==false?' checked':''}> 図の右下に出典を入れる</label><div class="btnrow"><button class="small" data-gact="credit">英語の表記をコピー</button></div></div>`;}
 function gaInspector(){const d=document.querySelector('#figGaDlg');const ins=d.querySelector('#gaInspect');const sp=gaState.spec;const k=gaState.sel;const it=k!=null?sp.items[k]:null;
   const row=(l,c)=>`<div class="irow"><label>${l}</label>${c}</div>`;const txt=(key,v,ph)=>`<input type="text" data-gp="${key}" value="${gaEsc(v||'')}" placeholder="${gaEsc(ph||'')}">`;const num=(key,v,min,max,step)=>`<input type="number" data-gp="${key}" value="${v}" min="${min}" max="${max}" step="${step||1}">`;
   const sel=(key,v,opts)=>`<select data-gp="${key}">${opts.map(([a,b])=>`<option value="${a}"${String(a)===String(v)?' selected':''}>${b}</option>`).join('')}</select>`;const chk=(key,v,l)=>`<label class="irow chk"><input type="checkbox" data-gp="${key}"${v?' checked':''}> ${l}</label>`;
@@ -661,6 +705,7 @@ function gaInspector(){const d=document.querySelector('#figGaDlg');const ins=d.q
   if(!it){h=`<h4>全体</h4>`+row('題名（左上）',txt('g.title',sp.title,'例: ナノ粒子が腫瘍免疫を高める'))+row('大きさ',sel('g.size',(GA_SIZES.find(z=>z[2]===+sp.w&&z[3]===+sp.h)||['custom'])[0],GA_SIZES.map(z=>[z[0],z[1]]).concat((GA_SIZES.some(z=>z[2]===+sp.w&&z[3]===+sp.h))?[]:[['custom',`いまの大きさ（${sp.w}×${sp.h}）`]])))+row('背景',col('g.bg',sp.bg||'#ffffff'))
      +row('主役の強調の色（「主役」にしたイラストの後ろに敷く円）',`<div>${GA_ACCENTS.map(c=>`<button type="button" class="sw${(sp.accent||'#0E9F9A').toLowerCase()===c.toLowerCase()?' on':''}" data-gsw="accent" data-v="${c}" style="background:${c}"></button>`).join('')}</div>`)
      +row('ひな形（枠と矢印の配置）',`<select data-gtpl>${GA_TEMPLATES.map(([a,b])=>`<option value="${a}">${b}</option>`).join('')}</select><div class="btnrow"><button class="small" data-gact="tpl">このひな形にする</button></div>`)
+     +gaCreditPanel(sp)
      +`<div class="hint">キャンバスのイラスト・文字・矢印・枠を押すと、ここがその設定になります。Delete で削除、矢印キーで少しずつ動かせます。</div>`;}
   else if(it.t==='motif'){const M=GA_LIB[it.m];h=`<h4>イラスト「${gaEsc(M?M.ja:it.m)}」</h4>`+row('大きさ',num('s',it.s||100,16,800))+row('回転',sel('rot',it.rot||0,[[0,'なし'],[45,'45°'],[90,'90°'],[135,'135°'],[180,'180°'],[225,'225°'],[270,'270°'],[315,'315°']]))+chk('flip',it.flip,'左右反転')+chk('key',it.key,'主役（後ろに淡い円を敷いて強調）')+row('ラベル（下に書く文字）',txt('label',it.label,'例: 腫瘍'))
      +`<div class="btnrow"><button class="small${gaState.replace?' primary':''}" data-gact="replace">${gaState.replace?'差し替えをやめる':'別のイラストに差し替える'}</button></div>`+common;}
@@ -676,4 +721,4 @@ function figGaSet(fb,key,val){const nid=fb.dataset.fignode,idx=+fb.dataset.figid
 FIG_PROMPT+=`
 グラフィカルアブストラクト・模式図・スライド用の説明図など、イラストを並べた図（グラフィックス）を頼まれたら {"kind":"graphics","theme":"soft","w":960,"h":540,"title":"短い題名","items":[…]} を 1 つの \`\`\`figure ブロックで出す（座標は px、原点は左上）。theme は論文で多い順に soft（陰影＋細い輪郭）/ flatline（ベタ塗り＋細い輪郭）/ softfill（陰影・輪郭なし）/ flat（ベタ塗り）/ glossy（立体・光沢）。利用者が後から選び直せる。
 items: {"t":"box","x","y","w","h","title"}（段・パネルの枠）/ {"t":"motif","m":"キー","x","y","s":大きさ(80〜160),"key":true（主役を強調）,"label":"下に書く文字","flip":true,"rot":90} / {"t":"arrow","x1","y1","x2","y2","kind":"arrow|inhibit|curved|dashed|double","label"} / {"t":"text","x","y","text","size","bold":true}。
-左 → 右（または上 → 下）に 3 段ほどの流れを作り、各段に 1〜3 個のイラストと短い言葉を置く。文字は少なく。イラストのキー（m）: ${GA_CATS.map(c=>c+': '+Object.keys(GA_LIB).filter(k=>GA_LIB[k].cat===c).join(' ')).join(' / ')}。`;
+左 → 右（または上 → 下）に 3 段ほどの流れを作り、各段に 1〜3 個のイラストと短い言葉を置く。文字は少なく。細胞・臓器・生物・器具などのイラストは公開素材集（Servier Medical Art など、CC BY）の絵をもとにしており、図の右下に出典が自動で入る（"credit":false で消せる。消すなら図の説明文に出典を書くよう利用者に伝える）。イラストのキー（m）: ${GA_CATS.map(c=>c+': '+Object.keys(GA_LIB).filter(k=>GA_LIB[k].cat===c).join(' ')).join(' / ')}。`;

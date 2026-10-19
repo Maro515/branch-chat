@@ -860,8 +860,9 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   <h3>利用条件</h3>
   <div class="hint" id="aboutOwn">© 2026 BranCHAT の作者。このアプリの著作権は作者に帰属します。アプリの複製・再配布・改変したものの配布は、作者の許可なく行えません。会話の内容と API キーはこの端末の中にだけ保存され、作者には送られません（AI への送信先は利用者が設定した接続先のみ）。</div>
   <h3>同梱しているもののライセンス</h3>
-  <div class="hint">このアプリは次のソフトウェアとフォントを含みます。各ライセンスの条件に従って同梱しています。</div>
+  <div class="hint">このアプリは次のソフトウェア・フォント・イラストを含みます。各ライセンスの条件に従って同梱しています。</div>
   <details class="lic"><summary>IBM Plex Sans JP（フォント）— SIL Open Font License 1.1 <span class="hint">© 2017 IBM Corp. Reserved Font Name "Plex"</span></summary><pre id="licPlex">読み込み中…</pre></details>
+  <details class="lic"><summary>グラフィックスのイラスト — Servier Medical Art（CC BY 4.0）・DBCLS TogoTV（CC BY 4.0）・NIH BioArt（パブリックドメイン）をもとに改変</summary><pre id="licIllu">読み込み中…</pre></details>
   <details class="lic" id="licElectronBox"><summary>Electron — MIT License</summary><pre id="licElectron">読み込み中…</pre></details>
   <div class="hint" id="licChromiumRow">Electron に含まれる Chromium、Node.js、V8 などのライセンス一覧（英語、長文）は別の窓で開きます。<button class="small" id="licChromiumBtn" type="button">一覧を開く</button></div>
   <div class="btns"><button id="aboutClose">閉じる</button></div>
@@ -910,6 +911,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 <script src="figure-omics.js"></script>
 <script src="figure-more3.js"></script>
 <script src="figure-gallery.js"></script>
+<script src="figure-ga-art.js"></script>
 <script src="figure-ga.js"></script>
 <script>
 /* ========== 基本ユーティリティ ========== */
@@ -2126,7 +2128,7 @@ async function openAbout(){const d=$('#aboutDlg');$('#aboutVer').textContent=IS_
   if(!d.open)d.showModal();
   if(IS_DESKTOP){try{const j=await (await fetch('/api/about')).json();$('#aboutVer').textContent='バージョン '+j.version;$('#aboutRt').textContent=`Electron ${j.electron} ／ Chromium ${j.chrome} ／ Node.js ${j.node}`;}catch(e){}}
   const load=async(id,file)=>{const el=$(id);if(!el)return;try{const r=await fetch(file);if(!r.ok)throw 0;el.textContent=await r.text();}catch(e){el.textContent='ライセンス文を読み込めませんでした（'+file+'）';}};
-  load('#licPlex','licenses/IBM-Plex-OFL.txt');if(IS_DESKTOP)load('#licElectron','licenses/Electron-MIT.txt');}
+  load('#licPlex','licenses/IBM-Plex-OFL.txt');load('#licIllu','licenses/illustrations.txt');if(IS_DESKTOP)load('#licElectron','licenses/Electron-MIT.txt');}
 $('#sAbout').onclick=()=>{$('#settings').close();openAbout();};$('#aboutClose').onclick=()=>$('#aboutDlg').close();
 $('#licChromiumBtn').onclick=()=>fetch('/api/licenses/chromium',{method:'POST'}).catch(()=>toast('開けませんでした'));
 $('#sSave').onclick=()=>{settings.provider=$('#sProvider').value;settings.apiKey=$('#sKey').value.trim();settings.model=$('#sModel').value;settings.sumModel=$('#sSumModel').value;settings.budget=+$('#sBudget').value||60000;settings.extra=$('#sExtra').value.trim();
@@ -2531,13 +2533,13 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（AI エージェント／compute
 ## 5.5 グラフィックス作成 SOP（グラフィカルアブストラクト・模式図・スライド用の図）
 画面 #figGaDlg（JS で生成）。開き方: #plusBtn → 「🧩 グラフィックス」#figGaBtn（新規。左→右 3 段のひな形入り）、または回答中のグラフィックスのブロック（.figblock.ga）の ✎ 編集 [data-figedit]。
 1. 絵柄: 上の #gaThemes の [data-gatheme] を押す。論文で多い順に soft（陰影＋細い輪郭 48%）/ flatline（ベタ塗り＋細い輪郭 15%）/ softfill（陰影・輪郭なし 13%）/ flat（ベタ塗り 4%）/ glossy（立体・光沢 4%）。形は同じで塗り方だけ変わる。いつでも切り替えられる。
-2. イラストを置く: 左の検索 #gaQ（例: マウス）か分類 #gaCats [data-gacat]（細胞/免疫・血液/病原体/細胞内/分子/臓器/生物/人・医療/治療/実験/環境・生活/記号）→ #gaPal の [data-gam="キー"] を押すとキャンバス中央付近に置かれる（222 種）。
+2. イラストを置く: 左の検索 #gaQ（例: マウス）か分類 #gaCats [data-gacat]（細胞/免疫・血液/病原体/細胞内/分子/臓器/生物/人・医療/治療/実験/環境・生活/記号）→ #gaPal の [data-gam="キー"] を押すとキャンバス中央付近に置かれる（223 種。細胞・臓器・生物・器具などは公開素材集の細かく描かれた絵、記号・グラフは簡単な図形）。
 3. 文字・矢印・枠: [data-gaadd=text|arrow|inhibit|curved|box]。
 4. 動かす: キャンバス #gaCanvas の要素をドラッグ。選ぶと枠が出て、右下の □ [data-gah=br] で大きさ、矢印は両端の ○ [data-gah=p1|p2] で向き・長さ。Delete で削除、矢印キーで 1px（Shift で 10px）、⌘D 複製、⌘Z / ⌘⇧Z。
-5. 設定: 右の #gaInspect（[data-gp="キー"]）。イラスト＝大きさ・回転・左右反転・主役（後ろに淡い円）・ラベル・差し替え。文字＝文字・大きさ・太字・色・揃え。矢印＝種類（arrow/inhibit/curved/dashed/double）・太さ・色・ラベル・曲がり具合。枠＝見出し・塗り・枠線・破線・角丸。何も選ばないと全体＝題名・大きさ（16:9 / 13:5 / 正方形 / ACS TOC）・背景・主役の強調色・ひな形（[data-gtpl] → [data-gact=tpl]）。
+5. 設定: 右の #gaInspect（[data-gp="キー"]）。イラスト＝大きさ・回転・左右反転・主役（後ろに淡い円）・ラベル・差し替え。文字＝文字・大きさ・太字・色・揃え。矢印＝種類（arrow/inhibit/curved/dashed/double）・太さ・色・ラベル・曲がり具合。枠＝見出し・塗り・枠線・破線・角丸。何も選ばないと全体＝題名・大きさ（16:9 / 13:5 / 正方形 / ACS TOC）・背景・主役の強調色・ひな形（[data-gtpl] → [data-gact=tpl]）・イラストの出典（Servier Medical Art などの CC BY 素材。[data-gp="g.credit"] で図の右下への出典の書き込みを切り替え、[data-gact=credit] で英語の表記をコピー。既定は書き込む）。
 6. 出力: #gaAttach（PNG を添付し、入力欄に \`\`\`figure の JSON）、#gaUpdate（回答の図を更新）、#gaCopy、#gaPng（300 dpi）、#gaSvg、#gaJson。閉じる #gaClose。
 - チャットのブロックでは絵柄のセレクト [data-figga="theme"] で回答に書き戻せる。
-- JSON: {"kind":"graphics","theme":"soft","accent":"#0E9F9A","w":960,"h":540,"title":"…","items":[{"t":"box",x,y,w,h,title},{"t":"motif","m":"mouse",x,y,"s":120,"key":true,"label":"…"},{"t":"arrow",x1,y1,x2,y2,"kind":"arrow"},{"t":"text",x,y,"text":"…","size":16,"bold":true}]}（以前の kind "ga" と絵柄 line/mono も読める）。イラストのキー一覧: Object.keys(GA_LIB)。コンソール: figGaOpen(spec)、figRenderGA(spec).svg。
+- JSON: {"kind":"graphics","theme":"soft","accent":"#0E9F9A","w":960,"h":540,"title":"…","items":[{"t":"box",x,y,w,h,title},{"t":"motif","m":"mouse",x,y,"s":120,"key":true,"label":"…"},{"t":"arrow",x1,y1,x2,y2,"kind":"arrow"},{"t":"text",x,y,"text":"…","size":16,"bold":true}]}（"credit":false で右下の出典を消す。以前の kind "ga" と絵柄 line/mono も読める）。出典の一覧は licenses/illustrations.txt と「このアプリについて」。イラストのキー一覧: Object.keys(GA_LIB)。コンソール: figGaOpen(spec)、figRenderGA(spec).svg。
 
 ## 6. 確認のしかた（エージェント向け）
 - 送信が終わったか: #sendBtn の文字が「送信」に戻る。回答は #msgs の最後の .msg。
