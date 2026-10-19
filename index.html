@@ -111,7 +111,7 @@ textarea:focus{outline:none;border-color:var(--glow);box-shadow:0 0 12px rgba(18
 .card.pinned{box-shadow:0 0 0 1px var(--bc) inset,0 0 18px -4px var(--bc)}
 .card.plans{--bc:var(--yellow)}
 .card.plans .item{display:flex;gap:6px;align-items:center;justify-content:space-between;padding:4px 0;border-top:1px dashed rgba(255,217,61,.3);font-size:12px}
-svg text:not(.figblock text,.figPreview text,#figJsonPrev text,.figGalCard text){font-size:11px;fill:var(--ink);font-family:"IBM Plex Sans JP",sans-serif}
+svg text:not(.figblock text,.figPreview text,#figJsonPrev text,.figGalCard text,.gaPal text,.gaThemes text){font-size:11px;fill:var(--ink);font-family:"IBM Plex Sans JP",sans-serif}
 .node{cursor:pointer}
 .node:hover .core{stroke-width:3}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--ink);padding:18px 20px;max-width:560px;width:92vw;box-shadow:0 0 40px rgba(181,232,107,.25);backdrop-filter:blur(10px)}
@@ -175,7 +175,7 @@ textarea:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(31,74,43,.15
 .card.plans{--bc:var(--ystroke)}
 .card.plans h3{color:var(--ystroke)}
 .card.plans .item{border-top:1.5px dashed #e6c76a}
-svg text:not(.figblock text,.figPreview text,#figJsonPrev text,.figGalCard text){fill:var(--indigo);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:13px}
+svg text:not(.figblock text,.figPreview text,#figJsonPrev text,.figGalCard text,.gaPal text,.gaThemes text){fill:var(--indigo);font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:13px}
 #toast{background:#fff;color:var(--indigo);border:2px solid var(--indigo);box-shadow:0 4px 20px rgba(31,74,43,.25)}
 
 /* 選択テキストから質問するポップアップ */
@@ -665,7 +665,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div id="imgStrip"></div>
       <div class="row">
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
-          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure を作る</span><span class="st ui">統計グラフ・作図</span></button><button id="figImgBtn" class="prow"><span class="ui">🔬 画像パネル作成</span><span class="st ui">顕微鏡・IHC・ブロットを並べる</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
+          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure を作る</span><span class="st ui">統計グラフ・作図</span></button><button id="figImgBtn" class="prow"><span class="ui">🔬 画像パネル作成</span><span class="st ui">顕微鏡・IHC・ブロットを並べる</span></button><button id="figGaBtn" class="prow"><span class="ui">🧩 グラフィカルアブストラクト</span><span class="st ui">イラストを並べて作る</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
         <textarea id="input" rows="1" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）"></textarea>
         <div class="sendCol"><div id="modelPop"></div><button id="aiBtn" title="この枝で AI が答えるかどうか（オフにするとノートとして書き留めるだけ）"></button><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
@@ -910,6 +910,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 <script src="figure-omics.js"></script>
 <script src="figure-more3.js"></script>
 <script src="figure-gallery.js"></script>
+<script src="figure-ga.js"></script>
 <script>
 /* ========== 基本ユーティリティ ========== */
 const $=s=>document.querySelector(s);
@@ -2250,6 +2251,7 @@ document.querySelectorAll('#noteWin .nwGrip').forEach(g=>{let st=null;
 });
 $('#figBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');figOpen({});};
 
+$('#figGaBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');figGaOpen(null);};
 $('#figImgBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');$('#figImgFile').click();};$('#figImgFile').onchange=async()=>{await figImgOpenWithFiles($('#figImgFile').files);$('#figImgFile').value='';};
 $('#nwClose').onclick=()=>{noteCur=null;$('#noteWin').hidden=true;if(dropEmptyNotes()){persist();markNotes();}};
 $('#nwDel').onclick=async()=>{const n=noteCur&&notesOf()[noteCur];if(!n)return;if(noteBusy){toast('生成中は消せません');return;}if(!(await askConfirm(`「${excerpt(n.text,20)}」についてのこのチャット（${n.items.filter(i=>i.role==='user').length}件の質問）を消しますか？\n同じ言葉のほかのチャットは残ります。`,'消す')))return;delete notesOf()[n.id];noteCur=null;$('#noteWin').hidden=true;persist();renderAll();};
@@ -2261,7 +2263,7 @@ function figHydrate(){document.querySelectorAll('#msgs .msg').forEach(m=>{const 
   document.addEventListener('pointermove',e=>{if(!d)return;const dx=(e.clientX-d.x0)*d.sc,dy=(e.clientY-d.y0)*d.sc;if(Math.hypot(dx,dy)>2)d.moved=true;d.el.setAttribute('transform',`translate(${dx} ${dy}) ${d.base}`.trim());});
   document.addEventListener('pointerup',e=>{if(!d)return;const dx=(e.clientX-d.x0)*d.sc,dy=(e.clientY-d.y0)*d.sc;const cur=d;d=null;if(!cur.moved){cur.el.setAttribute('transform',cur.base);return;}if(cur.kind==='node')figSchDragEnd(cur.fb,cur.id,dx,dy);else if(cur.kind==='note')figNoteDragEnd(cur.fb,+cur.id,dx,dy);else if(cur.kind==='cut')figCutDragEnd(cur.fb,+cur.id,dx,dy);else if(cur.fb.id==='figImgPreview')figImgDlgDragEnd(+cur.id,dx,dy);else figImgDragEnd(cur.fb,+cur.id,dx,dy);});})();
 $('#msgs').addEventListener('dblclick',e=>{const nt=e.target.closest&&e.target.closest('.figblock [data-note]');if(nt){figNoteEditBlock(nt.closest('.figblock'),+nt.dataset.note);return;}const ct=e.target.closest&&e.target.closest('.figblock [data-cut]');if(ct)figCutEditBlock(ct.closest('.figblock'),+ct.dataset.cut);});
-$('#msgs').addEventListener('change',e=>{const el=e.target.closest&&e.target.closest('[data-figlay]');const fb=el&&el.closest('.figblock');if(el&&fb)figLayoutSet(fb,el.dataset.figlay,el.type==='checkbox'?el.checked:el.value);const ei=e.target.closest&&e.target.closest('[data-figimg]');const fbi=ei&&ei.closest('.figblock');if(ei&&fbi)figImageSet(fbi,ei.dataset.figimg,ei.value);});
+$('#msgs').addEventListener('change',e=>{const el=e.target.closest&&e.target.closest('[data-figlay]');const fb=el&&el.closest('.figblock');if(el&&fb)figLayoutSet(fb,el.dataset.figlay,el.type==='checkbox'?el.checked:el.value);const ei=e.target.closest&&e.target.closest('[data-figimg]');const fbi=ei&&ei.closest('.figblock');if(ei&&fbi)figImageSet(fbi,ei.dataset.figimg,ei.value);const eg=e.target.closest&&e.target.closest('[data-figga]');const fbg=eg&&eg.closest('.figblock');if(eg&&fbg)figGaSet(fbg,eg.dataset.figga,eg.value);});
 function markNotes(){
   const m=$('#msgs');m.querySelectorAll('mark.note').forEach(k=>{k.replaceWith(document.createTextNode(k.textContent));});m.querySelectorAll('.noteChip').forEach(k=>k.remove());
   const groups=new Map();for(const n of Object.values(conv.notes||{}).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))){const k=n.nodeId+'\u0001'+n.text;if(!groups.has(k))groups.set(k,{nodeId:n.nodeId,text:n.text,ids:[]});groups.get(k).ids.push(n.id);}
@@ -2525,6 +2527,17 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（AI エージェント／compute
 5. 注釈: ツール行 #figImgTools のボタン [data-figdtool=arrow|head|star|text|roi|inset|line] を押してから、プレビュー #figImgPreview の写真（[data-cellbox=k]）をクリック（line は始点と終点の 2 回）。色は [data-ik=annotColor] のパレット。⌫ [data-figdtool=undo] で最後を消す。置いた注釈は「置いた注釈」#figImgAnnots の行で文字・大きさ・向き・幅・高さ・形・色・✕。ROI 枠と拡大図は選ぶと四隅の ■ .roiHandle をドラッグで大きさ変更。ドラッグで移動。
 6. 書き出し: #figImgPng（300 dpi）、#figImgSvg、#figImgCopy、#figImgJson（指定の JSON を直接編集）。チャットへ #figImgAttach。回答のブロックを直すなら #figImgUpdate。
 - コンソール: figImgOpen(spec) で開く。画像は id（conv.imgs）で参照し、本文には入らない。
+
+## 5.5 グラフィカルアブストラクト（GA）作成 SOP
+画面 #figGaDlg（JS で生成）。開き方: #plusBtn → 「🧩 グラフィカルアブストラクト」#figGaBtn（新規。左→右 3 段のひな形入り）、または回答中の GA ブロック（.figblock.ga）の ✎ 編集 [data-figedit]。
+1. 絵柄: 上の #gaThemes の [data-gatheme=soft|flat|line|glossy|mono] を押す（A ソフト陰影＋細い輪郭／B フラット／C 線画／D 立体／E モノトーン＋1色）。形は同じで塗り方だけ変わる。いつでも切り替えられる。
+2. イラストを置く: 左の検索 #gaQ（例: マウス）か分類 #gaCats [data-gacat]（細胞/病原体/細胞内/分子/治療/生物/臓器/実験/記号）→ #gaPal の [data-gam="キー"] を押すとキャンバス中央付近に置かれる（87 種）。
+3. 文字・矢印・枠: [data-gaadd=text|arrow|inhibit|curved|box]。
+4. 動かす: キャンバス #gaCanvas の要素をドラッグ。選ぶと枠が出て、右下の □ [data-gah=br] で大きさ、矢印は両端の ○ [data-gah=p1|p2] で向き・長さ。Delete で削除、矢印キーで 1px（Shift で 10px）、⌘D 複製、⌘Z / ⌘⇧Z。
+5. 設定: 右の #gaInspect（[data-gp="キー"]）。イラスト＝大きさ・回転・左右反転・主役（E 案で色が付く）・ラベル・差し替え。文字＝文字・大きさ・太字・色・揃え。矢印＝種類（arrow/inhibit/curved/dashed/double）・太さ・色・ラベル・曲がり具合。枠＝見出し・塗り・枠線・破線・角丸。何も選ばないと全体＝題名・大きさ（16:9 / 13:5 / 正方形 / ACS TOC）・背景・主役の色・ひな形（[data-gtpl] → [data-gact=tpl]）。
+6. 出力: #gaAttach（PNG を添付し、入力欄に \`\`\`figure の JSON）、#gaUpdate（回答の GA を更新）、#gaCopy、#gaPng（300 dpi）、#gaSvg、#gaJson。閉じる #gaClose。
+- チャットの GA ブロックでは絵柄のセレクト [data-figga="theme"] で回答に書き戻せる。
+- JSON: {"kind":"ga","theme":"soft","accent":"#0E9F9A","w":960,"h":540,"title":"…","items":[{"t":"box",x,y,w,h,title},{"t":"motif","m":"mouse",x,y,"s":120,"key":true,"label":"…"},{"t":"arrow",x1,y1,x2,y2,"kind":"arrow"},{"t":"text",x,y,"text":"…","size":16,"bold":true}]}。イラストのキー一覧: Object.keys(GA_LIB)。コンソール: figGaOpen(spec)、figRenderGA(spec).svg。
 
 ## 6. 確認のしかた（エージェント向け）
 - 送信が終わったか: #sendBtn の文字が「送信」に戻る。回答は #msgs の最後の .msg。

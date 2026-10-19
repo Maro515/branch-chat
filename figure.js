@@ -275,6 +275,7 @@ function figStateFromSpec(j){j=j||{};const opts=Object.assign({errType:j.err||'S
 function figRenderSpec(j){if(typeof figRenderLayout==='function'&&figIsLayout(j))return figRenderLayout(j); // figure-layout.js
   if(typeof figRenderImage==='function'&&figIsImage(j))return figRenderImage(j); // figure-image.js
   if(typeof figRenderSchematic==='function'&&figIsSchematic(j))return figRenderSchematic(j); // figure-schematic.js
+  if(typeof figRenderGA==='function'&&figIsGA(j))return figRenderGA(j); // figure-ga.js（グラフィカルアブストラクト）
   const st=figStateFromSpec(j);const parsed=figParseTable(st.text);if(!parsed)return null;const kind=st.kind||figAutoKind(parsed);const data=figBuildData(parsed,kind);if(!data)return null;const types=FIG_TYPES[kind]||FIG_TYPES.column;const type=types.some(t=>t[0]===st.type)?st.type:types[0][0];
   const compare=st.cmp!=='none'?(kind==='column'?figCompare(data.groups,st.cmp,st.ctrl):kind==='grouped'?figCompareGrouped(data,st.cmp,st.ctrl):null):null;return figRender({data,type,opts:st.opts,title:st.title,compare,cmp:st.cmp,ctrl:st.ctrl,legend:st.opts.legend||'right'});}
 const FIG_SCHEME_OLD={prism:'classic'}; // 旧名の読み替え（保存済みの図の指定用。他社製品名はここ以外に書かない）
@@ -528,12 +529,13 @@ function figBlockHTML(json,nodeId,index){
   let j=null;try{j=JSON.parse(json);}catch(e){return `<div class="figblock waiting"><span class="spin4 mini"><i></i><i></i><i></i><i></i></span><span class="ui">図を作成中…</span></div>`;}
   let r=null;try{r=figRenderSpec(j);}catch(e){r=null;}
   if(!r||!r.svg)return `<div class="figblock"><div class="hint">図を描けませんでした（データの形を確認してください）</div><pre>${figEsc(json)}</pre></div>`;
-  if(r.layout)return figLayoutBlockHTML(j,r,nodeId,index);if(r.image)return figImageBlockHTML(j,r,nodeId,index);if(r.schematic)return figSchematicBlockHTML(j,r,nodeId,index);
+  if(r.layout)return figLayoutBlockHTML(j,r,nodeId,index);if(r.image)return figImageBlockHTML(j,r,nodeId,index);if(r.schematic)return figSchematicBlockHTML(j,r,nodeId,index);if(r.ga)return figGaBlockHTML(j,r,nodeId,index);
   return `<div class="figblock" data-fignode="${figEsc(nodeId||'')}" data-figidx="${index}">${r.svg}<div class="figbtns"><button class="small" data-figedit data-tip="この図を作成画面で編集する">✎ 編集</button><button class="small" data-figpng data-tip="PNG（300 dpi）で保存">PNG</button><button class="small" data-figsvg data-tip="SVG で保存">SVG</button><button class="small" data-figcopy data-tip="画像をコピー">⧉</button></div></div>`;
 }
 function figOpenFromBlock(el,panel){const nid=el.dataset.fignode,idx=+el.dataset.figidx;const n=N(nid);if(!n)return;const b=figFindBlocks(n.content)[idx];if(!b)return;let j;try{j=JSON.parse(b.json);}catch(e){toast('図の指定を読めませんでした');return;}
   const src={nodeId:nid,index:idx};if(typeof figIsLayout==='function'&&figIsLayout(j)){const k=panel==null?0:+panel;j=(j.panels||[])[k];if(!j){toast('パネルが見つかりません');return;}src.panel=k;} // レイアウトの中の 1 パネルを編集
   if(typeof figIsImage==='function'&&figIsImage(j)&&typeof figImgOpen==='function'){figImgOpen(j,src);return;} // 画像パネルは専用の画面
+  if(typeof figIsGA==='function'&&figIsGA(j)&&typeof figGaOpen==='function'){figGaOpen(j,src);return;} // グラフィカルアブストラクトも専用の画面
   const st=figStateFromSpec(j);st.src=src;figOpen(st);}
 async function figBlockAction(el,act){const svgEl=el.querySelector('svg');if(!svgEl)return;const svg=svgEl.outerHTML;const w=+svgEl.getAttribute('width'),h=+svgEl.getAttribute('height');
   if(act==='svg'){let out=svg;const mm=+svgEl.getAttribute('data-mm');if(mm>0){const hmm=mm*h/w;out=out.replace(/^<svg([^>]*?) width="[^"]*" height="[^"]*"/,`<svg$1 width="${mm}mm" height="${hmm.toFixed(3)}mm"`);} // 誌面幅の指定があれば物理単位で
