@@ -665,7 +665,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div id="imgStrip"></div>
       <div class="row">
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
-          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure を作る</span><span class="st ui">統計グラフ・作図</span></button><button id="figImgBtn" class="prow"><span class="ui">🔬 画像パネル作成</span><span class="st ui">顕微鏡・IHC・ブロットを並べる</span></button><button id="figGaBtn" class="prow"><span class="ui">🧩 グラフィカルアブストラクト</span><span class="st ui">イラストを並べて作る</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
+          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure を作る</span><span class="st ui">統計グラフ・作図</span></button><button id="figImgBtn" class="prow"><span class="ui">🔬 画像パネル作成</span><span class="st ui">顕微鏡・IHC・ブロットを並べる</span></button><button id="figGaBtn" class="prow"><span class="ui">🧩 グラフィックス</span><span class="st ui">イラストで GA・模式図を作る</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
         <textarea id="input" rows="1" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）"></textarea>
         <div class="sendCol"><div id="modelPop"></div><button id="aiBtn" title="この枝で AI が答えるかどうか（オフにするとノートとして書き留めるだけ）"></button><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
@@ -2528,16 +2528,16 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（AI エージェント／compute
 6. 書き出し: #figImgPng（300 dpi）、#figImgSvg、#figImgCopy、#figImgJson（指定の JSON を直接編集）。チャットへ #figImgAttach。回答のブロックを直すなら #figImgUpdate。
 - コンソール: figImgOpen(spec) で開く。画像は id（conv.imgs）で参照し、本文には入らない。
 
-## 5.5 グラフィカルアブストラクト（GA）作成 SOP
-画面 #figGaDlg（JS で生成）。開き方: #plusBtn → 「🧩 グラフィカルアブストラクト」#figGaBtn（新規。左→右 3 段のひな形入り）、または回答中の GA ブロック（.figblock.ga）の ✎ 編集 [data-figedit]。
-1. 絵柄: 上の #gaThemes の [data-gatheme=soft|flat|line|glossy|mono] を押す（A ソフト陰影＋細い輪郭／B フラット／C 線画／D 立体／E モノトーン＋1色）。形は同じで塗り方だけ変わる。いつでも切り替えられる。
-2. イラストを置く: 左の検索 #gaQ（例: マウス）か分類 #gaCats [data-gacat]（細胞/病原体/細胞内/分子/治療/生物/臓器/実験/記号）→ #gaPal の [data-gam="キー"] を押すとキャンバス中央付近に置かれる（87 種）。
+## 5.5 グラフィックス作成 SOP（グラフィカルアブストラクト・模式図・スライド用の図）
+画面 #figGaDlg（JS で生成）。開き方: #plusBtn → 「🧩 グラフィックス」#figGaBtn（新規。左→右 3 段のひな形入り）、または回答中のグラフィックスのブロック（.figblock.ga）の ✎ 編集 [data-figedit]。
+1. 絵柄: 上の #gaThemes の [data-gatheme] を押す。論文で多い順に soft（陰影＋細い輪郭 48%）/ flatline（ベタ塗り＋細い輪郭 15%）/ softfill（陰影・輪郭なし 13%）/ flat（ベタ塗り 4%）/ glossy（立体・光沢 4%）。形は同じで塗り方だけ変わる。いつでも切り替えられる。
+2. イラストを置く: 左の検索 #gaQ（例: マウス）か分類 #gaCats [data-gacat]（細胞/免疫・血液/病原体/細胞内/分子/臓器/生物/人・医療/治療/実験/環境・生活/記号）→ #gaPal の [data-gam="キー"] を押すとキャンバス中央付近に置かれる（222 種）。
 3. 文字・矢印・枠: [data-gaadd=text|arrow|inhibit|curved|box]。
 4. 動かす: キャンバス #gaCanvas の要素をドラッグ。選ぶと枠が出て、右下の □ [data-gah=br] で大きさ、矢印は両端の ○ [data-gah=p1|p2] で向き・長さ。Delete で削除、矢印キーで 1px（Shift で 10px）、⌘D 複製、⌘Z / ⌘⇧Z。
-5. 設定: 右の #gaInspect（[data-gp="キー"]）。イラスト＝大きさ・回転・左右反転・主役（E 案で色が付く）・ラベル・差し替え。文字＝文字・大きさ・太字・色・揃え。矢印＝種類（arrow/inhibit/curved/dashed/double）・太さ・色・ラベル・曲がり具合。枠＝見出し・塗り・枠線・破線・角丸。何も選ばないと全体＝題名・大きさ（16:9 / 13:5 / 正方形 / ACS TOC）・背景・主役の色・ひな形（[data-gtpl] → [data-gact=tpl]）。
-6. 出力: #gaAttach（PNG を添付し、入力欄に \`\`\`figure の JSON）、#gaUpdate（回答の GA を更新）、#gaCopy、#gaPng（300 dpi）、#gaSvg、#gaJson。閉じる #gaClose。
-- チャットの GA ブロックでは絵柄のセレクト [data-figga="theme"] で回答に書き戻せる。
-- JSON: {"kind":"ga","theme":"soft","accent":"#0E9F9A","w":960,"h":540,"title":"…","items":[{"t":"box",x,y,w,h,title},{"t":"motif","m":"mouse",x,y,"s":120,"key":true,"label":"…"},{"t":"arrow",x1,y1,x2,y2,"kind":"arrow"},{"t":"text",x,y,"text":"…","size":16,"bold":true}]}。イラストのキー一覧: Object.keys(GA_LIB)。コンソール: figGaOpen(spec)、figRenderGA(spec).svg。
+5. 設定: 右の #gaInspect（[data-gp="キー"]）。イラスト＝大きさ・回転・左右反転・主役（後ろに淡い円）・ラベル・差し替え。文字＝文字・大きさ・太字・色・揃え。矢印＝種類（arrow/inhibit/curved/dashed/double）・太さ・色・ラベル・曲がり具合。枠＝見出し・塗り・枠線・破線・角丸。何も選ばないと全体＝題名・大きさ（16:9 / 13:5 / 正方形 / ACS TOC）・背景・主役の強調色・ひな形（[data-gtpl] → [data-gact=tpl]）。
+6. 出力: #gaAttach（PNG を添付し、入力欄に \`\`\`figure の JSON）、#gaUpdate（回答の図を更新）、#gaCopy、#gaPng（300 dpi）、#gaSvg、#gaJson。閉じる #gaClose。
+- チャットのブロックでは絵柄のセレクト [data-figga="theme"] で回答に書き戻せる。
+- JSON: {"kind":"graphics","theme":"soft","accent":"#0E9F9A","w":960,"h":540,"title":"…","items":[{"t":"box",x,y,w,h,title},{"t":"motif","m":"mouse",x,y,"s":120,"key":true,"label":"…"},{"t":"arrow",x1,y1,x2,y2,"kind":"arrow"},{"t":"text",x,y,"text":"…","size":16,"bold":true}]}（以前の kind "ga" と絵柄 line/mono も読める）。イラストのキー一覧: Object.keys(GA_LIB)。コンソール: figGaOpen(spec)、figRenderGA(spec).svg。
 
 ## 6. 確認のしかた（エージェント向け）
 - 送信が終わったか: #sendBtn の文字が「送信」に戻る。回答は #msgs の最後の .msg。
