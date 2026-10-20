@@ -498,9 +498,9 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 .tpl .d{font-size:11.5px;color:var(--muted);line-height:1.5}.tpl{position:relative}.tpl.user{border-style:dashed}.tpl .tplEd{position:absolute;right:8px;top:8px;font-size:13px;padding:2px 6px;border-radius:6px;color:var(--muted)}.tpl .tplEd:hover{background:rgba(181,232,107,.18);color:var(--ink)}.tplSep{grid-column:1/-1;font-size:11.5px;color:var(--muted);margin-top:4px}#tplEdit{width:min(640px,94vw)}#tplEdit label{display:block;font-size:11.5px;color:var(--muted);margin:8px 0 3px}#tplEdit input,#tplEdit textarea{width:100%;box-sizing:border-box}
 .tpl .br{font-size:10.5px;color:var(--glow);margin-top:auto}
 .tpl.blank{border-style:dashed}
-/* ===== Figure 作成 ===== */
+/* ===== Figure・パネルを作成（グラフ #figDlg と画像パネル #figImgDlg） ===== */
 #figDlg,#figImgDlg{width:min(1240px,96vw);max-width:none;max-height:94vh;padding:14px 16px}
-#figDlg .figHead,#figImgDlg .figHead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+#figDlg .figHead,#figImgDlg .figHead{display:flex;align-items:center;gap:10px;margin-bottom:8px}.figModes{display:flex;gap:4px}.figModes button.on{background:var(--glow,#b5e86b);color:#1a2a10;border-color:transparent;cursor:default}
 #figDlg .figBody,#figImgDlg .figBody{display:grid;grid-template-columns:minmax(280px,340px) 1fr minmax(220px,260px);gap:14px;max-height:calc(94vh - 130px)}
 #figDlg .figLeft,#figImgDlg .figLeft{overflow-y:auto;display:flex;flex-direction:column;gap:6px;font-family:"IBM Plex Sans JP","Hiragino Sans",sans-serif;font-size:12.5px}
 #figDlg label,#figImgDlg label{font-size:11.5px;color:var(--muted);margin:0}
@@ -666,7 +666,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div id="imgStrip"></div>
       <div class="row">
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
-          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure を作る</span><span class="st ui">統計グラフ・作図</span></button><button id="figImgBtn" class="prow"><span class="ui">🔬 画像パネル作成</span><span class="st ui">顕微鏡・IHC・ブロットを並べる</span></button><button id="figGaBtn" class="prow"><span class="ui">🧩 グラフィックス</span><span class="st ui">イラストで GA・模式図を作る</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
+          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure・パネルを作成</span><span class="st ui">統計グラフ・画像パネル</span></button><button id="figGaBtn" class="prow"><span class="ui">🧩 グラフィックス</span><span class="st ui">イラストで GA・模式図を作る</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
         <textarea id="input" rows="1" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）"></textarea>
         <div class="sendCol"><div id="modelPop"></div><button id="aiBtn" title="この枝で AI が答えるかどうか（オフにするとノートとして書き留めるだけ）"></button><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
@@ -797,7 +797,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   <div class="btns"><button id="bkClose">閉じる</button></div>
 </dialog>
 <dialog id="figImgDlg">
-  <div class="figHead"><h2 style="margin:0">🔬 画像パネル作成</h2><span class="hint" id="figImgHint" style="margin-left:8px"></span><span class="spacer"></span><button id="figImgClose">閉じる</button></div>
+  <div class="figHead"><h2 style="margin:0">📊 Figure・パネルを作成</h2><div class="figModes"><button type="button" class="small" data-figmode="graph">📊 グラフ</button><button type="button" class="small on" data-figmode="image">🔬 画像パネル</button></div><span class="hint" id="figImgHint" style="margin-left:8px"></span><span class="spacer"></span><button id="figImgClose">閉じる</button></div>
   <div class="figTools" id="figImgTools"></div>
   <div class="figBody">
     <div class="figLeft">
@@ -833,7 +833,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   </div>
 </dialog>
 <dialog id="figDlg">
-  <div class="figHead"><h2 style="margin:0">📊 Figure 作成</h2><span class="spacer"></span><button id="figClose">閉じる</button></div>
+  <div class="figHead"><h2 style="margin:0">📊 Figure・パネルを作成</h2><div class="figModes"><button type="button" class="small on" data-figmode="graph">📊 グラフ</button><button type="button" class="small" data-figmode="image">🔬 画像パネル</button></div><span class="spacer"></span><button id="figClose">閉じる</button></div>
   <div id="figToolbar"></div>
   <div class="figBody">
     <div class="figLeft">
@@ -857,7 +857,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 </dialog>
 <dialog id="aboutDlg">
   <h2>BranCHAT について</h2>
-  <div class="aboutHead"><img src="assets/icon.png" alt="" onerror="this.style.display='none'"><div><b>BranCHAT</b> <span id="aboutVer" class="hint"></span><div class="hint">分岐する会話で、すべての枝を AI が把握したまま考えを進めるチャット。統計グラフ・作図（Figure 作成）を内蔵。</div><div class="hint" id="aboutRt"></div></div></div>
+  <div class="aboutHead"><img src="assets/icon.png" alt="" onerror="this.style.display='none'"><div><b>BranCHAT</b> <span id="aboutVer" class="hint"></span><div class="hint">分岐する会話で、すべての枝を AI が把握したまま考えを進めるチャット。統計グラフ・画像パネルの作成（Figure・パネルを作成）とグラフィックスを内蔵。</div><div class="hint" id="aboutRt"></div></div></div>
   <h3>利用条件</h3>
   <div class="hint" id="aboutOwn">© 2026 BranCHAT の作者。このアプリの著作権は作者に帰属します。アプリの複製・再配布・改変したものの配布は、作者の許可なく行えません。会話の内容と API キーはこの端末の中にだけ保存され、作者には送られません（AI への送信先は利用者が設定した接続先のみ）。</div>
   <h3>同梱しているもののライセンス</h3>
@@ -2255,7 +2255,13 @@ document.querySelectorAll('#noteWin .nwGrip').forEach(g=>{let st=null;
 $('#figBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');figOpen({});};
 
 $('#figGaBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');figGaOpen(null);};
-$('#figImgBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');$('#figImgFile').click();};$('#figImgFile').onchange=async()=>{await figImgOpenWithFiles($('#figImgFile').files);$('#figImgFile').value='';};
+// Figure・パネルを作成: グラフ（#figDlg）と画像パネル（#figImgDlg）を 1 つの入口にまとめ、見出しの [data-figmode] で切り替える（0.7.33、利用者の指示）。切り替えても、それぞれの作業中の内容は残す
+function figSwitchMode(to,imgType){const g=$('#figDlg'),im=$('#figImgDlg');
+  if(to==='image'){if(g.open)g.close();if(im.open)return;const cur=typeof figImgState!=='undefined'&&figImgState&&figImgState.spec&&(figImgState.spec.images||[]).length?figImgState:null;
+    if(cur&&!imgType)figImgOpen(cur.spec,cur.src);else{figImgOpen(Object.assign(figImgDefSpec(),imgType?{type:imgType}:{}));toast('「＋ 画像を追加」で写真を入れてください');}}
+  else{if(im.open)im.close();if(!g.open)figOpen(typeof figState!=='undefined'&&figState&&figState.text?figState:{});}}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-figmode]');if(!b||b.classList.contains('on'))return;figSwitchMode(b.dataset.figmode);});
+$('#figImgFile').onchange=async()=>{await figImgOpenWithFiles($('#figImgFile').files);$('#figImgFile').value='';};
 $('#nwClose').onclick=()=>{noteCur=null;$('#noteWin').hidden=true;if(dropEmptyNotes()){persist();markNotes();}};
 $('#nwDel').onclick=async()=>{const n=noteCur&&notesOf()[noteCur];if(!n)return;if(noteBusy){toast('生成中は消せません');return;}if(!(await askConfirm(`「${excerpt(n.text,20)}」についてのこのチャット（${n.items.filter(i=>i.role==='user').length}件の質問）を消しますか？\n同じ言葉のほかのチャットは残ります。`,'消す')))return;delete notesOf()[n.id];noteCur=null;$('#noteWin').hidden=true;persist();renderAll();};
 // 表示中の回答の本文から、その言葉を探して黄色のマーカーを付ける。見つからないとき（装飾をまたいだ選択など）は末尾に小さな札を出す
@@ -2475,7 +2481,7 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（画面の要素を指定でき�
 - ブランチの帯 #branchBar: タブ＝枝。クリックで移動、今いる枝をもう一度押すと名前変更。
 - チャット #focus > #msgs: 発言 .msg。AI の回答のボタン: ⧉ [data-copyall]（全文コピー）, ⑂ [data-fork]（ここから分岐）, ☆/★ [data-plan]（分岐予定）。自分の発言: ✎ [data-edit]（質問を編集して送り直す。途中の質問を直すと新しい枝になる）。
 - 回答の一部をドラッグ選択 → #selPop: 「これについて質問する」#selAsk → 「本線で質問」#selHere／「分岐して質問」#selFork／「サイドチャットで質問」#selSide。「説明してもらう」#selExplain → 簡単 #selEx1／一般的 #selEx2／詳細 #selEx3。サイドチャットの小窓は #noteWin（入力 #nwInput、送信 #nwSend）。
-- 入力欄の左の「＋」#plusBtn → #plusPop: 「🌐 Web検索」#webBtn（オン/オフ）, 「🔌 連携ツール（MCP）」#mcpBtn, 「🖼 画像を添付」#imgBtn（ファイル #imgFile、貼り付け・ドロップも可、最大4枚）, 「📊 Figure を作る」#figBtn, 「🔬 画像パネル作成」#figImgBtn（ファイル #figImgFile）。
+- 入力欄の左の「＋」#plusBtn → #plusPop: 「🌐 Web検索」#webBtn（オン/オフ）, 「🔌 連携ツール（MCP）」#mcpBtn, 「🖼 画像を添付」#imgBtn（ファイル #imgFile、貼り付け・ドロップも可、最大4枚）, 「📊 Figure・パネルを作成」#figBtn（グラフの画面 #figDlg が開く。見出しの「📊 グラフ」[data-figmode=graph]／「🔬 画像パネル」[data-figmode=image] で画像パネルの画面 #figImgDlg と切り替え。作業中の内容は両方とも残る）, 「🧩 グラフィックス」#figGaBtn。
 - 送信列: #aiBtn（この枝の「AI 回答 オン/オフ」。オフ＝ノート。押すたびに切り替わり、枝ごとに記憶される。オフの枝では #sendBtn が「書き留める」になり、送った文は自分の発言として残るだけで AI は答えない）, #modelBtn（枝ごとのモデルと思考量 → #modelPop）, #sendBtn。
 - 右側 #agenda: 進行中／未解決項目／解決済み。＋ #agAdd で追加、各項目に解決・編集・削除。
 - 右上 #miniMap: 枝の形の縮図。クリックで俯瞰図へ。
@@ -2497,7 +2503,7 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（画面の要素を指定でき�
 ### 2.4 バックアップ
 - #bkBtn → #bkDlg: 「すべての会話を書き出す」#bkAll、「この会話だけ」#bkOne、読み込み #bkFile → #bkImport（足し合わせ。同じ id は新しい方）。画像パネルの画像と自分のテンプレートも同梱。
 
-## 3. Figure 作成（統計グラフ）SOP
+## 3. Figure・パネルを作成: グラフ（統計グラフ）SOP
 作成画面 #figDlg。開き方: #plusBtn → #figBtn、または回答中の図ブロック .figblock の「✎ 編集」[data-figedit]。
 ### 3.1 画面の要素
 - 上のツール行 #figToolbar: ↶ #figUndoBtn ↷ #figRedoBtn、メニュー .ftm[data-ftm=graph|kind|axes|text|color|annot|size]（ボタンを押すと .ftp が開く。項目は [data-tk="キー"]、ボタン項目は [data-tbtn="キー"]）、⧉ コピー [data-fact=copy]、PNG [data-fact=png]、PNG 600 [data-fact=png600]、SVG [data-fact=svg]。
@@ -2521,8 +2527,8 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（画面の要素を指定でき�
 - JSON の形: {title,kind,type,err,compare,ctrl,ytitle,xtitle,ymin,ymax,data(TSV 文字列),style{…}}。画像パネルは {"kind":"image","type":"grid|blot",…}、模式図は {"kind":"schematic","type":"diagram|pedigree|gene|venn|timeline|table",…}。
 - 図の上の文字 [data-note] と ROC のカットオフ [data-cut] はブロック上でドラッグ移動、ダブルクリックで書き換え。
 
-## 5. 画像パネル作成（顕微鏡・IHC・ウェスタンブロット）SOP
-画面 #figImgDlg。開き方: #plusBtn → #figImgBtn → ファイル選択（PNG/JPEG/TIFF、最大 60 枚）。回答中の画像ブロックの ✎ 編集でも開く。
+## 5. Figure・パネルを作成: 画像パネル（顕微鏡・IHC・ウェスタンブロット）SOP
+画面 #figImgDlg。開き方: #plusBtn → #figBtn → 見出しの「🔬 画像パネル」[data-figmode=image]（またはグラフの種類の一覧 #figGalDlg の最後の「画像パネル」の区画のカード [data-galimg=grid|blot]。型がその値になる）→ 「＋ 画像を追加」#figImgAdd → ファイル選択（PNG/JPEG/TIFF、最大 60 枚）。回答中の画像ブロックの ✎ 編集でも開く。グラフに戻るのは「📊 グラフ」[data-figmode=graph]。コンソール: figSwitchMode('image'|'graph', 'grid'|'blot')。
 1. 型 #figImgType: grid（顕微鏡・IHC・写真）／blot（ゲル・ウェスタン）。題名 #figImgTitle。
 2. grid: 列数 #figImgCols、セル幅 #figImgCell、収め方 #figImgFit（cover/contain）、縦横比 #figImgAspect、行見出し #figImgRows、列見出し #figImgColsLab（カンマ区切り）、列見出しの色 #figImgColColorsUI（パレット .sws .sw[data-v]）、スケールバー: 1 px = #figImgUm µm（元画像の画素サイズ）、バーの長さ #figImgLen、単位 #figImgUnit、表示 #figImgLabelOn、色 #figImgSbColorUI、位置 #figImgSbPos。
 3. blot: 幅 #figImgWidth、レーン名の向き #figImgLaneRot、抗体名の側 #figImgNameSide、レーン #figImgLanes、条件行 #figImgConds（1 行 1 条件「名前: −, +, −, +」、「名前: wedge」で楔）、群見出し #figImgGroups（「Raji: 1-2, BC-1: 3-4」）。
@@ -2642,17 +2648,17 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
 - 【🌐 Web検索】: 押すたびにオン／オフ（右に状態）。最新情報が要る質問のときだけオン。
 - 【🔌 連携ツール（MCP）】: 使う連携を選ぶ一覧が開く。利用者の指示があるときだけ使う。
 - 【🖼 画像を添付】: ファイルの小窓で画像を選ぶ（最大 4 枚）。入力欄への貼り付け（Cmd+V）やドロップでも付く。
-- 【📊 Figure を作る】（「4」）、【🔬 画像パネル作成】（「5」）、【🧩 グラフィックス】（「6」）。
+- 【📊 Figure・パネルを作成】（グラフは「4」、画像パネルは「5」）、【🧩 グラフィックス】（「6」）。
 ### 3.13 バックアップ
 - 【バックアップ・引継ぎ】→【すべての会話を書き出す】／【今の会話だけ書き出す】→ 保存の小窓で保存。読み込みは【ファイルから読み込む】（今ある会話は消えず、足し合わせになる）。
 
-## 4. Figure（統計グラフ）
+## 4. Figure・パネルを作成: グラフ（統計グラフ）
 ### 4.1 いちばん確実な方法: チャットで頼む
 1. 入力欄に、図の種類とデータを書いて送る。例: 「次のデータで、群ごとの散布ドット＋平均±SEM の図を作って。全群比較の有意差も。Control: 12.1, 13.4, 11.8 / Treated: 15.4, 16.2, 14.9」
 2. （確認）回答の中に図が出る。図の下のボタン: 【✎ 編集】（作成画面で直す）、PNG、SVG、⧉（画像をコピー）、{}（指定の JSON を直す）。
 3. 細かく直すときは【✎ 編集】→「4.2」の作成画面 → 直したら【回答の図を更新】。
 ### 4.2 作成画面で作る
-1. 【＋】→【📊 Figure を作る】→ 大きな小窓（作成画面）が開く。
+1. 【＋】→【📊 Figure・パネルを作成】→ 大きな小窓（見出し【📊 Figure・パネルを作成】）が開く。見出しの右の【📊 グラフ】が選ばれていればグラフの画面（【🔬 画像パネル】を押すと「5」の画像パネルの画面に切り替わる）。
 2. 左上のデータの欄（見出し「データ（タブ・カンマ区切り、または Markdown の表を貼り付け）」）をクリック → Cmd+A で中を選び → データを貼る。
    - データは「カンマ区切り」か「Markdown の表」で入れる。Tab キーは次の欄への移動になるので、タブ区切りを手で打たない（タブ区切りの文をクリップボードから貼るのはよい）。
    - 1 行目＝見出し。例（群の比較、列＝群、行＝反復）:
@@ -2672,9 +2678,9 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
 - 統計の結果（P 値・検定名など）は左下の結果の表に出る。数値を報告するときはここを読む。
 - 元に戻す: 上の ↶（Cmd+Z）、やり直す ↷（Cmd+Shift+Z）。
 
-## 5. 画像パネル（顕微鏡・IHC・ウェスタンブロット）
-1. 【＋】→【🔬 画像パネル作成】→ ファイルの小窓で画像を選ぶ（PNG・JPEG・TIFF、複数可）。
-2. 小窓【🔬 画像パネル作成】の左: 【型】（【グリッド（顕微鏡・IHC・写真）】／【ブロット（ゲル・ウェスタン）】）、題名、列数、セル幅、行見出し・列見出し（カンマ区切り）、スケールバー（1 px = ○ µm、バーの長さ）。
+## 5. Figure・パネルを作成: 画像パネル（顕微鏡・IHC・ウェスタンブロット）
+1. 【＋】→【📊 Figure・パネルを作成】→ 見出しの右の【🔬 画像パネル】を押す（グラフの種類の一覧の最後にある「画像パネル」のカードからでも切り替わる）→ 左上の【＋ 画像を追加（PNG/JPEG/TIFF）】→ ファイルの小窓で画像を選ぶ（複数可）。グラフに戻るときは【📊 グラフ】（どちらも作業中の内容は残る）。
+2. 画像パネルの画面の左: 【型】（【グリッド（顕微鏡・IHC・写真）】／【ブロット（ゲル・ウェスタン）】）、題名、列数、セル幅、行見出し・列見出し（カンマ区切り）、スケールバー（1 px = ○ µm、バーの長さ）。
 3. 左下の画像の一覧: 画像ごとに、セルの文字、色（疑似カラー）、表示範囲、回転、反転、切り抜き。▲▼ で並べ替え、✕ で外す。チェックを付けて【チェックした画像で合成セルを足す】で重ね合わせ。
 4. 注釈: 上の列の【矢印】【矢頭】【＊】【文字】【ROI 枠】【拡大図】【プロファイル】のどれかを押す → プレビューの写真をクリック（プロファイルは始点と終点の 2 回）。置いた注釈はドラッグで移動。一覧【置いた注釈】で文字・大きさ・色・削除。⌫ で最後の注釈を消す。
 5. 書き出し: 【PNG（300 dpi）】【SVG】【画像をコピー】、または【チャットに添付して質問する】。
@@ -2717,7 +2723,7 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
 
 ## 10. 利用者が ChatGPT に渡す依頼文の例
 - 「@BranCHAT この SOP に従って、【デモ会話】を開き、本線の最後の回答から分岐して『副作用の頻度を表にして』と質問し、回答をコピーして報告して」
-- 「@BranCHAT この SOP に従って、＋ → Figure を作る で、次の CSV から棒グラフ＋点（平均±SD、全群比較）を作り、PNG（300 dpi）でデスクトップに保存して: …」
+- 「@BranCHAT この SOP に従って、＋ → Figure・パネルを作成 で、次の CSV から棒グラフ＋点（平均±SD、全群比較）を作り、PNG（300 dpi）でデスクトップに保存して: …」
 - 「@BranCHAT この SOP に従って、グラフィックスで『投与 → 腫瘍縮小』の 2 段の図を作り、絵柄を 2. ベタ塗り＋細い輪郭 にして、チャットに添付して」
 `;
 /*SOPCU-END*/
