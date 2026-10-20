@@ -33,6 +33,21 @@ missing=sorted({x for x in re.findall(r'#([A-Za-z][A-Za-z0-9_-]*)',m.group(1)) i
 if missing: print('FAIL AI_SOP が参照する id が index.html に無い: '+', '.join(missing)); sys.exit(1)
 print('OK   AI_SOP の参照 id が存在する')
 PY
+python3 - <<'PY' || fail=1
+import re,sys,glob
+s=open('index.html',encoding='utf-8').read()
+m=re.search(r'/\*SOPCU-START\*/(.*?)/\*SOPCU-END\*/',s,re.S)
+if not m: print('FAIL AI_SOP_CU が無い'); sys.exit(1)
+body=m.group(1)
+src=s.replace(body,'')
+d=re.search(r'/\*SOP-START\*/(.*?)/\*SOP-END\*/',src,re.S)
+if d: src=src.replace(d.group(1),'')
+src+=''.join(open(f,encoding='utf-8').read() for f in glob.glob('figure*.js') if 'art' not in f)
+labels=sorted({l for l in re.findall('\u3010([^\u3011]+)\u3011',body) if l.strip()})
+missing=[l for l in labels if l not in src]
+if missing: print('FAIL AI_SOP_CU の【】の文字が画面に無い: '+', '.join(missing)); sys.exit(1)
+print('OK   AI_SOP_CU の【】の文字（%d 個）が画面に存在する'%len(labels))
+PY
 python3 -c "import ast,sys;ast.parse(open('bridge.py').read());print('OK   bridge.py 構文')" || fail=1
 for f in desktop/main.js desktop/engines.js figure.js figure-stats.js figure-more.js figure-more2.js figure-layout.js figure-image.js figure-schematic.js figure-omics.js figure-more3.js figure-gallery.js figure-ga-art.js figure-ga.js; do
   if node --check "$f" 2>/dev/null; then echo "OK   $f 構文"; else echo "FAIL $f 構文"; fail=1; fi
