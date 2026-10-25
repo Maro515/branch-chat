@@ -478,6 +478,18 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 @media (max-width:1100px){#agenda{width:250px}}
 /* ===== 図の一覧（見本から選ぶ） ===== */
 #figGalDlg{width:min(1120px,96vw);max-width:96vw;max-height:92vh}
+#figImgList .dragH{cursor:grab;user-select:none;color:var(--muted);padding:0 4px;align-self:flex-start;font-size:14px}#figImgList .imgItem.dropT{outline:2px dashed var(--accent,#2b6);outline-offset:-2px}
+#figDlg .figColTypes{display:flex;flex-wrap:wrap;gap:3px;margin:3px 0 6px;font-size:11px}#figDlg .figColTypes .ct{border:1px solid var(--line);border-radius:4px;padding:0 4px;white-space:nowrap}#figDlg .figColTypes .ct.t{background:#fff3d6;color:#7a5200}#figDlg .figColTypes button{font-size:11px;padding:0 5px}
+.figmetaRow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px;font-size:12px}.figmetaRow .figTagChip{font-weight:bold;border:1px solid var(--line);border-radius:4px;padding:0 6px}.figmetaRow .hint{max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#figImgDlg .figBlotDens{border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin:4px 0;font-size:12px}#figImgDlg .figBlotDens table{border-collapse:collapse;font-size:11px;margin:4px 0}#figImgDlg .figBlotDens td,#figImgDlg .figBlotDens th{border:1px solid var(--line);padding:1px 5px;text-align:right}
+#figListDlg{width:min(1180px,96vw);max-width:96vw;max-height:92vh}#figListDlg .flHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#figListDlg .flHead h2{margin:0;font-size:16px}#figListDlg .spacer{flex:1}
+#figListDlg .flBar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px}#figListDlg .flBar label{display:inline-flex;align-items:center;gap:4px}
+#figListDlg .flGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}#figListDlg .flCard{border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;background:var(--panel,#fff)}#figListDlg .flCard.sel{outline:2px solid var(--accent,#2b6);outline-offset:-1px}
+#figListDlg .flThumb{height:150px;background:#fff;border-radius:6px;border:1px solid #0001;overflow:hidden;display:flex;align-items:center;justify-content:center}#figListDlg .flThumb svg{max-width:100%;max-height:100%}#figListDlg .flPick{font-size:12px;display:flex;align-items:center;gap:4px}#figListDlg .flOrd{display:inline-block;min-width:18px;text-align:center;background:var(--accent,#2b6);color:#fff;border-radius:4px}
+#figListDlg .flMeta{display:flex;flex-direction:column;gap:3px;font-size:12px}#figListDlg .flTagIn{font-weight:bold;width:100%;box-sizing:border-box}#figListDlg .flKind{font-size:12px}#figListDlg .flActs{display:flex;flex-wrap:wrap;gap:4px}
+#figListDlg .flB,#figListDlg .flHash{font-size:11px;border-radius:4px;padding:0 4px;margin-right:3px;display:inline-block}#figListDlg .ok{background:#e5f5ea;color:#145c2c}#figListDlg .ng{background:#fde7e7;color:#8a1c1c}#figListDlg .warn{background:#fff3d6;color:#7a5200}
+#figListDlg .flLeg{margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:8px 10px}#figListDlg .flLeg h3{margin:0 0 6px;font-size:13px}#figListDlg .flLeg textarea{width:100%;box-sizing:border-box;font-size:12px}
+#agenda .agJournal select{width:100%;margin:2px 0 6px}#agenda .agJRows{font-size:12px;display:grid;gap:2px}#agenda .agJRows .k{display:inline-block;min-width:64px;color:var(--muted)}#agenda .agJAi{margin:6px 0;padding:6px 8px;border-left:3px solid #c77d00;background:#fff6e5;color:#5a3a00;font-size:12px;border-radius:4px}
 #figGalDlg .figGalHead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 #figGalBody{max-height:72vh;overflow:auto;padding:2px 4px 8px 2px}
 .figGalSec h3{font-size:12.5px;margin:12px 0 6px;color:var(--ink)}
@@ -520,6 +532,8 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 .tblwrap .figfrom{position:absolute;right:4px;top:4px;opacity:.5;font-size:11px}
 .tblwrap:hover .figfrom{opacity:1}
 .tblwrap [data-tip]::after{left:auto;right:0}
+#figDlg .figInspTab{display:none}
+@media (max-width:1280px){#figDlg .figBody{grid-template-columns:minmax(250px,320px) 1fr;position:relative}#figDlg .figInspect{position:absolute;right:0;top:0;bottom:0;width:min(300px,85%);background:var(--bg,#fff);box-shadow:-6px 0 14px #0003;padding:10px 12px;transform:translateX(110%);transition:transform .15s;z-index:6;border-radius:8px 0 0 8px}#figDlg.inspOpen .figInspect{transform:none}#figDlg .figInspTab{display:block;position:absolute;right:0;top:46px;z-index:7;writing-mode:vertical-rl;padding:8px 3px;border-radius:6px 0 0 6px;font-size:12px}#figDlg.inspOpen .figInspTab{right:min(300px,85%)}}
 @media (max-width:1000px){#figDlg .figBody,#figImgDlg .figBody{grid-template-columns:1fr}}
 #figDlg .figTools,#figImgDlg .figTools{display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:6px 0 8px;border-bottom:1px solid var(--line);margin-bottom:8px}
 #figDlg .figTools .sep,#figImgDlg .figTools .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
@@ -668,7 +682,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div id="imgStrip"></div>
       <div class="row">
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
-          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure・パネルを作成</span><span class="st ui">統計グラフ・画像パネル</span></button><button id="figGaBtn" class="prow"><span class="ui">🧩 グラフィックス</span><span class="st ui">イラストで GA・模式図を作る</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
+          <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure・パネルを作成</span><span class="st ui">統計グラフ・画像パネル</span></button><button id="figListBtn" class="prow"><span class="ui">🗂 図版一覧</span><span class="st ui">この会話の図・複合パネル・凡例の下書き</span></button><button id="figGaBtn" class="prow"><span class="ui">🧩 グラフィックス</span><span class="st ui">イラストで GA・模式図を作る</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
         <textarea id="input" rows="1" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）"></textarea>
         <div class="sendCol"><div id="modelPop"></div><button id="aiBtn" title="この枝で AI が答えるかどうか（オフにするとノートとして書き留めるだけ）"></button><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
@@ -812,7 +826,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   <div class="figTools" id="figImgTools"></div>
   <div class="figBody">
     <div class="figLeft">
-      <div class="figRow"><button id="figImgAdd" class="small">＋ 画像を追加（PNG/JPEG/TIFF）</button><input type="file" id="figImgAddFile" accept="image/*,.tif,.tiff,.ome.tif,.ome.tiff" multiple hidden><select id="figImgZ" class="small" aria-label="Z スタックの扱い" data-tip="OME-TIFF の Z スタック（複数の焦点面）を取り込むときの扱い"><option value="first">Z スタック: 最初の面</option><option value="mip">Z スタック: 最大値投影</option></select></div>
+      <div class="figRow"><button id="figImgAdd" class="small">＋ 画像を追加（PNG/JPEG/TIFF）</button><button id="figImgAutoLab" class="small" data-tip="空のラベルに、チャネル名（OME-TIFF）やファイル名を入れる。合成セルは Merge">🏷 ラベルを自動で</button><input type="file" id="figImgAddFile" accept="image/*,.tif,.tiff,.ome.tif,.ome.tiff" multiple hidden><select id="figImgZ" class="small" aria-label="Z スタックの扱い" data-tip="OME-TIFF の Z スタック（複数の焦点面）を取り込むときの扱い"><option value="first">Z スタック: 最初の面</option><option value="mip">Z スタック: 最大値投影</option></select></div>
       <div class="figRow"><label>型</label><select id="figImgType"><option value="grid">グリッド（顕微鏡・IHC・写真）</option><option value="blot">ブロット（ゲル・ウェスタン）</option></select></div>
       <div class="figRow"><label>題名</label><input id="figImgTitle" type="text" placeholder="任意"></div>
       <div id="figImgGridOpts">
@@ -822,13 +836,15 @@ table.md tr:nth-child(even) td{background:#f8fafd}
         <div class="figRow"><label>列見出し</label><input id="figImgColsLab" type="text" placeholder="DAPI, GFP, Merge" style="max-width:none;flex:1"></div>
         <div class="figRow" style="align-items:flex-start"><label>列見出しの色</label><div id="figImgColColorsUI" style="display:flex;flex-direction:column;gap:3px"></div></div>
         <div class="figRow"><label>スケールバー</label><span class="hint" data-tip="元画像の 1 ピクセルの実寸">1 px =</span><input id="figImgUm" type="number" step="any" min="0" placeholder="例 0.65" style="width:58px" data-tip="元画像の 1 ピクセルが実寸で何 µm か（対物レンズとカメラで決まる値。顕微鏡ソフトの画像情報や撮影条件で確認）。0 や空ならバーを描かない"><span class="hint" id="figImgUmUnit">µm</span><span class="hint" style="margin-left:6px">バー</span><input id="figImgLen" type="number" step="any" min="0" placeholder="20" style="width:48px" data-tip="図に描くバーの実寸"><select id="figImgUnit"><option>µm</option><option>nm</option><option>mm</option></select></div>
-        <div class="figRow"><label></label><select id="figImgLabelOn"><option value="first">表示: 1 枚目</option><option value="all">表示: 全部</option><option value="none">表示: なし</option></select><span id="figImgSbColorUI"></span><select id="figImgSbPos"><option value="br">右下</option><option value="bl">左下</option><option value="tr">右上</option><option value="tl">左上</option></select><span class="hint" id="figImgSbInfo"></span></div>
+        <div class="figRow"><label></label><select id="figImgLabelOn" aria-label="スケールバーの数値を書くセル"><option value="first">数値: 1 枚目</option><option value="all">数値: 全部</option><option value="none">数値: なし</option></select><span id="figImgSbColorUI"></span><select id="figImgSbPos" aria-label="スケールバーの位置"><option value="br">右下</option><option value="bl">左下</option><option value="tr">右上</option><option value="tl">左上</option></select><input id="figImgSbThick" type="number" min="0.5" max="8" step="0.5" placeholder="太さ 2" style="width:62px" aria-label="スケールバーの太さ (pt)" data-tip="スケールバーの太さ（pt）。空なら 2 pt"><span class="hint" id="figImgSbInfo"></span></div>
       </div>
       <div id="figImgBlotOpts" style="display:none">
         <div class="figRow"><label>幅</label><select id="figImgWidth"><option value="2">2.0 in</option><option value="2.5" selected>2.5 in</option><option value="3">3.0 in</option><option value="4">4.0 in</option></select><label>レーン名</label><select id="figImgLaneRot"><option value="0">横</option><option value="1">45°</option></select><label>抗体名</label><select id="figImgNameSide"><option value="right">右</option><option value="left">左</option></select></div>
         <div class="figRow"><label>レーン</label><input id="figImgLanes" type="text" placeholder="1, 2, 3, 4" style="max-width:none;flex:1"></div>
         <div class="figRow" style="align-items:flex-start"><label>条件行</label><textarea id="figImgConds" class="small" placeholder="Zolmin: −, +, −, +&#10;濃度: wedge"></textarea></div>
         <div class="figRow"><label>群見出し</label><input id="figImgGroups" type="text" placeholder="Raji: 1-2, BC-1: 3-4" style="max-width:none;flex:1"></div>
+        <div class="figRow"><button id="figBlotRaw" class="small" data-tip="各短冊の元画像に切り抜いた範囲を赤い枠で示し、抗体名・kDa・露光・ファイル名・切り抜きの座標を添えた PDF を書き出す（投稿時の未加工ブロット用）">📄 未加工ブロット PDF</button><button id="figBlotDens" class="small" data-tip="短冊ごとに、レーン（等間隔）の濃度を背景を引いて積算し、ローディングコントロールとの比を出す（参考値）">📏 濃度を測る（参考）</button></div>
+        <div id="figBlotDensBox" class="figBlotDens" hidden></div>
       </div>
       <label>画像（上から順に並びます。チェックした画像は「合成セル」にまとめられます）</label>
       <div class="imgList" id="figImgList"></div>
@@ -849,7 +865,8 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   <div class="figBody">
     <div class="figLeft">
       <div class="figRow"><label>データ（タブ・カンマ区切り、または Markdown の表を貼り付け）</label><button id="figFileBtn" class="small" data-tip="CSV / TSV / Excel（.xlsx）を読み込む。書き出した図（PNG・SVG・.branchat.json）を開き直すこともできます" aria-label="ファイルから読む" data-testid="fig-open-file">📂 ファイルから読む</button><input type="file" id="figFile" accept=".csv,.tsv,.txt,.xlsx,.png,.svg,.json" hidden></div>
-      <textarea id="figData" spellcheck="false"></textarea>
+      <textarea id="figData" spellcheck="false" aria-label="データ（タブ・カンマ区切り、または Markdown の表）"></textarea>
+      <div id="figColTypes" class="figColTypes" aria-live="polite"></div>
       <div class="figRow"><label>表の型</label><select id="figKind"><option value="column">Column（列＝群、行＝反復）</option><option value="grouped">Grouped（行＝カテゴリ、列＝群）</option><option value="xy">XY（1列目＝X、以降＝Y）</option></select></div>
       <div class="figRow"><label>グラフ</label><select id="figType" hidden></select><button id="figGalBtn" class="small" data-tip="見本の一覧からグラフの種類を選ぶ" style="max-width:none;flex:1;text-align:left"><span id="figTypeName">（未選択）</span> <span style="float:right">▦</span></button></div>
       <div class="figRow" id="figCmpRow"><label>有意差</label><select id="figCmp"><option value="none">なし</option><option value="all">全比較（Welch t / ANOVA+Tukey）</option><option value="dunnett">対照群と比較（Dunnett）</option></select><select id="figCtrl" style="display:none"></select></div>
@@ -863,6 +880,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div id="figPreview" class="figPreview"></div>
       <div class="figActs"><button class="primary" id="figAttach">チャットに添付して質問する</button><button id="figUpdate" style="display:none">回答の図を更新</button><button id="figCopy">画像をコピー</button><button id="figPng">PNG（300 dpi）</button><button id="figSvg">SVG</button></div>
     </div>
+    <button type="button" id="figInspTab" class="figInspTab" aria-label="右の設定欄を開く・閉じる" data-tip="右の設定欄（全体・選んだ要素）を開く・閉じる">⚙ 設定</button>
     <div class="figInspect" id="figInspect"></div>
   </div>
 </dialog>
@@ -925,6 +943,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
 <script src="figure-gallery.js"></script>
 <script src="figure-ga-art.js"></script>
 <script src="figure-ga.js"></script>
+<script src="figure-list.js"></script>
 <script>
 /* ========== 基本ユーティリティ ========== */
 const $=s=>document.querySelector(s);
@@ -947,6 +966,23 @@ function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';cl
   document.addEventListener('keydown',e=>{const t=e.target;if(e.key==='Enter'&&t&&t.tagName==='INPUT'&&t.closest('dialog')&&t._lastV!==undefined&&t.value!==t._lastV)fire(t);},true);
   document.addEventListener('focusout',e=>{const t=e.target;if(t&&typeof t.value==='string'&&t.closest&&t.closest('dialog[open]')&&t._lastV!==undefined&&t.value!==t._lastV)fire(t);},true);
   setInterval(()=>{if(!document.querySelector('dialog[open]'))return;document.querySelectorAll(SEL).forEach(el=>{if(el._lastV===undefined){el._lastV=el.value;return;}if(el.value!==el._lastV)fire(el);});},350);})();
+// AI 操作向けのアクセシビリティ（改善計画 3.6）: ボタン・入力欄に安定した名前を付ける。
+// aria-label は見えている文字（記号だけのボタンは説明 data-tip・title、入力欄は見出し・placeholder）から、data-testid は id か data-* 属性から作る（例: figPng、tk-wIn、figmode-image）。
+// 後から作られる部品にも付くよう MutationObserver で見張る
+function a11yName(el){const t=(el.textContent||el.value||'').replace(/\s+/g,' ').trim();const symOnly=t&&!/[A-Za-z0-9぀-ヿ一-鿿]/.test(t);
+  if(el.tagName==='BUTTON'||el.getAttribute('role')==='button')return (!t||symOnly||t.length<2)?(el.dataset.tip||el.title||t):(t.length>60?t.slice(0,60):t);
+  const lab=el.id&&document.querySelector(`label[for="${el.id}"]`);if(lab)return lab.textContent.trim();const row=el.closest('.irow,.figRow,label');const lt=row&&row.querySelector('label');if(lt&&lt!==el&&lt.textContent.trim())return lt.textContent.replace(/\s+/g,' ').trim().slice(0,60);
+  return el.placeholder||el.dataset.tip||el.title||'';}
+function a11yTestId(el){if(el.id)return el.id;for(const a of el.attributes){if(a.name.startsWith('data-')&&!['data-tip','data-testid','data-q'].includes(a.name)&&a.value.length<40)return a.name.slice(5)+(a.value&&a.value!=='1'?'-'+a.value:'');}const m=el.parentElement&&el.parentElement.closest('[data-ftm]');if(m&&m.firstElementChild===el)return 'ftm-'+m.dataset.ftm;let p=el.parentElement;for(let d=0;p&&d<3;d++,p=p.parentElement){const ds=Object.keys(p.dataset).filter(k=>!['tip','testid','q'].includes(k)&&String(p.dataset[k]).length<40);if(p.id||ds.length)return (p.id||ds.map(k=>k+'-'+p.dataset[k]).join('-'))+'-'+((el.classList[0])||el.tagName.toLowerCase());}return '';}
+function a11yTag(root){(root||document).querySelectorAll('button,input:not([type=hidden]),select,textarea,[role=button]').forEach(el=>{if(!el.hasAttribute('aria-label')){const n=a11yName(el);if(n)el.setAttribute('aria-label',n);}if(!el.hasAttribute('data-testid')){const t=a11yTestId(el);if(t)el.setAttribute('data-testid',t);}});}
+(function(){let pend=false;const run=()=>{pend=false;a11yTag(document);};new MutationObserver(()=>{if(!pend){pend=true;setTimeout(run,30);}}).observe(document.documentElement,{childList:true,subtree:true});if(document.readyState!=='loading')run();else document.addEventListener('DOMContentLoaded',run);})();
+// 作成画面（グラフ・画像パネル・グラフィックス）の Esc: まず開いているメニューを閉じ、何も無ければ「もう一度 Esc で閉じます」と知らせて 2 回目で閉じる（改善計画 3.6。作業中の図を誤って閉じないように）
+(function(){const ids=['figDlg','figImgDlg','figGaDlg'];document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;const d=ids.map(i=>document.getElementById(i)).find(x=>x&&x.open);if(!d)return;
+  const top=[...document.querySelectorAll('dialog[open]')].pop();if(top!==d)return; // 手前に別の小窓（確認・文字入力・種類の一覧）があればそちらに任せる
+  const menus=d.querySelectorAll('.ftm.open');if(menus.length){menus.forEach(m=>m.classList.remove('open'));e.preventDefault();e.stopPropagation();return;}
+  if(d.classList.contains('inspOpen')){d.classList.remove('inspOpen');e.preventDefault();e.stopPropagation();return;} // 狭いときの右の設定欄の引き出しも先に閉じる
+  if(!d._escArm){d._escArm=true;toast('もう一度 Esc を押すと閉じます');clearTimeout(d._escT);d._escT=setTimeout(()=>{d._escArm=false;},2500);e.preventDefault();e.stopPropagation();return;}
+  d._escArm=false;},true);})();
 // data-copytext のボタンは、その文字をコピーする（結果表の「判定の条件をコピー」など）
 document.addEventListener('click',e=>{const b=e.target.closest('[data-copytext]');if(!b)return;navigator.clipboard.writeText(b.dataset.copytext).then(()=>toast('コピーしました')).catch(()=>toast('コピーできませんでした'));});
 // 押せるボタン付きの知らせ（例: 保存した場所を Finder で表示）。少し長めに出す
@@ -1150,7 +1186,7 @@ function buildContext(targetNodeId,opts={}){
 - 他ブランチの内容を持ち出すときは「（ブランチ「B」で決めた通り）」のように出典を示してください。
 - 現在ブランチに関係ない他ブランチの話題を、聞かれてもいないのに混ぜないでください。
 ${settings.extra?'\n追加指示: '+settings.extra+'\n':''}
-${templateInstr(cur)}${FIG_PROMPT}
+${templateInstr(cur)}${FIG_PROMPT}${typeof figJournalCard==='function'?figJournalCard():''}
 
 ## 会話マップ
 現在位置: ${chain}
@@ -1997,7 +2033,7 @@ function renderAgenda(){
   const src=(sr)=>sr&&B(sr.bid)?`<span class="src" style="--bc:${B(sr.bid).color}" data-go="${esc(sr.nodeId||'')}" data-gob="${esc(sr.bid)}">${esc(B(sr.bid).name)}</span>`:'';
   const row=x=>`<div class="ag${x.status==='done'?' done':''}" data-ag="${x.id}"><button class="ck" data-toggle="${x.id}" data-tip="${x.status==='done'?'未解決に戻す':'解決済みにする'}">${x.status==='done'?'✓':''}</button><span class="tx"><span class="n">${x.n}.</span> ${esc(x.text)}${src(x.status==='done'?(x.doneSrc||x.src):x.src)}</span><span class="ops"><button data-edit="${x.id}" data-tip="文言を直す">✎</button><button data-del="${x.id}" data-tip="消す">✕</button></span></div>`;
   const now=b?(b.summary?b.summary.topic:(branchNodes(b.id).length?'要約の更新を待っています':(b.instr?'この枝の役割: '+excerpt(b.instr,60):'まだ発言がありません'))):'';
-  box.innerHTML=`<section class="sec now-s"><h4 class="ui">進行中 <span class="cnt var">— ${esc(b?b.name:'')}</span></h4><div class="now">${esc(now)}</div></section>
+  box.innerHTML=(typeof figJournalAgendaHTML==='function'?figJournalAgendaHTML():'')+`<section class="sec now-s"><h4 class="ui">進行中 <span class="cnt var">— ${esc(b?b.name:'')}</span></h4><div class="now">${esc(now)}</div></section>
     <section class="sec open-s"><h4 class="ui">未解決項目 <span class="cnt">${open.length}</span></h4>${open.length?open.map(row).join(''):'<div class="empty">まだありません。AI の回答のあとに自動で加わります。手でも足せます。</div>'}
     <div class="add"><input id="agNew" placeholder="項目を足す（Enter）"><button id="agAdd">＋</button></div></section>
     <section class="sec done-s"><h4 class="ui">解決済み <span class="cnt">${done.length}</span></h4>${done.length?done.map(row).join(''):'<div class="empty">まだありません</div>'}</section>
@@ -2283,6 +2319,7 @@ document.querySelectorAll('#noteWin .nwGrip').forEach(g=>{let st=null;
   g.addEventListener('dblclick',()=>{delete settings.noteW;delete settings.noteH;saveSettings();applyNoteSize();});
 });
 $('#figBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');figOpen({});};
+$('#figListBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');figListOpen();};
 
 $('#figGaBtn').onclick=e=>{e.stopPropagation();$('#plusPop').classList.remove('on');figGaOpen(null);};
 // Figure・パネルを作成: グラフ（#figDlg）と画像パネル（#figImgDlg）を 1 つの入口にまとめ、見出しの [data-figmode] で切り替える（0.7.33、利用者の指示）。切り替えても、それぞれの作業中の内容は残す
@@ -2295,7 +2332,7 @@ $('#figImgFile').onchange=async()=>{await figImgOpenWithFiles($('#figImgFile').f
 $('#nwClose').onclick=()=>{noteCur=null;$('#noteWin').hidden=true;if(dropEmptyNotes()){persist();markNotes();}};
 $('#nwDel').onclick=async()=>{const n=noteCur&&notesOf()[noteCur];if(!n)return;if(noteBusy){toast('生成中は消せません');return;}if(!(await askConfirm(`「${excerpt(n.text,20)}」についてのこのチャット（${n.items.filter(i=>i.role==='user').length}件の質問）を消しますか？\n同じ言葉のほかのチャットは残ります。`,'消す')))return;delete notesOf()[n.id];noteCur=null;$('#noteWin').hidden=true;persist();renderAll();};
 // 表示中の回答の本文から、その言葉を探して黄色のマーカーを付ける。見つからないとき（装飾をまたいだ選択など）は末尾に小さな札を出す
-function figHydrate(){document.querySelectorAll('#msgs .msg').forEach(m=>{const id=m.id.replace(/^n-/,'');const bs=m.querySelectorAll('.figblock[data-figidx]');bs.forEach(b=>{b.dataset.fignode=id;});
+function figHydrate(){document.querySelectorAll('#msgs .msg').forEach(m=>{const id=m.id.replace(/^n-/,'');const bs=m.querySelectorAll('.figblock[data-figidx]');bs.forEach(b=>{b.dataset.fignode=id;if(typeof figBlockMetaRow==='function')try{figBlockMetaRow(b);}catch(e){}});
   if(bs.length>=2&&![...bs].some(b=>b.classList.contains('layout'))){const bar=bs[bs.length-1].querySelector('.figbtns');if(bar&&!bar.querySelector('[data-figcombine]')){const bt=document.createElement('button');bt.className='small';bt.dataset.figcombine='1';bt.dataset.tip='この発言の図を 1 枚の Figure（A, B, C…）にまとめる';bt.textContent='⊞ 1 枚にまとめる';bar.appendChild(bt);}}});}
 // 図のドラッグ: 模式図のノード（data-node）と画像パネルの注釈（data-annot）を動かし、離したら回答に書き戻す
 (()=>{let d=null;document.addEventListener('pointerdown',e=>{if(e.button!==0)return;const el=e.target.closest&&(e.target.closest('.figblock.schematic [data-node]')||e.target.closest('.figblock.image [data-annot]')||e.target.closest('#figImgPreview [data-annot]')||e.target.closest('.figblock [data-note]')||e.target.closest('#figPreview [data-note]')||e.target.closest('.figblock [data-cut]')||e.target.closest('#figPreview [data-cut]'));if(!el)return;if(typeof figImgTool!=='undefined'&&figImgTool)return;const svg=el.hasAttribute('data-note')||el.hasAttribute('data-cut')?(el.closest('.figblock')||el.closest('#figPreview')).querySelector(':scope > svg'):el.closest('svg');const fb=el.closest('.figblock')||el.closest('#figImgPreview')||el.closest('#figPreview');if(!svg||!fb)return;const vb=svg.viewBox.baseVal;const rect=svg.getBoundingClientRect();const sc=vb&&vb.width?vb.width/rect.width:1;d={el,fb,svg,sc,x0:e.clientX,y0:e.clientY,moved:false,kind:el.hasAttribute('data-node')?'node':el.hasAttribute('data-note')?'note':el.hasAttribute('data-cut')?'cut':'annot',id:el.getAttribute('data-node')||el.getAttribute('data-annot')||el.getAttribute('data-note')||el.getAttribute('data-cut'),base:el.getAttribute('transform')||''};try{el.setPointerCapture&&el.setPointerCapture(e.pointerId);}catch(err){}e.preventDefault();});
@@ -2530,6 +2567,7 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（画面の要素を指定でき�
 - 枝ごとのモデル: #modelBtn → #modelPop で選ぶ。指定しない枝は分岐元→本線→全体の既定の順に継承。
 ### 2.3 進捗（アジェンダ）
 - 右の #agenda。AI の要約が未解決項目を出し入れする。手動: #agAdd で追加、項目のボタンで解決／編集／削除。⧉ #agExport で Markdown をコピー。
+- 先頭の「投稿先」#agJournalSel（雑誌プリセット: 図の幅・図の文字・解像度・語数・Key Points・図表数・文献数・引用形式・AI 利用方針）。選ぶと要点と AI 利用方針 .agJAi を固定表示し、AI への指示にも入る（conv.journal）。数値は確認日つきの規定の要約で、投稿前に原文を確かめる。
 ### 2.4 バックアップ
 - #bkBtn → #bkDlg: 「すべての会話を書き出す」#bkAll、「この会話だけ」#bkOne、読み込み #bkFile → #bkImport（足し合わせ。同じ id は新しい方）。画像パネルの画像と自分のテンプレートも同梱。
 
@@ -2539,14 +2577,17 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（画面の要素を指定でき�
 - 上のツール行 #figToolbar: ↶ #figUndoBtn ↷ #figRedoBtn、メニュー .ftm[data-ftm=graph|kind|axes|text|color|annot|size]（ボタンを押すと .ftp が開く。項目は [data-tk="キー"]、ボタン項目は [data-tbtn="キー"]）、⧉ コピー [data-fact=copy]、PNG [data-fact=png]、PNG 600 [data-fact=png600]、SVG [data-fact=svg]。
 - 左: データ #figData（タブ・カンマ区切り、または Markdown の表。1 行目＝見出し）、「📂 ファイルから読む」#figFileBtn（CSV/TSV/XLSX、#figFile）、表の型 #figKind、グラフ #figGalBtn（現在の種類名 #figTypeName。押すと見本の一覧 #figGalDlg）、有意差 #figCmp（none/all/dunnett）＋対照群 #figCtrl、題名 #figTitle、Y 軸の題・X 軸の題 [data-fopt=yTitle|xTitle]、結果表 #figStats。
 - 中央: プレビュー #figPreview（要素をクリックで右の欄がその要素の設定になる: [data-sel="axes|series:i|brackets|legend|title|ytitle|xtitle"]、文字 [data-note=k]、ROC のカットオフ文字 [data-cut=i]）。下に「チャットに添付して質問する」#figAttach、「回答の図を更新」#figUpdate（ブロックから開いたときだけ）、「画像をコピー」#figCopy、PNG #figPng、SVG #figSvg。
-- 右: 選んだ要素の設定 #figInspect（入力は [data-ik="キー"]。効かない項目は disabled＋「この図では使いません」）。
+- 右: 選んだ要素の設定 #figInspect（入力は [data-ik="キー"]。効かない項目は disabled＋「この図では使いません」）。ウィンドウの幅が 1280 px 以下では右の欄は引き出しになり、右端の ⚙ 設定 #figInspTab で開閉する（プレビューの要素を押すと開く。Esc で閉じる）。
+- データ欄の下の列の型 #figColTypes: 列ごとに 数値／文字。文字になった数値の列（1,234・12 %・全角数字・引用符つき）には「数値にする」[data-colfix=列番号]。
+- 下の行 .figExpBar: 図のタグの入力欄（例 Fig1A。書き出しのファイル名と図版一覧に使う）、📁 [data-expdir]（この会話の書き出し先フォルダ）。
+- Esc は 2 段階: 1 回目は開いているメニュー・引き出しを閉じるだけ、続けてもう 1 回で作成画面を閉じる。
 ### 3.2 手順
 1. データを #figData に貼る（例: 「Control\\tTreated\\n12.1\\t15.4\\n…」。列＝群、行＝反復。同名の列は反復としてまとまる）。
 2. 表の型が自動判定される（#figKind）。違えば選び直す: column（列＝群）、grouped（行＝カテゴリ、列＝群）、xy（1 列目＝X）、survival（Time, Event, Group）、roc（マーカー列, Class）、heatmap、forest（Study, Estimate, Lower, Upper）、waterfall（Patient, Change, Response）、multi（行＝個体、列＝変数）、nested（Group, Subject, Value）、swimmer、spider、feature（Gene, log2FC, P）、importance、omics、sets（列＝集合、1/0）、nomogram（Variable, Coef, Min, Max）、tracks（Track, Start, End, Value/Name）。
 3. グラフの種類は #figGalBtn → #figGalDlg の見本カード .figGalCard[data-galkind="…"][data-galtype="…"] をクリック（同じ表の型なら種類だけ変わる。違う型の図を選ぶと例のデータが入る。自分のデータがあるときは #qDlg で確認 → #qOk）。絞り込み #figGalQ。カード左上の ☆ [data-galfav] でお気に入り（一覧の先頭「★ お気に入り」に入る）。閉じる #figGalClose。
-4. 設定: #figToolbar のメニューから。例: 誤差 [data-tk=errType]=SD|SEM|CI|none、有意差 [data-tk=__cmp]=none|all|dunnett、Y 軸対数 [data-tk=ylog]、配色 [data-tk=scheme]=classic|colorblind|nature|gray、大きさ [data-tk=wIn] [data-tk=hIn]（インチ）、図種固有の項目は「図種の設定」[data-ftm=kind]。
+4. 設定: #figToolbar のメニューから。例: 誤差 [data-tk=errType]=SD|SEM|CI|none、有意差 [data-tk=__cmp]=none|all|dunnett、Y 軸対数 [data-tk=ylog]、配色 [data-tk=scheme]=colorblind（新しい図の既定、Okabe–Ito）|tol|viridis|classic|nature|gray、見え方の確認 [data-tk=__cvd]=''|p|d|t|g（プレビューだけ。書き出しには影響しない）、系列の塗り [data-tk=series.i.fill]=solid|open|hatch|hatch2（斜線）、棒の塗り [data-tk=barFill]、棒の上に値 [data-tk=valLabels]・桁 [data-tk=valDigits]、大きさ: 図全体の幅・高さ [data-tk=figW] [data-tk=figH]、描画部分 [data-tk=wIn] [data-tk=hIn]（単位 [data-tk=__unit]=in|cm|mm。数値の欄は直接入力できる）、投稿先の図の幅 [data-tk=__jsize]=single|onePointFive|double（進捗パネルで投稿先を選んだとき）、図種固有の項目は「図種の設定」[data-ftm=kind]（ボルケーノ・MA・効果量のドットプロット: 名前を付ける遺伝子 [data-tk=volGenes]（カンマ区切り。最上位の labelGenes に入る）、判定に使う値 [data-tk=volSig]=auto|p|q|bh。ヒートマップ: 値の変換 [data-tk=hmScale]=raw|log2|z|log2z、群の色帯 [data-tk=hmColGroup] [data-tk=hmRowGroup]）。
 5. 文字を書き込む: 「注釈」メニュー → 「＋ グラフに文字を書き込む」[data-tbtn=__noteAdd] → プレビューの場所をクリック → #figPromptDlg に文字 → #figPromptOk。置いた文字はドラッグで移動、クリックで右の欄（文字・大きさ・色・削除）。
-6. 書き出し: PNG #figPng（300 dpi、pHYs 付き）／PNG 600／SVG #figSvg／画像をコピー #figCopy。チャットで続けるなら #figAttach（PNG を添付し、入力欄に \`\`\`figure の JSON が入る）。
+6. 書き出し: PNG #figPng（300 dpi、pHYs 付き）／PNG 600／SVG #figSvg／画像をコピー #figCopy。設定 #sExpBox で書き出し先フォルダを決めると保存の小窓を出さずにそのフォルダへ保存（ファイル名の決まり #sExpTpl、同名は _v2…、図の指定の埋め込み #sExpEmbed、.branchat.json #sExpSidecar）。書き出した PNG・SVG・.branchat.json は #figFile（📂 ファイルから読む）かプレビューへのドロップで図に戻る。チャットで続けるなら #figAttach（PNG を添付し、入力欄に \`\`\`figure の JSON が入る）。
 7. 回答の図を直した場合は #figUpdate で元の回答のブロックを書き換える。
 ### 3.3 コンソールからの作図（画面操作の代わり）
 - spec = {kind:'column',type:'bar',title:'…',compare:'all',data:'Control\\tTreated\\n12.1\\t15.4\\n…',style:{errType:'SEM'}}; figOpen(figStateFromSpec(spec)) で作成画面に入る。figRenderSpec(spec).svg で SVG 文字列が得られる。figGalleryPick('survival','km') で種類を切り替え（例のデータが入る）。figSpecFromState(figState) で現在の指定を JSON に。
@@ -2556,12 +2597,20 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（画面の要素を指定でき�
 - AI の回答中の \`\`\`figure（JSON）は自動で図になる（.figblock[data-fignode][data-figidx]）。ボタン: ✎ 編集 [data-figedit]、PNG [data-figpng]、SVG [data-figsvg]、⧉ [data-figcopy]、{} JSON [data-figjson]。同じ回答に図が 2 つ以上あると最後のブロックに「⊞ 1 枚にまとめる」が出る（レイアウト {"kind":"layout","cols":2,"labels":"A","page":"2col","panels":[…]}）。
 - JSON の形: {title,kind,type,err,compare,ctrl,ytitle,xtitle,ymin,ymax,data(TSV 文字列),style{…}}。画像パネルは {"kind":"image","type":"grid|blot",…}、模式図は {"kind":"schematic","type":"diagram|pedigree|gene|venn|timeline|table",…}。
 - 図の上の文字 [data-note] と ROC のカットオフ [data-cut] はブロック上でドラッグ移動、ダブルクリックで書き換え。
+- 図の下の行 .figmetaRow: タグがあれば表示、無ければ「🏷 Figure として登録」[data-figreg]（#figPromptDlg にタグ → #figPromptOk）。保存したことがあれば「保存: …」と「📁 Finder」[data-figreveal]。
+
+## 4.5 図版一覧（複合パネル・凡例の下書き）
+- 開き方: #plusBtn → #figListBtn（🗂 図版一覧）→ #figListDlg。範囲 #flScope=conv|all（すべての会話）。カード .flCard[data-key="発言id:番号"]: 選ぶ [data-flpick]（選んだ順に A, B, C…）、タグ [data-fltag]（書き換えると図の figureTag に入る）、✎ 編集 [data-flact=edit]、発言へ [data-flact=jump]、凡例の下書き [data-flact=legend]。カードには元データ（読み込んだときと同じか・変わったか・見つからないか）、最後の書き出し先と 📁 Finder [data-flreveal]、投稿先の規定との照合（幅・文字の大きさ）が出る。
+- 複合パネル: 2 枚以上選ぶ → 列 #flCols、記号 #flLabels=A|a|none、全体の幅 #flPage（投稿先があればその段の幅）、タグ #flTag → #flCompose。{"kind":"layout"} の図が AI に送られない書き留め（ノート）として会話に入る。
+- 凡例の下書き: #flLeg の #flLegText（英文。n・検定名・誤差・しきい値・スケールバー・元データ）→ #flLegCopy または #flLegNote（会話に書き留める）。#flLegAll はタグの付いた図の凡例をタグ順にまとめる（Figure legends）。
+- #flAddFile で書き出した図のファイルを一覧に足す（[data-flact=place] で会話に置く）。#flJEdit → #flJText で雑誌プリセットの JSON を編集 → #flJSave（#flJReset で既定に戻す）。
+- コンソール: figListOpen()、figLegendDraft(spec,'Fig1A')、figAddNote('本文')（AI に送らずに書き留める）。
 
 ## 5. Figure・パネルを作成: 画像パネル（顕微鏡・IHC・ウェスタンブロット）SOP
 画面 #figImgDlg。開き方: #plusBtn → #figBtn → 見出しの「🔬 画像パネル」[data-figmode=image]（またはグラフの種類の一覧 #figGalDlg の最後の「画像パネル」の区画のカード [data-galimg=grid|blot]。型がその値になる）→ 「＋ 画像を追加」#figImgAdd → ファイル選択（PNG/JPEG/TIFF、最大 60 枚）。回答中の画像ブロックの ✎ 編集でも開く。グラフに戻るのは「📊 グラフ」[data-figmode=graph]。コンソール: figSwitchMode('image'|'graph', 'grid'|'blot')。
 1. 型 #figImgType: grid（顕微鏡・IHC・写真）／blot（ゲル・ウェスタン）。題名 #figImgTitle。
-2. grid: 列数 #figImgCols、セル幅 #figImgCell、収め方 #figImgFit（cover/contain）、縦横比 #figImgAspect、行見出し #figImgRows、列見出し #figImgColsLab（カンマ区切り）、列見出しの色 #figImgColColorsUI（パレット .sws .sw[data-v]）、スケールバー: 1 px = #figImgUm µm（元画像の画素サイズ）、バーの長さ #figImgLen、単位 #figImgUnit、表示 #figImgLabelOn、色 #figImgSbColorUI、位置 #figImgSbPos。
-3. blot: 幅 #figImgWidth、レーン名の向き #figImgLaneRot、抗体名の側 #figImgNameSide、レーン #figImgLanes、条件行 #figImgConds（1 行 1 条件「名前: −, +, −, +」、「名前: wedge」で楔）、群見出し #figImgGroups（「Raji: 1-2, BC-1: 3-4」）。
+2. grid: 列数 #figImgCols、セル幅 #figImgCell、収め方 #figImgFit（cover/contain）、縦横比 #figImgAspect、行見出し #figImgRows、列見出し #figImgColsLab（カンマ区切り）、列見出しの色 #figImgColColorsUI（パレット .sws .sw[data-v]）、スケールバー: 1 px = #figImgUm µm（元画像の画素サイズ）、バーの長さ #figImgLen、単位 #figImgUnit、数値を書くセル #figImgLabelOn=first|all|none、色 #figImgSbColorUI、位置 #figImgSbPos、太さ #figImgSbThick（pt）。セルごと: 一覧の [data-ik=sbMode]=''|off|own、own のとき [data-ik=sb.len] [data-ik=sb.thick] [data-ik=sb.pos] [data-ik=sb.label]=''|show|hide。🏷 #figImgAutoLab で空のセルの文字にチャネル名・ファイル名（合成は Merge）。並べ替え: 一覧の ⠿ [data-drag] をドラッグ、またはプレビューのセルを別のセルへドラッグして入れ替え（注釈も一緒に動く）。OME-TIFF の Z スタック #figImgZ=first|mip。
+3. blot: 短冊ごとに分子量マーカー [data-ik=markers]（「70@0.3, 55@0.7」＝kDa@短冊の上からの割合）と露光 [data-ik=exposure]。📄 #figBlotRaw で未加工ブロットの PDF（元画像に切り抜いた範囲の赤枠、ファイル名・露光・座標）を書き出し先へ保存。📏 #figBlotDens で濃度（参考値。切り抜いた範囲をレーン数で等分、背景を引いて積算、ローディングコントロール #figBlotLc との比）→ #figBlotDensBox（#figBlotDensCopy で TSV、#figBlotDensFig で棒グラフを会話に書き留める）。幅 #figImgWidth、レーン名の向き #figImgLaneRot、抗体名の側 #figImgNameSide、レーン #figImgLanes、条件行 #figImgConds（1 行 1 条件「名前: −, +, −, +」、「名前: wedge」で楔）、群見出し #figImgGroups（「Raji: 1-2, BC-1: 3-4」）。
 4. 画像リスト #figImgList: 各 .imgItem に セルの文字 [data-ik=label]、文字の色（パレット）、疑似カラー（パレット、channel）、LUT [data-ik=lut]、表示範囲 [data-ik=range0|range1]、γ [data-ik=gamma]、回転 [data-ik=rot]、反転 [data-ik=flip]、切り抜き [data-ik=crop]（x,y,w,h の割合）、▲▼ 並べ替え、✕ 外す。チェック [data-ik=chk] して「チェックした画像で合成セルを足す」#figImgMerge で疑似カラー合成。
 5. 注釈: ツール行 #figImgTools のボタン [data-figdtool=arrow|head|star|text|roi|inset|line] を押してから、プレビュー #figImgPreview の写真（[data-cellbox=k]）をクリック（line は始点と終点の 2 回）。色は [data-ik=annotColor] のパレット。⌫ [data-figdtool=undo] で最後を消す。置いた注釈は「置いた注釈」#figImgAnnots の行で文字・大きさ・向き・幅・高さ・形・色・✕。ROI 枠と拡大図は選ぶと四隅の ■ .roiHandle をドラッグで大きさ変更。ドラッグで移動。
 6. 書き出し: #figImgPng（300 dpi）、#figImgSvg、#figImgCopy、#figImgJson（指定の JSON を直接編集）。チャットへ #figImgAttach。回答のブロックを直すなら #figImgUpdate。
@@ -2674,11 +2723,12 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
 - チャットに戻る: 【View】→【チャット】。
 ### 3.11 進捗（右の欄）
 - 未解決の問いは AI の回答のあと自動で足し引きされる。手で足すなら【未解決項目】の下の欄（薄い字で「項目を足す（Enter）」）に書いて【＋】（または Enter）。各項目には小さなボタンがある（カーソルを重ねると説明: 解決済みにする／文言を直す／消す）。
+- 先頭の「投稿先」の選択欄で雑誌を選ぶと、図の幅・語数・Key Points・AI 利用方針などの要点が出る（AI にも伝わる）。数値は規定の要約なので、投稿前に原文（要点の下の「原文」のリンク）を確かめるよう利用者に伝える。
 ### 3.12 ＋ メニュー（入力欄の左の【＋】）
 - 【🌐 Web検索】: 押すたびにオン／オフ（右に状態）。最新情報が要る質問のときだけオン。
 - 【🔌 連携ツール（MCP）】: 使う連携を選ぶ一覧が開く。利用者の指示があるときだけ使う。
 - 【🖼 画像を添付】: ファイルの小窓で画像を選ぶ（最大 4 枚）。入力欄への貼り付け（Cmd+V）やドロップでも付く。
-- 【📊 Figure・パネルを作成】（グラフは「4」、画像パネルは「5」）、【🧩 グラフィックス】（「6」）。
+- 【📊 Figure・パネルを作成】（グラフは「4」、画像パネルは「5」）、【🗂 図版一覧】（「4.3」）、【🧩 グラフィックス】（「6」）。
 ### 3.13 バックアップ
 - 【バックアップ・引継ぎ】→【すべての会話を書き出す】／【今の会話だけ書き出す】→ 保存の小窓で保存。読み込みは【ファイルから読み込む】（今ある会話は消えず、足し合わせになる）。
 
@@ -2703,7 +2753,11 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
    - 例: 誤差の種類は【グラフ】メニューの「誤差」、有意差は【注釈】メニューの「有意差」、Y 軸の範囲や対数は【軸】メニュー、図の大きさ（インチ）は【大きさ】メニュー。
 6. 中央の図（プレビュー）の要素（軸・棒・凡例・題名など）をクリックすると、右の欄がその要素の設定になる（色・記号・表示名など）。
 7. 図に文字を書く: 【注釈】メニュー→【＋ グラフに文字を書き込む】→ プレビューの書きたい場所をクリック → 小窓に文字 → 【OK】。書いた文字はドラッグで動かせる。クリックすると右の欄で大きさ・色・削除。
-8. 書き出し: 中央の下の【PNG（300 dpi）】／【SVG】／【画像をコピー】。チャットで続けるなら【チャットに添付して質問する】（図の画像が添付され、入力欄に図の指定が入る → 質問を書き足して送る）。
+8. 書き出し: 中央の下の【PNG（300 dpi）】／【SVG】／【画像をコピー】。その左の「図のタグ」の欄に Fig1A などを入れるとファイル名に入る。設定で書き出し先のフォルダを決めてあれば、保存の小窓は出ずにそのフォルダへ保存され、下に保存先が出る（同じ名前は _v2 になる）。チャットで続けるなら【チャットに添付して質問する】（図の画像が添付され、入力欄に図の指定が入る → 質問を書き足して送る）。
+   - 配色は【配色】メニュー。既定は【色覚に配慮（Okabe–Ito）】。系列の塗りは「塗り／白抜き／【斜線】／【逆斜線】」。「プレビューの見え方を確かめる」で色覚の型ごとの見え方を確認できる（書き出しには影響しない）。
+   - 投稿先を決めてあれば【大きさ】メニューの【投稿先の図の幅】で 1 段・2 段の幅にそろう。
+   - データの欄の下に列の型が出る。文字になった数値の列には【数値にする】。
+   - 窓が狭いと右の欄は隠れる。プレビューの右端の縦長の【⚙ 設定】で開く（Esc で閉じる）。Esc は 1 回目がメニューを閉じるだけ、2 回目で作成画面が閉じる。
 9. 閉じる: 右上の【閉じる】。
 - 統計の結果（P 値・検定名など）は左下の結果の表に出る。数値を報告するときはここを読む。
 - 元に戻す: 上の ↶（Cmd+Z）、やり直す ↷（Cmd+Shift+Z）。
@@ -2714,6 +2768,14 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
 3. 左下の画像の一覧: 画像ごとに、セルの文字、色（疑似カラー）、表示範囲、回転、反転、切り抜き。▲▼ で並べ替え、✕ で外す。チェックを付けて【チェックした画像で合成セルを足す】で重ね合わせ。
 4. 注釈: 上の列の【矢印】【矢頭】【＊】【文字】【ROI 枠】【拡大図】【プロファイル】のどれかを押す → プレビューの写真をクリック（プロファイルは始点と終点の 2 回）。置いた注釈はドラッグで移動。一覧【置いた注釈】で文字・大きさ・色・削除。⌫ で最後の注釈を消す。
 5. 書き出し: 【PNG（300 dpi）】【SVG】【画像をコピー】、または【チャットに添付して質問する】。
+6. 並べ替えは、一覧の左端の ⠿ をドラッグするか、プレビューの写真を別の写真の上へドラッグ（入れ替え）。【🏷 ラベルを自動で】で空のセルの文字にチャネル名・ファイル名が入る。スケールバーは左の欄で長さ・太さ・位置、写真ごとの欄で「このセルは描かない／このセルだけ変える」。
+7. ブロット: 短冊ごとにマーカー（70@0.3 の形）と露光を入れられる。【📄 未加工ブロット PDF】で投稿用の未加工ブロット（切り抜いた範囲を赤枠で示した元画像）を保存。【📏 濃度を測る（参考）】で濃度の表 →【⧉ 表をコピー（TSV）】や【棒グラフにして会話に置く】。
+
+### 4.3 図版一覧（複合パネル・凡例）
+1. 【＋】→【🗂 図版一覧】→ この会話の図がカードで並ぶ（上の選択欄で【すべての会話】にもできる）。カードのタグの欄に Fig1A などを書くと図に入る。図の下の【🏷 Figure として登録】でも付けられる。
+2. 複合パネル: カードの「選ぶ」を順に押す（A, B, C…）→ 上の列で列数・記号・全体の幅・タグ →【複合パネルを作る】。会話に書き留められる（AI には送られない）。
+3. 凡例: カードの【凡例の下書き】→ 下に英文の下書き →【⧉ コピー】か【会話に書き留める】。【📝 Figure legends をまとめる】でタグの順にまとめる。
+4. カードの【📁 Finder】で保存したファイルを表示。「元データ」の右に、読み込んだあとに元の表が変わったかが出る。
 
 ## 6. グラフィックス（グラフィカルアブストラクト・模式図・スライド用の図）
 ### 6.1 チャットで頼む（下書き）
@@ -2803,10 +2865,14 @@ const TUT_PAGES=[
     <div class="sopKinds"><button class="small${tutSopKind==='cu'?' on':''}" data-sopkind="cu">画面を見て操作する AI 向け（ChatGPT のコンピュータユースなど）</button><button class="small${tutSopKind==='dom'?' on':''}" data-sopkind="dom">画面の要素を指定できる AI 向け（セレクタ・コンソール）</button></div>
     <p class="hint">${tutSopKind==='cu'?'ボタンの文字と位置で手順を書いた版です。ChatGPT に渡すときは、依頼文に「@BranCHAT この SOP に従って…」と書き、この全文を貼るかファイルを添付してください。':'画面の要素名（CSS セレクタ）と手順、開発者ツールのコンソールから呼べる関数を書いた版です。'}</p>
     <div class="editBtns"><button class="small primary" data-copy="__sop">全文をコピー</button><button class="small" id="tutSopSave">テキストファイルに保存</button></div>
+    ${sopDir?`<p class="hint">この SOP は、このパソコンの決まった場所にもファイルとして置いています（AI にファイルとして読ませるとき）: <span class="var">${esc(sopDir)}</span>。メニューバーの「ヘルプ」→「AI 向け SOP をコピー」でもコピーできます。</p>`:''}
     <pre class="sop">${esc(tutSopText())}</pre>`}),
 ];
 let tutSopKind='cu'; // 使い方の最後のページで出す SOP の版（cu＝画面を見て操作する AI 向け、dom＝セレクタ・コンソール版）
 const tutSopText=()=>tutSopKind==='cu'?AI_SOP_CU:AI_SOP;
+// SOP を決まった場所（デスクトップ版: userData/SOP/）にファイルとして置く（改善計画 3.6。AI にファイルとして読ませる・ヘルプメニューからコピーする用）
+let sopDir='';async function syncSopFiles(){if(!IS_DESKTOP)return;try{const r=await (await fetch('/api/sop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cu:AI_SOP_CU,dom:AI_SOP})})).json();sopDir=r.dir||'';}catch(e){}}
+setTimeout(syncSopFiles,1500);
 async function tutLoadAuth(force){
   if(IS_ARTIFACT)return;
   try{const r=await fetch('/api/status'+(force?'?force=1':''),{cache:'no-store'});tutAuth=await r.json();if(typeof probeBridge==='function')await probeBridge();}catch(e){tutAuth=null;}

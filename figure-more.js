@@ -13,7 +13,7 @@ Object.assign(FIG_TYPES,{survival:[['km','Kaplan–Meier 生存曲線'],['km-cum
 const FIG_KINDS_MORE=[['survival','生存（Time, Event, Group）'],['roc','ROC（マーカーの列, Class）'],['heatmap','行列（1列目＝行名、見出し＝列名）'],['forest','フォレスト（Study, Estimate, Lower, Upper）'],['waterfall','ウォーターフォール（Patient, Change%, Response）']];
 const FIG_DEF_MORE={survCI:false,survCensor:true,survMedian:false,survRisk:true,survText:true,survY:'percent',
   rocFill:false,rocCutoff:true,rocPct:false,rocDir:'auto',rocCutPos:'right',rocCutSize:'0.8',rocCutText:'thr',
-  hmScheme:'bwr',hmZ:false,hmValues:false,hmCluster:'none',hmBorder:'white',hmMin:'',hmMax:'',hmColPos:'bottom',
+  hmScheme:'bwr',hmZ:false,hmScale:'',hmColGroup:'auto',hmRowGroup:'auto',hmValues:false,hmCluster:'none',hmBorder:'white',hmMin:'',hmMax:'',hmColPos:'bottom',
   forestLog:'auto',forestNull:'',forestText:true,forestWeights:true,forestFav:'',
   wfLines:true,wfValues:false,wfLabels:'none',
   baColor:'gray',baMean:false,histBins:'',histRel:'count',histGauss:false,stackLabels:'none',
@@ -26,7 +26,7 @@ const FIG_RESP_COLORS={CR:'#1D4ED8',PR:'#60A5FA',SD:'#9CA3AF',PD:'#DC2626',NE:'#
 const FIG_TOOLS_MORE={
   survival:[{k:'survY',t:'select',l:'Y 軸',o:[['percent','生存率 (%)'],['fraction','生存率 (0–1)']]},{k:'survCI',t:'check',l:'95% CI の帯'},{k:'survCensor',t:'check',l:'打ち切りの印'},{k:'survMedian',t:'check',l:'生存期間中央値の補助線'},{k:'survRisk',t:'check',l:'Number at risk 表'},{k:'survText',t:'check',l:'log-rank P と HR を書く'}],
   roc:[{k:'rocFill',t:'check',l:'AUC を塗る'},{k:'rocCutoff',t:'check',l:'最適カットオフ（Youden）を示す'},{k:'rocCutText',t:'select',l:'カットオフの文字',o:[['thr','しきい値（≥ 6.8）'],['sens','感度/特異度'],['both','しきい値と感度/特異度'],['none','記号だけ']]},{k:'rocCutPos',t:'select',l:'文字の位置',o:[['right','右上'],['left','左下'],['above','真上'],['below','真下']]},{k:'rocCutSize',t:'select',l:'文字の大きさ',o:[['0.7','小'],['0.8','ふつう'],['1','本文と同じ']]},{k:'rocPct',t:'check',l:'軸を % で表示'},{k:'rocDir',t:'select',l:'陽性の向き',o:[['auto','自動（AUC<0.5 なら反転）'],['high','値が大きいほど陽性'],['low','値が小さいほど陽性']]}],
-  heatmap:[{k:'hmScheme',t:'select',l:'色',o:[['bwr','青–白–赤'],['wb','白–青'],['wr','白–赤'],['viridis','Viridis'],['ryg','赤–黄–緑'],['gray','白–黒']]},{k:'hmZ',t:'check',l:'行ごとに z スコア化'},{k:'hmValues',t:'check',l:'セルに値を書く'},{k:'hmCluster',t:'select',l:'クラスタリング（樹形図）',o:[['none','なし'],['rows','行'],['cols','列'],['both','行と列']]},{k:'hmBorder',t:'select',l:'セルの枠',o:[['white','白'],['black','黒'],['none','なし']]},{k:'hmColPos',t:'select',l:'列名の位置',o:[['bottom','下'],['top','上']]},{k:'hmMin',t:'text',l:'色の最小（空で自動）'},{k:'hmMax',t:'text',l:'色の最大（空で自動）'}],
+  heatmap:[{k:'hmScheme',t:'select',l:'色',o:[['bwr','青–白–赤'],['wb','白–青'],['wr','白–赤'],['viridis','Viridis'],['ryg','赤–黄–緑'],['gray','白–黒']]},{k:'hmScale',t:'select',l:'値の変換',o:[['raw','そのまま'],['log2','log2(x+1)'],['z','行ごとに z スコア'],['log2z','log2(x+1) のあと行ごとに z']]},{k:'hmColGroup',t:'select',l:'列の群の色帯',o:[['auto','自動（group 行、無ければ列名の共通部分）'],['none','なし']]},{k:'hmRowGroup',t:'select',l:'行の群の色帯',o:[['auto','自動（2 つ目の文字の列）'],['none','なし']]},{k:'hmValues',t:'check',l:'セルに値を書く'},{k:'hmCluster',t:'select',l:'クラスタリング（樹形図）',o:[['none','なし'],['rows','行'],['cols','列'],['both','行と列']]},{k:'hmBorder',t:'select',l:'セルの枠',o:[['white','白'],['black','黒'],['none','なし']]},{k:'hmColPos',t:'select',l:'列名の位置',o:[['bottom','下'],['top','上']]},{k:'hmMin',t:'text',l:'色の最小（空で自動）'},{k:'hmMax',t:'text',l:'色の最大（空で自動）'}],
   corr:[{k:'hmScheme',t:'select',l:'色',o:[['bwr','青–白–赤'],['ryg','赤–黄–緑'],['gray','白–黒']]},{k:'hmValues',t:'check',l:'セルに r を書く'},{k:'hmBorder',t:'select',l:'セルの枠',o:[['white','白'],['black','黒'],['none','なし']]},{k:'hmColPos',t:'select',l:'列名の位置',o:[['bottom','下'],['top','上']]}],
   forest:[{k:'forestLog',t:'select',l:'横軸',o:[['auto','自動（OR/HR/RR は対数）'],['true','対数'],['false','線形']]},{k:'forestNull',t:'text',l:'効果なしの線（空で自動）'},{k:'forestText',t:'check',l:'右に推定値 [95% CI] を書く'},{k:'forestWeights',t:'check',l:'n と重みの列を書く'},{k:'forestFav',t:'text',l:'軸の下の文字（例: 治療が有利|対照が有利）'}],
   waterfall:[{k:'wfLines',t:'check',l:'+20% / −30% の線'},{k:'wfValues',t:'check',l:'棒に値を書く'},{k:'wfLabels',t:'select',l:'X ラベル',o:[['none','なし'],['id','患者 ID']]}],
@@ -44,7 +44,7 @@ FIG_PROMPT+=`
 ほかの kind / type: column に before-after（行＝同じ個体、列＝時点）・histogram、grouped に stacked-bar・stacked-100、xy に xy-regression（散布＋直線回帰）・xy-dose（X＝濃度、4PL あてはめ）・xy-mm（X＝基質濃度、Michaelis–Menten）。
 kind "survival": data の列は Time, Event（1=イベント, 0=打ち切り）, Group（任意）。type は km か km-cuminc。
 kind "roc": 数値の列（マーカー、複数可）と Class 列（1=陽性, 0=陰性）。type は roc。
-kind "heatmap": 1列目＝行の名前、見出し＝列の名前の数値行列。type は heatmap か corr（列どうしの相関行列）。
+kind "heatmap": 1列目＝行の名前、見出し＝列の名前の数値行列。type は heatmap か corr（列どうしの相関行列）。列の群の色帯は、1 列目が "group" の行に群名を書く（無ければ列名 C1, C2, T1… の番号を除いた部分で自動）。行の群の色帯は、数値の無い 2 つ目の文字の列（例: Pathway）。
 kind "forest": 列は Study, Estimate, Lower, Upper, Weight（任意）, n（任意）。Estimate が空の行は小見出し、名前が Overall の行は菱形。
 kind "waterfall": 列は Patient, Change（%）, Response（CR/PR/SD/PD、任意）。`;
 
@@ -85,7 +85,7 @@ function figFrame(spec,cfg){
   let titles='';if(cfg.yTitle)titles+=txt(x0-tick-fs*2.6,(yB+yT)/2,cfg.yTitle,'middle',`transform="rotate(-90 ${x0-tick-fs*2.6} ${(yB+yT)/2})"`,'ytitle');
   if(cfg.xTitle)titles+=txt(x0+plotW/2,y0+Math.max(0,tick)+(xs.ticks.length?fs*2.3:fs*1.2)+(xrot?fs*2:0),cfg.xTitle,'middle','','xtitle');
   let leg='';if(legendPos!=='none'){const bottom=legendPos==='bottom';const itemW=fs*7;const lx0=bottom?x0+plotW/2-itemW*legend.length/2:x0+plotW+fs*1.2;legend.forEach((it,k)=>{const lx=bottom?lx0+k*itemW:lx0;const ly=bottom?H-fs*0.6:padT+fs*(k*1.5+0.8);const so=S(it.i==null?k:it.i);const c=it.color||so.color;
-    if(it.kind==='rect')leg+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${so.fill==='open'?'#fff':c}" stroke="${c}"/>`;else if(it.kind==='line')leg+=`<line x1="${lx}" y1="${ly-fs*0.2}" x2="${lx+fs*1.1}" y2="${ly-fs*0.2}" stroke="${c}" stroke-width="${so.lineW*FIG_PT*1.5}"/>`;else leg+=sym(lx+fs*0.5,ly-fs*0.2,it.i==null?k:it.i,c,it.fill||so.fill,it.shape);
+    if(it.kind==='rect')leg+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${figPaint(so.fill,c)}" stroke="${c}"/>`;else if(it.kind==='line')leg+=`<line x1="${lx}" y1="${ly-fs*0.2}" x2="${lx+fs*1.1}" y2="${ly-fs*0.2}" stroke="${c}" stroke-width="${so.lineW*FIG_PT*1.5}"/>`;else leg+=sym(lx+fs*0.5,ly-fs*0.2,it.i==null?k:it.i,c,it.fill||so.fill,it.shape);
     leg+=txt(lx+fs*1.5,ly,so.name||it.name,'start');});}
   const title=figTitleSVG(txt,x0+plotW/2,padT-fs*0.9-(cfg.padT||0),spec.title,W-fs,fs);
   const wrap=(body,extra)=>({svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${body}${leg?`<g data-sel="legend">${leg}</g>`:''}${title}${figNotesSVG(o,x0,padT,plotW,plotH,fs,o.font,st.fw)}${extra||''}</svg>`,w:W,h:H,plot:{x0,y0:padT,w:plotW,h:plotH}});
@@ -190,7 +190,11 @@ function figBuildROC(parsed){const cols=parsed.cols;
   if(!groups.length)return null;return {kind:'roc',groups,posVal,cname:cCol.name};}
 function figBuildHeatmap(parsed){const cols=parsed.cols;const first=parsed.firstColText;const dataCols=(first?cols.slice(1):cols).filter(c=>c.vals.some(v=>v!==null));if(!dataCols.length)return null;
   const rowsAll=first?parsed.rowLabels:cols[0].vals.map((_,i)=>String(i+1));const keep=rowsAll.map((_,ri)=>dataCols.some(c=>c.vals[ri]!==null));
-  const rows=rowsAll.filter((_,i)=>keep[i]);const m=rowsAll.map((_,ri)=>dataCols.map(c=>c.vals[ri])).filter((_,i)=>keep[i]);return {kind:'heatmap',rows,cols:dataCols.map(c=>c.name),m,groups:[]};}
+  const rows=rowsAll.filter((_,i)=>keep[i]);const m=rowsAll.map((_,ri)=>dataCols.map(c=>c.vals[ri])).filter((_,i)=>keep[i]);
+  // 群の注釈（改善計画 3.2）: 数値の無い 2 つ目の文字の列＝行の群、1 列目が group／群／condition の行＝列の群（その行は数値でないので行列から外れる）
+  const rgC=cols.find((c,i)=>(!first||i>0)&&c.vals.every(v=>v===null)&&c.raw.some(v=>v!==''))||null;const gi=first?rowsAll.findIndex(r=>/^\s*#?\s*(group|groups|condition|群|条件|グループ)\s*$/i.test(String(r))):-1;
+  const colGroups=gi>=0?dataCols.map(c=>String(c.raw[gi]==null?'':c.raw[gi]).trim()):null;const rowGroups=rgC?rgC.raw.filter((_,i)=>keep[i]).map(x=>String(x==null?'':x).trim()):null;
+  return {kind:'heatmap',rows,cols:dataCols.map(c=>c.name),m,groups:[],rowGroups,colGroups};}
 function figBuildForest(parsed){const cols=parsed.cols;const num=cols.filter(c=>c.vals.some(v=>v!==null));
   const lo=num.find(c=>/low|lcl|lci|lower|下限|2\.5/.test(figLC(c)));const hi=num.find(c=>c!==lo&&/up|ucl|uci|upper|上限|97\.5/.test(figLC(c)));
   const est=num.find(c=>c!==lo&&c!==hi&&/est|^or$|^hr$|^rr$|ratio|effect|point|^md$|smd|推定|効果|オッズ|ハザード/.test(figLC(c)))||num.find(c=>c!==lo&&c!==hi);if(!est)return null;
@@ -237,7 +241,7 @@ function figRenderHist(spec){const d=spec.data;const gs=d.groups.filter(g=>g.val
   let top=Math.max(...counts.flat());if(o.histGauss)gs.forEach(g=>{if(g.values.length>1)top=Math.max(top,step*(pct?100:g.values.length)/((sd(g.values)||1)*Math.sqrt(2*Math.PI)));});const [ylo,yhi]=figYRange(o,0,top*1.08||1);let ys=figAxisLin(ylo,yhi,5);if(!pct&&ys.ticks.some(t=>t.v%1)){const stp=Math.max(1,Math.ceil((yhi-ylo)/5));const tk=[];for(let v=Math.floor(ylo);v<yhi+stp;v+=stp)tk.push({v,l:figFmt(v)});ys={lo:tk[0].v,hi:tk[tk.length-1].v,ticks:tk};}
   const every=Math.max(1,Math.ceil(nb/8));const xs={lo:start,hi:start+nb*step,ticks:edges.filter((e,i)=>i%every===0).map(v=>({v,l:figFmt(+v.toFixed(6))}))};
   const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle,yTitle:o.yTitle||(pct?'Relative frequency (%)':'Frequency'),legend:gs.length>1?gs.map((g,i)=>({name:g.name,kind:'rect',i})):[]});const {xOf,yOf,S,a}=F;
-  let body='';gs.forEach((g,i)=>{const so=S(i),c=so.color;let s='';counts[i].forEach((v,b)=>{if(!(v>0))return;const x1=xOf(edges[b]),x2=xOf(edges[b+1]);s+=`<rect x="${x1}" y="${yOf(v)}" width="${x2-x1}" height="${yOf(0)-yOf(v)}" fill="${so.fill==='open'?'#fff':c}" fill-opacity="${gs.length>1?Math.min(+o.fillAlpha,0.5):+o.fillAlpha}" stroke="${o.barEdge==='black'?'#000':c}" stroke-width="${a}"/>`;});
+  let body='';gs.forEach((g,i)=>{const so=S(i),c=so.color;let s='';counts[i].forEach((v,b)=>{if(!(v>0))return;const x1=xOf(edges[b]),x2=xOf(edges[b+1]);s+=`<rect x="${x1}" y="${yOf(v)}" width="${x2-x1}" height="${yOf(0)-yOf(v)}" fill="${figPaint(so.fill,c)}" fill-opacity="${gs.length>1?Math.min(+o.fillAlpha,0.5):+o.fillAlpha}" stroke="${o.barEdge==='black'?'#000':c}" stroke-width="${a}"/>`;});
     if(o.histGauss&&g.values.length>1){const m=mean(g.values),sdv=sd(g.values)||1;const N=100;const pts=[];for(let q=0;q<=N;q++){const x=xs.lo+(xs.hi-xs.lo)*q/N;const dens=Math.exp(-0.5*Math.pow((x-m)/sdv,2))/(sdv*Math.sqrt(2*Math.PI));const y=dens*step*(pct?100:g.values.length);pts.push(`${xOf(x)},${yOf(Math.min(y,ys.hi))}`);}s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${c}" stroke-width="${so.lineW*FIG_PT*1.5}"/>`;}
     body+=`<g data-sel="series:${i}">${s}</g>`;});
   const r=F.wrap(body);r.res={bins:nb,step,start,counts,edges,pct};return r;}
@@ -248,7 +252,7 @@ function figRenderStacked(spec){const d=spec.data;const o=Object.assign({},FIG_D
   const [ylo,yhi]=figYRange(o,0,pct?100:(Math.max(...tot)||1)*1.05);const ys=figAxisLin(ylo,yhi,5);const xs={lo:0,hi:nc,cat:true,ticks:d.cats.map((c,i)=>({v:i+0.5,l:c}))};
   const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle,yTitle:o.yTitle||(pct?'Percent':''),legend:d.groups.map((g,i)=>({name:g.name,kind:'rect',i}))});const {xOf,yOf,S,a,fs,h,txt}=F;
   const bw=(xOf(1)-xOf(0))*0.6;const series=d.groups.map(()=>'');
-  d.cats.forEach((c,ci)=>{let acc=0;const cx=xOf(ci+0.5);d.groups.forEach((g,gi)=>{const v=seg[ci][gi];if(!(v>0))return;const y1=yOf(acc),y2=yOf(acc+v);const so=S(gi);const fill=so.fill==='open'?'#fff':so.color;
+  d.cats.forEach((c,ci)=>{let acc=0;const cx=xOf(ci+0.5);d.groups.forEach((g,gi)=>{const v=seg[ci][gi];if(!(v>0))return;const y1=yOf(acc),y2=yOf(acc+v);const so=S(gi);const fill=figPaint(so.fillSet?so.fill:(o.barFill||so.fill),so.color);
     series[gi]+=`<rect x="${cx-bw/2}" y="${y2}" width="${bw}" height="${y1-y2}" fill="${fill}" fill-opacity="${+o.fillAlpha}" stroke="${o.barEdge==='black'?'#000':so.color}" stroke-width="${a}"/>`;
     if(o.stackLabels!=='none'&&y1-y2>fs*1.1){const lab=o.stackLabels==='percent'?figFmt(+(pct?v:(tot[ci]?v/tot[ci]*100:0)).toFixed(1))+'%':figFmt(+vals[ci][gi].toFixed(2));series[gi]+=txt(cx,(y1+y2)/2+h/2,lab,'middle',`fill="${figDark(fill)&&+o.fillAlpha>0.6?'#fff':'#000'}"`,null,fs*0.85);}
     acc+=v;});});
@@ -336,33 +340,44 @@ function figRenderROC(spec){const d=spec.data;const o=Object.assign({},FIG_DEF,s
 // ヒートマップ・相関行列（色の割り当て、セル値、行/列のクラスタリングと樹形図、カラーバー）
 function figRenderHeatmap(spec){const d=spec.data;const st=figStyle(spec);const {o,fs,h,a,ac,txt}=st;const corr=spec.type==='corr';let rows=d.rows,cols=d.cols,M=d.m;if(!rows.length||!cols.length)return {svg:'',w:0,h:0};
   if(corr){M=cols.map((_,i)=>cols.map((_,j)=>{const xs=[],ys=[];d.m.forEach(r=>{if(r[i]!==null&&r[j]!==null){xs.push(r[i]);ys.push(r[j]);}});return xs.length>=3?(i===j?1:pearson(xs,ys).r):NaN;}));rows=cols.slice();}
-  else if(o.hmZ)M=M.map(r=>{const v=r.filter(x=>x!==null);if(v.length<2)return r;const m=mean(v),s=sd(v)||1;return r.map(x=>x===null?null:(x-m)/s);});
+  const scl=corr?'raw':(o.hmScale||(o.hmZ?'z':'raw'));const isZ=scl==='z'||scl==='log2z';
+  if(!corr&&(scl==='log2'||scl==='log2z'))M=M.map(r=>r.map(x=>x===null?null:Math.log2(Math.max(0,x)+1)));
+  if(isZ)M=M.map(r=>{const v=r.filter(x=>x!==null);if(v.length<2)return r;const m=mean(v),s=sd(v)||1;return r.map(x=>x===null?null:(x-m)/s);});
+  // 群の色帯: 列は group 行、無ければ列名の末尾の番号を除いた共通部分（C1, C2, T1… → C, T）。行は 2 つ目の文字の列
+  let colG=null,rowG=null;if(!corr&&o.hmColGroup!=='none'){if(d.colGroups&&d.colGroups.some(Boolean))colG=d.colGroups;else{const g=cols.map(c=>String(c).replace(/[\s_.\-]*(rep|r|#)?\d+$/i,'').trim());const u=new Set(g);if(u.size>=2&&u.size<cols.length&&g.every(Boolean))colG=g;}}
+  if(!corr&&o.hmRowGroup!=='none'&&d.rowGroups&&d.rowGroups.some(Boolean))rowG=d.rowGroups;
+  const GPAL=['#E69F00','#56B4E9','#009E73','#F0E442','#0072B2','#D55E00','#CC79A7','#999999'],GPAL2=['#4477AA','#EE6677','#228833','#CCBB44','#66CCEE','#AA3377','#BBBBBB','#000000'];
+  const gColor=(arr,pal)=>{const u=[...new Set(arr.filter(Boolean))];return {names:u,of:v=>v?pal[u.indexOf(v)%pal.length]:'#eee'};};const cgc=colG?gColor(colG,GPAL):null,rgc=rowG?gColor(rowG,GPAL2):null;
   let rowOrder=rows.map((_,i)=>i),colOrder=cols.map((_,i)=>i),rowTree=null,colTree=null;const cl=corr?'none':o.hmCluster;
   if((cl==='rows'||cl==='both')&&rows.length>1){rowTree=figHClust(M.map(r=>r.map(v=>v===null?0:v)));rowOrder=rowTree.order;}
   if((cl==='cols'||cl==='both')&&cols.length>1){colTree=figHClust(cols.map((_,j)=>M.map(r=>r[j]===null?0:r[j])));colOrder=colTree.order;}
   const nr=rows.length,nc=cols.length;const vals=M.flat().filter(v=>v!==null&&isFinite(v));
   let lo=o.hmMin!==''&&isFinite(+o.hmMin)?+o.hmMin:Math.min(...vals),hi=o.hmMax!==''&&isFinite(+o.hmMax)?+o.hmMax:Math.max(...vals);
-  if(corr){lo=-1;hi=1;}else if(o.hmZ&&o.hmMin===''&&o.hmMax===''){const m=Math.max(Math.abs(lo),Math.abs(hi))||1;lo=-m;hi=m;}if(!(hi>lo))hi=lo+1;
+  if(corr){lo=-1;hi=1;}else if(isZ&&o.hmMin===''&&o.hmMax===''){const m=Math.max(Math.abs(lo),Math.abs(hi))||1;lo=-m;hi=m;}if(!(hi>lo))hi=lo+1;
   const scheme=FIG_HM_SCHEMES[o.hmScheme]||FIG_HM_SCHEMES.bwr;const colorOf=v=>figGrad(scheme,(v-lo)/(hi-lo));
   const plotW=(+o.wIn||3)*FIG_IN,plotH=(+o.hIn||2)*FIG_IN;const cell=Math.min(plotW/nc,plotH/nr);const gw=cell*nc,gh=cell*nr;
   const rowLabW=Math.max(...rows.map(r=>figTW(String(r),fs)))+fs*0.9;const colLen=Math.max(...cols.map(c=>String(c).length));const colRot=+o.xRot||(colLen*fs*0.55>cell*1.1?(colLen>8?90:45):0);
-  const colLabH=colRot?colLen*fs*0.55*Math.sin(colRot*Math.PI/180)+fs*0.8:fs*1.4;const dendW=rowTree?fs*3:0,dendH=colTree?fs*3:0;const barW=fs*0.9,barGap=fs*1.2,barLabW=fs*3.2;
-  const padT=fs*(spec.title?2.2:0.6)+dendH+(o.hmColPos==='top'?colLabH:0),padL=fs*0.5+dendW+(rowTree?0:rowLabW),padR=(rowTree?rowLabW:0)+barGap+barW+barLabW,padB=(o.hmColPos==='top'?fs*0.8:colLabH+fs*0.4)+(o.hmZ&&!corr?fs*0.8:0);
-  const W=padL+gw+padR,H=padT+gh+padB,x0=padL,y0=padT;
+  const colLabH=colRot?colLen*fs*0.55*Math.sin(colRot*Math.PI/180)+fs*0.8:fs*1.4;const dendW=rowTree?fs*3:0,dendH=colTree?fs*3:0;const barW=fs*0.9,barGap=fs*1.2;const annT=colG?fs*0.75+fs*0.2:0,annL=rowG?fs*0.75+fs*0.2:0;
+  const gLeg=[].concat(cgc?cgc.names.map(n=>[n,cgc.of(n)]):[],rgc?rgc.names.map(n=>[n,rgc.of(n)]):[]);const sclLab=scl==='z'?'z score':scl==='log2'?'log2(x+1)':scl==='log2z'?'z of log2(x+1)':'';const barLabW=Math.max(fs*3.2,sclLab?figTW(sclLab,fs*0.8)-barW+fs*0.3:0,gLeg.length?Math.max(...gLeg.map(([n])=>figTW(String(n),fs*0.8)))+fs*1.3-barW:0);
+  const padT=fs*(spec.title?2.2:0.6)+dendH+annT+(o.hmColPos==='top'?colLabH:0),padL=fs*0.5+dendW+annL+(rowTree?0:rowLabW),padR=(rowTree?rowLabW:0)+barGap+barW+barLabW,padB=(o.hmColPos==='top'?fs*0.8:colLabH+fs*0.4)+(scl!=='raw'&&!corr?fs*0.8:0);
+  const legH=gLeg.length?fs*2.2+gLeg.length*fs*1.05+(cgc&&rgc?fs*0.5:0):0;const W=padL+gw+padR,H=Math.max(padT+gh+padB,padT+Math.min(gh,fs*8)+fs*1.4+legH),x0=padL,y0=padT;
   let cells='';rowOrder.forEach((ri,r)=>{colOrder.forEach((ci,c)=>{const v=M[ri][ci];const x=x0+c*cell,y=y0+r*cell;const ok=v!==null&&isFinite(v);const fill=ok?colorOf(Math.max(lo,Math.min(hi,v))):'#ddd';
     cells+=`<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${fill}"${o.hmBorder==='none'?'':` stroke="${o.hmBorder==='black'?'#000':'#fff'}" stroke-width="${FIG_PT*0.5}"`}/>`;
-    if(o.hmValues&&ok){const s=corr||o.hmZ?v.toFixed(2):figFmt(+v.toPrecision(3));cells+=txt(x+cell/2,y+cell/2+h*0.4,s,'middle',`fill="${figDark(fill)?'#fff':'#000'}"`,null,Math.min(fs*0.8,cell*0.42,cell*1.5/Math.max(1,s.length)));}});});
-  let labels='';rowOrder.forEach((ri,r)=>{const y=y0+r*cell+cell/2+h/2;labels+=rowTree?txt(x0+gw+fs*0.4,y,rows[ri],'start'):txt(x0-fs*0.3,y,rows[ri],'end');});
-  colOrder.forEach((ci,c)=>{const x=x0+c*cell+cell/2;if(o.hmColPos==='top'){const y=y0-fs*0.4;labels+=colRot?txt(x,y,cols[ci],'start',`transform="rotate(-${colRot} ${x} ${y})"`):txt(x,y,cols[ci]);}else{const y=y0+gh+fs*(colRot?0.5:1.1);labels+=colRot?txt(x,y,cols[ci],'end',`transform="rotate(-${colRot} ${x} ${y})"`):txt(x,y,cols[ci]);}});
+    if(o.hmValues&&ok){const s=corr||isZ||scl==="log2"?v.toFixed(2):figFmt(+v.toPrecision(3));cells+=txt(x+cell/2,y+cell/2+h*0.4,s,'middle',`fill="${figDark(fill)?'#fff':'#000'}"`,null,Math.min(fs*0.8,cell*0.42,cell*1.5/Math.max(1,s.length)));}});});
+  let labels='';rowOrder.forEach((ri,r)=>{const y=y0+r*cell+cell/2+h/2;labels+=rowTree?txt(x0+gw+fs*0.4,y,rows[ri],'start'):txt(x0-annL-fs*0.3,y,rows[ri],'end');});
+  colOrder.forEach((ci,c)=>{const x=x0+c*cell+cell/2;if(o.hmColPos==='top'){const y=y0-annT-fs*0.4;labels+=colRot?txt(x,y,cols[ci],'start',`transform="rotate(-${colRot} ${x} ${y})"`):txt(x,y,cols[ci]);}else{const y=y0+gh+fs*(colRot?0.5:1.1);labels+=colRot?txt(x,y,cols[ci],'end',`transform="rotate(-${colRot} ${x} ${y})"`):txt(x,y,cols[ci]);}});
   const frame=`<rect x="${x0}" y="${y0}" width="${gw}" height="${gh}" fill="none" stroke="${ac}" stroke-width="${a}"/>`;
   const bx=x0+gw+(rowTree?rowLabW:0)+barGap,bh=Math.min(gh,fs*8),by=y0;const gid='hmg_'+(o.hmScheme||'bwr')+'_'+Math.abs(Math.round(lo*1000+hi*7));
   let bar=`<defs><linearGradient id="${gid}" x1="0" y1="1" x2="0" y2="0">${scheme.map((c,i)=>`<stop offset="${i/(scheme.length-1)}" stop-color="${c}"/>`).join('')}</linearGradient></defs><rect x="${bx}" y="${by}" width="${barW}" height="${bh}" fill="url(#${gid})" stroke="${ac}" stroke-width="${a}"/>`;
   for(const t of figNiceTicks(lo,hi,4).ticks.filter(t=>t>=lo-1e-9&&t<=hi+1e-9)){const y=by+bh-(t-lo)/(hi-lo)*bh;bar+=`<line x1="${bx+barW}" y1="${y}" x2="${bx+barW-h*0.5}" y2="${y}" stroke="${ac}" stroke-width="${a}"/>`+txt(bx+barW+fs*0.3,y+h/2,figFmt(t),'start',null,null,fs*0.85);}
-  if(o.hmZ&&!corr)bar+=txt(bx+barW/2,by+bh+fs*1.1,'z score','middle',null,null,fs*0.8);if(corr)bar+=txt(bx+barW/2,by-fs*0.4,'r','middle',null,null,fs*0.85);
-  let dend='';if(rowTree)dend+=figDendro(rowTree,i=>y0+rowOrder.indexOf(i)*cell+cell/2,x0-fs*0.2,dendW-fs*0.4,'row',ac,a);if(colTree)dend+=figDendro(colTree,i=>x0+colOrder.indexOf(i)*cell+cell/2,y0-fs*0.2-(o.hmColPos==='top'?colLabH:0),dendH-fs*0.4,'col',ac,a);
+  if(scl!=='raw'&&!corr)bar+=txt(bx,by+bh+fs*1.1,sclLab,'start',null,null,fs*0.8);
+  let ann='';const aw=fs*0.75;if(cgc)colOrder.forEach((ci,c)=>{ann+=`<rect x="${x0+c*cell}" y="${y0-annT}" width="${cell}" height="${aw}" fill="${cgc.of(colG[ci])}" stroke="#fff" stroke-width="${FIG_PT*0.4}"><title>${figEsc(colG[ci])}</title></rect>`;});
+  if(rgc)rowOrder.forEach((ri,r)=>{ann+=`<rect x="${x0-annL}" y="${y0+r*cell}" width="${aw}" height="${cell}" fill="${rgc.of(rowG[ri])}" stroke="#fff" stroke-width="${FIG_PT*0.4}"><title>${figEsc(rowG[ri])}</title></rect>`;});
+  if(gLeg.length){let ly=by+bh+fs*(scl!=='raw'?2.4:1.6);const item=(n,c)=>{const s=`<rect x="${bx}" y="${ly-fs*0.6}" width="${fs*0.8}" height="${fs*0.7}" fill="${c}"/>`+txt(bx+fs*1.1,ly,n,'start',null,null,fs*0.8);ly+=fs*1.05;return s;};if(cgc){ann+=cgc.names.map(n=>item(n,cgc.of(n))).join('');}if(cgc&&rgc)ly+=fs*0.5;if(rgc){ann+=rgc.names.map(n=>item(n,rgc.of(n))).join('');}}if(corr)bar+=txt(bx+barW/2,by-fs*0.4,'r','middle',null,null,fs*0.85);
+  let dend='';if(rowTree)dend+=figDendro(rowTree,i=>y0+rowOrder.indexOf(i)*cell+cell/2,x0-annL-fs*0.2,dendW-fs*0.4,'row',ac,a);if(colTree)dend+=figDendro(colTree,i=>x0+colOrder.indexOf(i)*cell+cell/2,y0-annT-fs*0.2-(o.hmColPos==='top'?colLabH:0),dendH-fs*0.4,'col',ac,a);
   const title=figTitle1(txt,W/2,fs*1.4,spec.title,W-fs,fs);
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/><g data-sel="cells">${cells}</g>${frame}<g data-sel="axes">${labels}</g><g data-sel="legend">${bar}</g>${dend}${title}</svg>`;
-  return {svg,w:W,h:H,res:{M,rows,cols,rowOrder,colOrder,lo,hi,corr}};}
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/><g data-sel="cells">${cells}</g>${frame}<g data-sel="axes">${labels}</g><g data-sel="legend">${bar}${ann}</g>${dend}${title}</svg>`;
+  return {svg,w:W,h:H,res:{M,rows,cols,rowOrder,colOrder,lo,hi,corr,scale:scl,colGroups:cgc?cgc.names:null,rowGroups:rgc?rgc.names:null}};}
 
 // フォレストプロット（左に研究名・n・重み、中央に点＋CI、右に推定値 [95% CI]、Overall は菱形）
 function figRenderForest(spec){const d=spec.data;const st=figStyle(spec);const {o,fs,h,a,ac,txt,dash}=st;const items=d.items;const rows=items.filter(it=>it.kind!=='head');if(!rows.length)return {svg:'',w:0,h:0};

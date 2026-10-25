@@ -54,6 +54,21 @@ async function handle(request) {
       return Response.json({ ok: true, path: fp, bytes: data.length });
     } catch (e) { return Response.json({ ok: false, error: String(e.message || e) }); }
   }
+  if (url.pathname === '/api/print-pdf') { // HTML を PDF にする（未加工ブロットの一括 PDF。改善計画 4.1）。描画は見えない窓で、スクリプトは動かさない
+    if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
+    let b = {}; try { b = await request.json(); } catch (e) { return Response.json({ ok: false, error: '内容を読めませんでした' }); }
+    const html = String(b.html || ''); if (!html || html.length > 200 * 1024 * 1024) return Response.json({ ok: false, error: '内容が空か大きすぎます' });
+    const tmp = path.join(require('node:os').tmpdir(), 'branchat-print-' + process.pid + '-' + Date.now() + '.html');
+    let w = null;
+    try {
+      fs.writeFileSync(tmp, html);
+      w = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, javascript: false } });
+      await w.loadFile(tmp);
+      const pdf = await w.webContents.printToPDF({ pageSize: b.pageSize === 'Letter' ? 'Letter' : 'A4', printBackground: true, margins: { marginType: 'default' }, landscape: !!b.landscape });
+      return Response.json({ ok: true, b64: Buffer.from(pdf).toString('base64'), bytes: pdf.length });
+    } catch (e) { return Response.json({ ok: false, error: String(e.message || e) }); }
+    finally { try { if (w && !w.isDestroyed()) w.destroy(); } catch (e) { /* 閉じ済み */ } try { fs.unlinkSync(tmp); } catch (e) { /* 消し済み */ } }
+  }
   if (url.pathname === '/api/pick-folder') { // 書き出し先のフォルダを選ぶ小窓
     if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
     let b = {}; try { b = await request.json(); } catch (e) { /* 空でよい */ }
@@ -214,6 +229,13 @@ function createWindow() {
   return win;
 }
 
+// ヘルプメニュー: 決まった場所（userData/SOP/）の SOP をクリップボードへ（改善計画 3.6）
+function copySop(fn) {
+  const { clipboard } = require('electron');
+  const fp = path.join(app.getPath('userData'), 'SOP', fn);
+  if (fs.existsSync(fp)) { clipboard.writeText(fs.readFileSync(fp, 'utf8')); dialog.showMessageBox({ type: 'info', message: 'AI 向け SOP をコピーしました', detail: fp, buttons: ['OK'] }); }
+  else dialog.showMessageBox({ type: 'warning', message: 'SOP のファイルがまだありません', detail: 'アプリを開いて数秒待ってから、もう一度お試しください。', buttons: ['OK'] });
+}
 function buildMenu() {
   const isMac = process.platform === 'darwin';
   Menu.setApplicationMenu(Menu.buildFromTemplate([
@@ -221,7 +243,10 @@ function buildMenu() {
     { role: 'fileMenu' }, { role: 'editMenu' },
     { label: '表示', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }] },
     { role: 'windowMenu' },
-    { role: 'help', submenu: [{ label: 'BranCHAT について（バージョンとライセンス）', click: openAbout }] },
+    { role: 'help', submenu: [{ label: 'BranCHAT について（バージョンとライセンス）', click: openAbout }, { type: 'separator' },
+      { label: 'AI 向け SOP をコピー（画面を見て操作する AI 用）', click: () => copySop('BranCHAT_SOP_for_ChatGPT_ComputerUse.txt') },
+      { label: 'AI 向け SOP をコピー（画面の要素を指定できる AI 用）', click: () => copySop('BranCHAT_SOP_for_AI.txt') },
+      { label: 'AI 向け SOP のフォルダを開く', click: () => { const d = path.join(app.getPath('userData'), 'SOP'); fs.mkdirSync(d, { recursive: true }); shell.openPath(d); } }] },
   ]));
 }
 // 画面の「このアプリについて」を開く（レンダラの openAbout を呼ぶだけ）
@@ -229,7 +254,7 @@ function openAbout() { const w = BrowserWindow.getAllWindows().find((x) => !x.is
 
 async function runSmoke(win) {
   // 自動確認: 画面が出るか、エンジン検出、ダミー送信、（SMOKE_LIVE=1 のとき）実モデルへ最小の1回
-  if (process.env.SMOKE_P0 === '1') fs.rmSync(path.join(require('node:os').tmpdir(), 'branchat-smoke-export'), { recursive: true, force: true });
+  if (process.env.SMOKE_P0 === '1' || process.env.SMOKE_P1 === '1') fs.rmSync(path.join(require('node:os').tmpdir(), 'branchat-smoke-export'), { recursive: true, force: true });
   const out = { ok: false };
   try {
     await new Promise((r) => win.webContents.once('did-finish-load', r));
@@ -644,6 +669,43 @@ async function runSmoke(win) {
         const T=await figTiffRead(buf);const ch=await figOmeChannels(buf,T);r.p0.ome=T.ome&&T.ome.sizeC===2&&Math.abs(T.ome.physX-0.3)<1e-9&&ch.length===2&&ch[0].data[0]===10&&ch[1].data[0]===200&&T.ome.channels[1].name==='CD20';
         const ms=await figImgStoreAny(new File([buf],'mini.ome.tif',{type:'image/tiff'}));const sp=figImgDefSpec();const items=figImgItemsFromMetas(ms,sp);r.p0.omeImport=items.length===3&&!!items[2].merge&&sp.scale.umPerPx===0.3&&items[0].channel==='blue';
         settings.exp={};settings.figUnit='in';saveSettings();}
+      if(${process.env.SMOKE_P1 === '1'}){ // 改善計画 P1・P2: a11y、配色と斜線、新しい図種、ヒートマップ、図版一覧・複合パネル・凡例、雑誌プリセット、画像パネル、ブロット（PDF・濃度）、列の型、図の下の保存先
+        const $=s=>document.querySelector(s);const NL=String.fromCharCode(10),TAB=String.fromCharCode(9);const J=a=>a.join(NL);const BT=String.fromCharCode(96,96,96);settings.provider='dummy';const dir=${JSON.stringify(require('node:path').join(require('node:os').tmpdir(),'branchat-smoke-export'))};
+        settings.exp={folder:dir,direct:true,template:'{conversation}_{tag}_{type}_{dpi}dpi',embed:true,sidecar:false};saveSettings();r.p1={};
+        figOpen({});await new Promise(x=>setTimeout(x,500));const vis=[...document.querySelectorAll('#figDlg button,#figDlg input:not([type=hidden]),#figDlg select,#figDlg textarea')].filter(e=>e.offsetParent!==null);
+        r.p1.a11y={n:vis.length,noName:vis.filter(e=>!e.getAttribute('aria-label')).length,noTest:vis.filter(e=>!e.getAttribute('data-testid')).length};r.p1.defScheme=figState.opts.scheme;$('#figDlg').close();
+        const gr=figRenderSpec({kind:'grouped',data:J(['Cat'+TAB+'A'+TAB+'B','X'+TAB+'1'+TAB+'2']),style:{valLabels:true,series:{1:{fill:'hatch'}}}});r.p1.hatch=gr.svg.includes('<pattern')&&gr.svg.includes('url(#fha-');r.p1.valLab=gr.svg.includes('>2.00<');
+        r.p1.cvd=figCvdHex('#D55E00','d')!=='#D55E00'&&figContrast('#FFFFFF')<1.01&&!!FIG_SCHEMES.tol&&!!FIG_SCHEMES.viridis;
+        const fd=J(['Gene,log2FC,padj,Pathway','MS4A1,-2.1,1e-12,B cell','SPIB,1.8,3e-8,B cell','SPI1,0.4,0.2,TF']);const fc=figRenderSpec({kind:'feature',type:'fcdot',data:fd,labelGenes:['MS4A1','SPIB','SPI1','NOPE']});
+        r.p1.fcdot=fc.res.n===3&&fc.res.missing[0]==='NOPE'&&fc.res.up===1&&fc.res.down===1&&fc.res.groups.length===2;
+        const bj=figRenderSpec({kind:'nested',type:'barjitter',data:J(['Group,Subject,Value','A,WT,1','A,OE,2','B,WT,3','B,OE,4']),style:{valLabels:true}});r.p1.barjitter=bj.res.bj===true&&bj.res.subjects.join()==='WT,OE';
+        const hm=figRenderSpec({kind:'heatmap',data:J(['Gene,Pathway,C1,C2,T1,T2','A,P1,1,2,9,8','B,P2,3,4,1,0']),style:{hmScale:'log2z'}});r.p1.heatmap=hm.res.scale==='log2z'&&hm.res.colGroups.join()==='C,T'&&hm.res.rowGroups.join()==='P1,P2';
+        r.p1.numClean=[figNumClean('1,234'),figNumClean('12 %'),figNumClean('NA'),String(figNumClean('abc'))].join('|')==='1234|12||null';
+        const s1={kind:'column',type:'bar',title:'CD20',data:J(['Control,Drug','10,6','11,5','9,7']),compare:'all',figureTag:'Fig1A'};const s2={kind:'feature',type:'fcdot',data:fd,labelGenes:['MS4A1','SPIB']};
+        const note=figAddNote('smoke'+NL+NL+BT+'figure'+NL+JSON.stringify(s1)+NL+BT+NL+NL+BT+'figure'+NL+JSON.stringify(s2)+NL+BT);await new Promise(x=>setTimeout(x,300));
+        const fb2=document.querySelector('.figblock[data-fignode="'+note.id+'"][data-figidx="1"]');r.p1.regBtn=!!(fb2&&fb2.querySelector('[data-figreg]'));
+        figSetBlockField(note.id,1,'figureTag','Fig1B');await new Promise(x=>setTimeout(x,200));
+        const fb1=document.querySelector('.figblock[data-fignode="'+note.id+'"][data-figidx="0"]');fb1.querySelector('[data-figpng]').click();await new Promise(x=>setTimeout(x,1500));
+        const row=document.querySelector('.figblock[data-fignode="'+note.id+'"][data-figidx="0"] .figmetaRow');r.p1.metaRow=!!row&&row.textContent.includes('保存')&&!!row.querySelector('[data-figreveal]');
+        figListOpen();await new Promise(x=>setTimeout(x,400));const cards=document.querySelectorAll('#figListDlg .flCard');r.p1.listCards=cards.length;
+        figListSel=[note.id+':0',note.id+':1'];$('#flTag').value='Fig1';$('#flCompose').click();await new Promise(x=>setTimeout(x,300));const last=conv.nodes[conv.activeNodeId];const lj=JSON.parse(figFindBlocks(last.content)[0].json);r.p1.compose=last.note===true&&lj.kind==='layout'&&lj.panels.length===2&&lj.figureTag==='Fig1';
+        const lg=figLegendDraft(s1,'Fig1A');r.p1.legend=lg.includes('Bars show the mean')&&lg.includes("Welch's t test")&&lg.includes('(n = 3, 3)');
+        settings.journals={smokej:{name:'Smoke J',figWidthsMm:{single:85,double:175},minFontPt:6,aiPolicy:'No AI images.',wordLimits:{main:4000,abstract:250}}};conv.journal='smokej';
+        r.p1.journal=figJournalCard().includes('Smoke J')&&figJournalAgendaHTML().includes('No AI images.');
+        figOpen({text:J(['A,B','1,4','2,5'])});await new Promise(x=>setTimeout(x,300));figApplyTool('__jsize','single');await new Promise(x=>setTimeout(x,200));const fr=figRenderSpec(figSpecFromState(figState));const cp=figCompliance(figSpecFromState(figState),fr,figJournal());
+        r.p1.jsize=Math.abs(figState.opts.figW*25.4-85)<0.01&&figState.opts.fontPt===8&&cp.items.every(x=>x.ok===true);$('#figDlg').close();delete settings.journals;delete conv.journal;
+        const mk=async(nm,ints)=>{const c=document.createElement('canvas');c.width=400;c.height=80;const g=c.getContext('2d');g.fillStyle='#f0f0f0';g.fillRect(0,0,400,80);ints.forEach((v,i)=>{g.fillStyle='rgba(0,0,0,'+v+')';g.fillRect(i*100+25,30,50,20);});const b=await new Promise(z=>c.toBlob(z,'image/png'));return new File([b],nm,{type:'image/png'});};
+        figImgOpen({kind:'image',type:'blot',bands:[],lanes:['1','2','3','4']},null);await new Promise(x=>setTimeout(x,300));const m1=await figImgStoreAny(await mk('spib.png',[0.2,0.4,0.6,0.8])),m2=await figImgStoreAny(await mk('actin.png',[0.5,0.5,0.5,0.5]));
+        figImgState.spec.bands=[{img:m1[0].id,name:'SPIB',kda:'31',markers:[{kda:35,y:0.2}]},{img:m2[0].id,name:'beta-actin',kda:'42',exposure:'5 s',crop:[0,0.25,1,0.6]}];figImgFillForm();figImgSync();await new Promise(x=>setTimeout(x,300));
+        await figBlotDensity();const D=figImgState.dens;const rel=D.res[0].ids.map((v,i)=>v/D.res[1].ids[i]);r.p1.density=D.lc===1&&Math.abs(rel[3]/rel[0]-4)<0.05;
+        const before=Object.keys(conv.figExports||{}).length;await figBlotRawPdf();await new Promise(x=>setTimeout(x,500));const pdfRec=Object.values(conv.figExports||{}).find(x=>x.ext==='pdf');
+        const fh=pdfRec&&pdfRec.path?await (await fetch('/api/filehash',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:pdfRec.path})})).json():{};r.p1.rawPdf=!!(fh.exists&&fh.bytes>2000)&&pdfRec.path.endsWith('.pdf');
+        figImgOpen({kind:'image',type:'grid',images:[]},null);await new Promise(x=>setTimeout(x,200));const ms=[];for(const n of ['DAPI_01.png','CD20_02.png'])ms.push(...await figImgStoreAny(await mk(n,[0.5])));figImgState.spec.images=ms.map(m=>({img:m.id}));figImgState.spec.annots=[{t:'text',cell:0,x:0.5,y:0.5,text:'A'}];figImgFillForm();
+        $('#figImgAutoLab').click();await new Promise(x=>setTimeout(x,100));const labs=figImgState.spec.images.map(i=>i.label).join('|');figImgMove(0,1);r.p1.imgPanel=labs==='DAPI 01|CD20 02'&&figImgState.spec.images[1].label==='DAPI 01'&&figImgState.spec.annots[0].cell===1;
+        figImgState.spec.scale={umPerPx:0.5,len:20,unit:'µm',labelOn:'first',pos:'br',thick:3};figImgState.spec.images[1].sb={len:40,label:'show'};figImgFillForm();figImgSync();await new Promise(x=>setTimeout(x,200));
+        const bars=(figImgState.r.svg.split('data-scalebar').length-1);r.p1.cellSb=bars===2&&(figImgState.r.svg.split('µm').length-1)===2;$('#figImgDlg').close();
+        figOpen({text:J(['Group,Value','A,"1,234"','B,12 %'])});await new Promise(x=>setTimeout(x,300));const fix=document.querySelector('#figColTypes [data-colfix]');if(fix)fix.click();await new Promise(x=>setTimeout(x,200));r.p1.colFix=!!fix&&$('#figData').value.split(NL)[2].split(TAB)[1]==='12';$('#figDlg').close();
+        settings.exp={};saveSettings();}
       if(${process.env.SMOKE_FIG13 === '1'}){ // グラフィカルアブストラクト: 5 つの絵柄の描画（CSS 変数を残さない）、作成画面の操作、チャットのブロックで絵柄を切り替えて書き戻し、PNG
         const $=s=>document.querySelector(s);const NL2=String.fromCharCode(10),F=String.fromCharCode(96).repeat(3);settings.provider='dummy';
         const spec={kind:'graphics',theme:'soft',w:960,h:540,title:'ROS-generating nanoparticles boost tumor immunity (fictional)',items:[{t:'box',x:20,y:56,w:260,h:464,title:'Dosing'},{t:'motif',m:'mouse',x:55,y:110,s:170},{t:'motif',m:'syringe',x:60,y:300,s:90},{t:'motif',m:'nanoparticle',x:150,y:310,s:80,key:true},{t:'text',x:150,y:470,text:'IV injection',size:15},{t:'arrow',x1:290,y1:288,x2:340,y2:288},{t:'box',x:350,y:56,w:280,h:464,title:'Inside cancer cells'},{t:'motif',m:'cancer_cell',x:380,y:120,s:150},{t:'motif',m:'mitochondria',x:520,y:150,s:90},{t:'motif',m:'ros',x:530,y:260,s:80,key:true},{t:'arrow',x1:470,y1:300,x2:520,y2:300,kind:'inhibit'},{t:'text',x:490,y:470,text:'ROS up',size:15},{t:'arrow',x1:640,y1:288,x2:690,y2:288,kind:'curved'},{t:'box',x:700,y:56,w:240,h:464,title:'Immune attack'},{t:'motif',m:'t_cell',x:720,y:110,s:110,key:true},{t:'motif',m:'tumor_mass',x:800,y:250,s:110},{t:'motif',m:'antibody',x:730,y:330,s:70},{t:'text',x:820,y:470,text:'T cells up, tumor down',size:15,bold:true}]};

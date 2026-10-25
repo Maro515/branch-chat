@@ -6,6 +6,7 @@
 
 /* ---------- 既定値（付録B） ---------- */
 const FIG_DEF={
+  valLabels:false,valDigits:'auto', // 棒の上に値（平均）を書く（改善計画 3.2）
   wIn:3.0,hIn:2.0,            // X 軸 3.00 in × Y 軸 2.00 in（Wide）
   font:"Arial, Helvetica, 'Liberation Sans', sans-serif",fontPt:12,bold:true,
   axisPt:1,tickLen:0.7,        // 目盛の長さ＝数字の高さ×0.7
@@ -36,9 +37,9 @@ function figParseTable(text){
   let lines=String(text||'').replace(/\r/g,'').split('\n').map(l=>l.replace(/^\s*\|/,'').replace(/\|\s*$/,'')).filter(l=>l.trim()&&!/^\s*[:\-| ]+\s*$/.test(l));
   if(!lines.length)return null;
   const sep=lines[0].includes('\t')?'\t':lines[0].includes('|')?'|':lines[0].includes(',')?',':/\s{2,}/;
-  const rows=lines.map(l=>l.split(sep).map(c=>c.trim()));
+  const rows=lines.map(l=>(sep===','?figCsvSplit(l):l.split(sep)).map(c=>c.trim().replace(/^"([\s\S]*)"$/,'$1')));
   const w=Math.max(...rows.map(r=>r.length));rows.forEach(r=>{while(r.length<w)r.push('');});
-  const num=s=>{if(s===''||s==null)return null;const v=Number(String(s).replace(/[,，]/g,'').replace(/^[<>≈~]/,''));return Number.isFinite(v)?v:null;};
+  const num=s=>{if(s===''||s==null)return null;const v=Number(String(s).replace(/^"(.*)"$/,'$1').replace(/[,，]/g,'').replace(/^[<>≈~]\s*/,''));return Number.isFinite(v)?v:null;};
   const head=rows[0];const headIsText=head.some(c=>num(c)===null&&c!=='');
   const body=headIsText?rows.slice(1):rows;const names=headIsText?head:head.map((_,i)=>String.fromCharCode(65+i));
   const firstColText=body.some(r=>r[0]!==''&&num(r[0])===null);
@@ -105,6 +106,19 @@ function figSymbol(x,y,r,shape,fill,stroke){if(!(r>0))return '';
   }
 }
 const figEsc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function figValFmt(m,o){if(!isFinite(m))return '';const d=o&&o.valDigits;if(d===''||d==null||d==='auto'){const v=Math.abs(m);return v>=100?(+m).toFixed(0):v>=10?(+m).toFixed(1):v>=0.1||v===0?(+m).toFixed(2):(+m).toPrecision(2);}return (+m).toFixed(+d);} // 自動: 大きさに応じた桁（1.00、0.95、12.3、0.042）
+// 列の型（改善計画 4.4）: 読み込んだ表の列ごとに 数値／文字 を出し、文字になってしまった数値の列（1,234・12 %・全角数字・"0.5"・−1.2・1.2×10^-5 など）は 1 クリックで数値にする
+function figNumClean(s){let t=String(s==null?'':s).trim().replace(/^"(.*)"$/,'$1').replace(/^'(.*)'$/,'$1').trim();if(t===''||/^(na|n\/a|nan|null|none|-|—|–|―|\.)$/i.test(t))return '';
+  t=t.replace(/[０-９．，－＋％]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[−‐‑–]/g,'-').replace(/\s+/g,'').replace(/,(?=\d{3}(\D|$))/g,'').replace(/%$/,'').replace(/^[<>≤≥≈~]=?/,'').replace(/[×x]10\^?([-+]?\d+)$/i,'e$1');const v=Number(t);return Number.isFinite(v)?String(v):null;}
+function figColTypesShow(parsed){const box=document.querySelector('#figColTypes');if(!box)return;if(!parsed||!parsed.cols.length||parsed.cols.length>40){box.innerHTML='';return;}
+  box.innerHTML='<span class="hint">列の型:</span>'+parsed.cols.map((c,i)=>{const ne=c.raw.filter(v=>v!=='');const bad=ne.filter(v=>c.vals[c.raw.indexOf(v)]===null&&!isFinite(+String(v).replace(/^[<>≈~]/,'')));if(!ne.length)return '';
+    const text=bad.length>0;const fix=text&&ne.filter(v=>figNumClean(v)!==null).length>=Math.max(1,ne.length*0.8)&&!(i===0&&parsed.firstColText&&bad.length===ne.length&&ne.every(v=>figNumClean(v)===null));
+    return `<span class="ct${text?' t':''}" title="${figEsc(c.name)}">${figEsc(String(c.name).slice(0,12))}: ${text?'文字':'数値'}${fix?` <button type="button" class="small" data-colfix="${i}" data-tip="この列の値を数値に直す（桁区切り・%・全角・引用符などを外す）">数値にする</button>`:''}</span>`;}).join('');}
+function figColFix(ci){const ta=document.querySelector('#figData');const text=String(ta.value||'');let lines=text.replace(/\r/g,'').split('\n').map(l=>l.replace(/^\s*\|/,'').replace(/\|\s*$/,'')).filter(l=>l.trim()&&!/^\s*[:\-| ]+\s*$/.test(l));if(!lines.length)return;
+  const sep=lines[0].includes('\t')?'\t':lines[0].includes('|')?'|':lines[0].includes(',')?',':/\s{2,}/;const rows=lines.map(l=>(sep===','?figCsvSplit(l):l.split(sep)).map(c=>c.trim().replace(/^"([\s\S]*)"$/,'$1')));const head=rows[0];const hasHead=head.some(c=>c!==''&&!isFinite(+c));let n=0;
+  rows.forEach((r,ri)=>{if(hasHead&&ri===0)return;if(ci<r.length){const v=figNumClean(r[ci]);if(v!==null&&v!==r[ci]){r[ci]=v;n++;}}});ta.value=rows.map(r=>r.join('\t')).join('\n');figSync(false);figPushUndo();toast(`${n} 個の値を数値に直しました`);}
+// カンマ区切りの 1 行（"1,234" のような引用符の中のカンマは区切りにしない）
+function figCsvSplit(l){const out=[];let cur='',q=false;for(const ch of l){if(ch==='"'){q=!q;cur+=ch;}else if(ch===','&&!q){out.push(cur);cur='';}else cur+=ch;}out.push(cur);return out;}
 function figHalf(hex){return hex+'80';} // 50% 透明
 
 // 散布ドットの Standard 配置: 値を幅ごとのビンに入れ、同じビンの点を中心から左右に並べる（乱数を使わない決定的な配置）
@@ -115,13 +129,17 @@ function figArrangeDots(vals,yOf,r,maxW){
   return out;
 }
 
-function figSeriesOpt(o,i){const ov=(o.series&&o.series[i])||{};const colors=o.colors||FIG_DEF.colors,symbols=o.symbols||FIG_DEF.symbols;return {name:ov.name||'',color:ov.color||colors[i%colors.length],symbol:ov.symbol||symbols[i%symbols.length],symPt:+(ov.symPt!=null&&ov.symPt!==''?ov.symPt:(o.symPt!=null&&o.symPt!==''?o.symPt:FIG_DEF.symPt)),fill:ov.fill||'solid',lineW:+(ov.lineW||o.linePt||1)};}
+function figSeriesOpt(o,i){const ov=(o.series&&o.series[i])||{};const colors=o.colors||FIG_DEF.colors,symbols=o.symbols||FIG_DEF.symbols;return {name:ov.name||'',color:ov.color||colors[i%colors.length],symbol:ov.symbol||symbols[i%symbols.length],symPt:+(ov.symPt!=null&&ov.symPt!==''?ov.symPt:(o.symPt!=null&&o.symPt!==''?o.symPt:FIG_DEF.symPt)),fill:ov.fill||'solid',fillSet:!!ov.fill,lineW:+(ov.lineW||o.linePt||1)};}
 // 図全体の幅・高さ（style.figW/figH、インチ）が指定されていれば、描画部分の大きさを詰めてそれに合わせる（改善計画 2.3・3.5）。
 // 合わない図種（全体が描画部分に比例しないもの）は最後に全体を縮尺して合わせる
-function figRender(spec){const o=(spec&&spec.opts)||{};const tw=+o.figW>0?+o.figW*FIG_IN:0,th=+o.figH>0?+o.figH*FIG_IN:0;let r=figRenderBase(spec);if(!r||!r.svg||(!tw&&!th))return r;
+// 塗りの種類: solid（塗り）／open（白抜き）／hatch・hatch2（斜線）。斜線の pattern は描画中に集め、figRender の最後に <defs> として差し込む
+let figPatBuf=new Map();
+function figPaint(fill,c,soft){if(fill==='open')return '#fff';if(fill==='hatch'||fill==='hatch2'){const id='fh'+(fill==='hatch2'?'b':'a')+'-'+String(c||'#000').replace(/[^0-9a-f]/gi,'').slice(0,8);if(!figPatBuf.has(id))figPatBuf.set(id,`<pattern id="${id}" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(${fill==='hatch2'?-45:45})"><rect width="5" height="5" fill="#fff"/><line x1="0" y1="0" x2="0" y2="5" stroke="${c}" stroke-width="1.8"/></pattern>`);return `url(#${id}) #fff`;}return soft?figHalf(c):c;}
+function figRender(spec){const prev=figPatBuf;figPatBuf=new Map();try{const r=figRenderSized(spec);if(r&&r.svg&&figPatBuf.size)r.svg=r.svg.replace(/^(<svg[^>]*>)/,'$1<defs>'+[...figPatBuf.values()].join('')+'</defs>');return r;}finally{figPatBuf=prev;}}
+function figRenderSized(spec){const o=(spec&&spec.opts)||{};const tw=+o.figW>0?+o.figW*FIG_IN:0,th=+o.figH>0?+o.figH*FIG_IN:0;let r=figRenderBase(spec);if(!r||!r.svg||(!tw&&!th))return r;
   let w=+o.wIn||FIG_DEF.wIn||3,h=+o.hIn||FIG_DEF.hIn||2;
   for(let i=0;i<5;i++){const dw=tw?tw-r.w:0,dh=th?th-r.h:0;if(Math.abs(dw)<0.6&&Math.abs(dh)<0.6)break;w=Math.max(0.4,w+dw/FIG_IN);h=Math.max(0.3,h+dh/FIG_IN);const r2=figRenderBase(Object.assign({},spec,{opts:Object.assign({},o,{wIn:+w.toFixed(4),hIn:+h.toFixed(4)})}));if(!r2||!r2.svg)break;r=r2;}
-  if((tw&&Math.abs(tw-r.w)>1.5)||(th&&Math.abs(th-r.h)>1.5)){const W=tw||r.w*(th/r.h),H=th||r.h*(tw/r.w);const svg=r.svg.replace(/^<svg([^>]*?) width="[^"]*" height="[^"]*"/,(m,a)=>`<svg${a} width="${W.toFixed(2)}" height="${H.toFixed(2)}"`);r=Object.assign({},r,{svg,w:W,h:H,scaled:true});}
+  if((tw&&Math.abs(tw-r.w)>1.5)||(th&&Math.abs(th-r.h)>1.5)){const W=tw||r.w*(th/r.h),H=th||r.h*(tw/r.w);const svg=r.svg.replace(/^<svg([^>]*?) width="[^"]*" height="[^"]*"/,(m,a)=>`<svg${a} width="${W.toFixed(2)}" height="${H.toFixed(2)}"`);r=Object.assign({},r,{svg,w:W,h:H,scaled:true,w0:r.w});}
   return r;}
 function figRenderBase(spec){
   const d=spec.data;if(!d)return {svg:'',w:0,h:0};
@@ -162,20 +180,20 @@ function figRenderBase(spec){
     let xAxis=`<line x1="${x0}" y1="${y0}" x2="${x0+plotW}" y2="${y0}" stroke="${ac}" stroke-width="${a}" stroke-linecap="square"/>`;
     d.groups.forEach((gr,i)=>{const cx=x0+unit*(g.first+0.5+i*(1+g.adj));const v=gr.values;const so=S(i),c=so.color;const e=figErr(v,o.errType);let top=e.m+e.e;let b='';
       xAxis+=`<line x1="${cx}" y1="${y0}" x2="${cx}" y2="${y0+tick}" stroke="${ac}" stroke-width="${a}"/>`+xlab(cx,so.name||gr.name);
-      if(type==='bar'){const base=o.ylog?yTicks[0]:0;b+=`<rect x="${cx-bw/2}" y="${yOf(Math.max(base,e.m))}" width="${bw}" height="${Math.abs(yOf(e.m)-yOf(base))}" fill="${so.fill==='open'?'#fff':c}" fill-opacity="${o.barDots?Math.min(+o.fillAlpha,0.5):+o.fillAlpha}" stroke="${o.barEdge==='black'?'#000':c}" stroke-width="${a}"/>`+errBar(cx,e.m,e.e,bw,'#000',!o.barDots);if(o.barDots){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(v,yOf,r,bw*0.8);v.forEach((val,k)=>{b+=sym(cx+pos[k].dx,pos[k].y,i,null,o.barEdge==='black'?'#000':c,so.fill);});top=Math.max(top,...v);}}
+      if(type==='bar'){const base=o.ylog?yTicks[0]:0;b+=`<rect x="${cx-bw/2}" y="${yOf(Math.max(base,e.m))}" width="${bw}" height="${Math.abs(yOf(e.m)-yOf(base))}" fill="${figPaint(so.fillSet?so.fill:(o.barFill||so.fill),c)}" fill-opacity="${o.barDots?Math.min(+o.fillAlpha,0.5):+o.fillAlpha}" stroke="${o.barEdge==='black'?'#000':c}" stroke-width="${a}"/>`+errBar(cx,e.m,e.e,bw,'#000',!o.barDots);if(o.barDots){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(v,yOf,r,bw*0.8);v.forEach((val,k)=>{b+=sym(cx+pos[k].dx,pos[k].y,i,null,o.barEdge==='black'?'#000':c,so.fill);});top=Math.max(top,...v);}}
       else if(type==='scatter'){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(v,yOf,r,bw*0.9);v.forEach((val,k)=>{b+=sym(cx+pos[k].dx,pos[k].y,i,null,c,so.fill);});
         const lw=bw*o.capRatio*2;b+=`<line x1="${cx-lw/2}" y1="${yOf(e.m)}" x2="${cx+lw/2}" y2="${yOf(e.m)}" stroke="#000" stroke-width="${a*2}"/>`+errBar(cx,e.m,e.e,bw,'#000',false);top=Math.max(top,...v);}
       else if(type==='box'){if(v.length>=2){const q1=quantile(v,0.25),q2=quantile(v,0.5),q3=quantile(v,0.75),iqr=q3-q1;const inl=v.filter(x=>x>=q1-1.5*iqr&&x<=q3+1.5*iqr);const lo=Math.min(...inl),hi=Math.max(...inl);const w2=bw*o.boxWidth;
         b+=`<line x1="${cx}" y1="${yOf(hi)}" x2="${cx}" y2="${yOf(q3)}" stroke="${c}" stroke-width="${a}"/><line x1="${cx}" y1="${yOf(q1)}" x2="${cx}" y2="${yOf(lo)}" stroke="${c}" stroke-width="${a}"/>`;
         b+=`<line x1="${cx-w2*0.27}" y1="${yOf(hi)}" x2="${cx+w2*0.27}" y2="${yOf(hi)}" stroke="${c}" stroke-width="${a}"/><line x1="${cx-w2*0.27}" y1="${yOf(lo)}" x2="${cx+w2*0.27}" y2="${yOf(lo)}" stroke="${c}" stroke-width="${a}"/>`;
-        b+=`<rect x="${cx-w2/2}" y="${yOf(q3)}" width="${w2}" height="${yOf(q1)-yOf(q3)}" fill="${so.fill==='open'?'#fff':figHalf(c)}" stroke="${c}" stroke-width="${a}"/><line x1="${cx-w2/2}" y1="${yOf(q2)}" x2="${cx+w2/2}" y2="${yOf(q2)}" stroke="${c}" stroke-width="${a}"/>`;
+        b+=`<rect x="${cx-w2/2}" y="${yOf(q3)}" width="${w2}" height="${yOf(q1)-yOf(q3)}" fill="${figPaint(so.fill,c,1)}" stroke="${c}" stroke-width="${a}"/><line x1="${cx-w2/2}" y1="${yOf(q2)}" x2="${cx+w2/2}" y2="${yOf(q2)}" stroke="${c}" stroke-width="${a}"/>`;
         if(o.barDots){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(v,yOf,r,w2*0.9);v.forEach((val,k)=>{b+=sym(cx+pos[k].dx,pos[k].y,i,null,o.barEdge==='black'?'#000':c,so.fill);});}else v.filter(x=>x<q1-1.5*iqr||x>q3+1.5*iqr).forEach(x=>{b+=sym(cx,yOf(x),i,null,c,so.fill);});top=Math.max(...v);}}
       else if(type==='violin'){if(v.length>=2){const lo=Math.min(...v),hi=Math.max(...v);const k=kde(v,lo,hi,40);const mx=Math.max(...k.map(p=>p[1]))||1;const w2=bw*o.violinWidth/2;
         const left=k.map(p=>`${cx-p[1]/mx*w2},${yOf(p[0])}`),right=k.slice().reverse().map(p=>`${cx+p[1]/mx*w2},${yOf(p[0])}`);
-        b+=`<polygon points="${left.concat(right).join(' ')}" fill="${so.fill==='open'?'#fff':figHalf(c)}" stroke="${c}" stroke-width="${a}"/>`;
+        b+=`<polygon points="${left.concat(right).join(' ')}" fill="${figPaint(so.fill,c,1)}" stroke="${c}" stroke-width="${a}"/>`;
         const q1=quantile(v,0.25),q2=quantile(v,0.5),q3=quantile(v,0.75);const wAt=y=>{const p=k.reduce((bb,p)=>Math.abs(p[0]-y)<Math.abs(bb[0]-y)?p:bb);return p[1]/mx*w2;};
         b+=`<line x1="${cx-wAt(q2)}" y1="${yOf(q2)}" x2="${cx+wAt(q2)}" y2="${yOf(q2)}" stroke="${c}" stroke-width="${a}"/><line x1="${cx-wAt(q1)}" y1="${yOf(q1)}" x2="${cx+wAt(q1)}" y2="${yOf(q1)}" stroke="${c}" stroke-width="${a}" stroke-dasharray="${a*2} ${a*2}"/><line x1="${cx-wAt(q3)}" y1="${yOf(q3)}" x2="${cx+wAt(q3)}" y2="${yOf(q3)}" stroke="${c}" stroke-width="${a}" stroke-dasharray="${a*2} ${a*2}"/>`;if(o.barDots){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(v,yOf,r,w2*1.6);v.forEach((val,k)=>{b+=sym(cx+pos[k].dx,pos[k].y,i,null,o.barEdge==='black'?'#000':c,so.fill);});}top=hi;}}
-      addS(i,b);centers.push({cx,top:yOf(top),name:gr.name});});
+      const vl=o.valLabels&&type==='bar';if(vl)b+=txt(cx,yOf(top)-fs*0.3,figValFmt(e.m,o),'middle','',null,fs*0.75);addS(i,b);centers.push({cx,top:yOf(top)-(vl?fs*0.85:0),name:gr.name});});
     axes+=xAxis;if(xTitle)titles+=txt(x0+plotW/2,y0+Math.max(0,tick)+fs*2.3+(xrot?fs*2:0),xTitle,'middle','','xtitle');
   }else if(d.kind==='grouped'){
     const nc=d.cats.length,ng=d.groups.length;const g=o.barGap;const unit=plotW/(g.first+nc*(ng+(ng-1)*g.adj)+(nc-1)*g.group+g.last);const bw=unit;
@@ -184,8 +202,8 @@ function figRenderBase(spec){
       xAxis+=`<line x1="${catCenter}" y1="${y0}" x2="${catCenter}" y2="${y0+tick}" stroke="${ac}" stroke-width="${a}"/>`+xlab(catCenter,cat);
       d.groups.forEach((gr,gi)=>{const v=gr.cells[ci]||[];if(!v.length)return;const cx=start+unit*(0.5+gi*(1+g.adj));const so=S(gi),c=so.color;const e=figErr(v,o.errType);let b='';
         if(type==='grouped-scatter'){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(v,yOf,r,bw*0.9);v.forEach((val,k)=>{b+=sym(cx+pos[k].dx,pos[k].y,gi,null,c,so.fill);});b+=`<line x1="${cx-bw*0.5}" y1="${yOf(e.m)}" x2="${cx+bw*0.5}" y2="${yOf(e.m)}" stroke="#000" stroke-width="${a*2}"/>`+errBar(cx,e.m,e.e,bw,'#000',false);}
-        else{const base=o.ylog?yTicks[0]:0;b+=`<rect x="${cx-bw/2}" y="${yOf(Math.max(base,e.m))}" width="${bw}" height="${Math.abs(yOf(e.m)-yOf(base))}" fill="${so.fill==='open'?'#fff':c}" fill-opacity="${o.barDots?Math.min(+o.fillAlpha,0.5):+o.fillAlpha}" stroke="${o.barEdge==='black'?'#000':c}" stroke-width="${a}"/>`+errBar(cx,e.m,e.e,bw,'#000',!o.barDots);if(o.barDots){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(v,yOf,r,bw*0.8);v.forEach((val,k)=>{b+=sym(cx+pos[k].dx,pos[k].y,gi,null,o.barEdge==='black'?'#000':c,so.fill);});}}
-        gcenters.push({ci,gi,cx,top:yOf(Math.max(e.m+e.e,...(o.barDots||type==='grouped-scatter'?v:[])))});addS(gi,b);});});
+        else{const base=o.ylog?yTicks[0]:0;b+=`<rect x="${cx-bw/2}" y="${yOf(Math.max(base,e.m))}" width="${bw}" height="${Math.abs(yOf(e.m)-yOf(base))}" fill="${figPaint(so.fillSet?so.fill:(o.barFill||so.fill),c)}" fill-opacity="${o.barDots?Math.min(+o.fillAlpha,0.5):+o.fillAlpha}" stroke="${o.barEdge==='black'?'#000':c}" stroke-width="${a}"/>`+errBar(cx,e.m,e.e,bw,'#000',!o.barDots);if(o.barDots){const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(v,yOf,r,bw*0.8);v.forEach((val,k)=>{b+=sym(cx+pos[k].dx,pos[k].y,gi,null,o.barEdge==='black'?'#000':c,so.fill);});}}
+        const vl=o.valLabels&&type!=='grouped-scatter';const tv=Math.max(e.m+e.e,...(o.barDots||type==='grouped-scatter'?v:[]));if(vl)b+=txt(cx,yOf(tv)-fs*0.3,figValFmt(e.m,o),'middle','',null,fs*0.7);gcenters.push({ci,gi,cx,top:yOf(tv)-(vl?fs*0.8:0)});addS(gi,b);});});
     axes+=xAxis;if(xTitle)titles+=txt(x0+plotW/2,y0+Math.max(0,tick)+fs*2.3+(xrot?fs*2:0),xTitle,'middle','','xtitle');
   }else{
     const xs=d.groups.flatMap(g=>g.points.map(p=>p.x));let xmin=Math.min(...xs),xmax=Math.max(...xs);if(!(xmax>xmin)){xmax=xmin+1;}
@@ -217,7 +235,7 @@ function figRenderBase(spec){
   }
   let legend='';
   if(showLegend){const bottom=legendPos==='bottom';const itemW=fs*7;const lx0=bottom?x0+plotW/2-itemW*d.groups.length/2:x0+plotW+fs*1.2;d.groups.forEach((gr,i)=>{const lx=bottom?lx0+i*itemW:lx0;const ly=bottom?H-fs*0.6:padT+fs*(i*1.5+0.8);const so=S(i),c=so.color;
-    if(d.kind==='grouped'&&type!=='grouped-scatter')legend+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${so.fill==='open'?'#fff':c}" stroke="${c}"/>`;else legend+=sym(lx+fs*0.5,ly-fs*0.2,i,null,c,so.fill);
+    if(d.kind==='grouped'&&type!=='grouped-scatter')legend+=`<rect x="${lx}" y="${ly-fs*0.55}" width="${fs*1.1}" height="${fs*0.75}" fill="${figPaint(so.fillSet?so.fill:(o.barFill||so.fill),c)}" stroke="${c}"/>`;else legend+=sym(lx+fs*0.5,ly-fs*0.2,i,null,c,so.fill);
     legend+=txt(lx+fs*1.5,ly,so.name||gr.name,'start');});}
   const title=figTitleSVG(txt,x0+plotW/2,padT-fs*0.9,spec.title,W-fs,fs);
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${grid}<g data-sel="axes">${axes}</g>${titles}${series.map((s,i)=>`<g data-sel="series:${i}">${s||''}</g>`).join('')}${brackets?`<g data-sel="brackets">${brackets}</g>`:''}${legend?`<g data-sel="legend">${legend}</g>`:''}${title}${figNotesSVG(o,x0,padT,plotW,plotH,fs,o.font,fw)}</svg>`;
@@ -257,7 +275,8 @@ function figExpName(meta){meta=meta||{};const d=new Date(),pad=n=>String(n).padS
   s=s.replace(/_+/g,'_').replace(/^[_.\-]+|[_.\-]+$/g,'');return s||('figure_'+map.date+map.time);}
 // 書き出しの記録（図版一覧・チャットの図カードで使う）。key は "発言id:番号" か "dlg:タグ"
 function figExpRecord(meta,fp){if(typeof conv==='undefined'||!conv)return;const key=meta.key||('dlg:'+(meta.tag||meta.type||'figure'));conv.figExports=conv.figExports||{};const prev=conv.figExports[key]||{};
-  conv.figExports[key]=Object.assign(prev,{tag:meta.tag||prev.tag||'',type:meta.type||prev.type||'',at:Date.now(),path:fp||prev.path||'',ext:meta.ext||'',dpi:meta.dpi||''});if(typeof persist==='function')persist();}
+  conv.figExports[key]=Object.assign(prev,{tag:meta.tag||prev.tag||'',type:meta.type||prev.type||'',at:Date.now(),path:fp||prev.path||'',ext:meta.ext||'',dpi:meta.dpi||''});if(typeof persist==='function')persist();
+  const m=/^(.+):(\d+)$/.exec(key);if(m)document.querySelectorAll(`.figblock[data-fignode="${CSS.escape(m[1])}"][data-figidx="${m[2]}"]`).forEach(el=>{try{figBlockMetaRow(el);}catch(e){}});} // 回答の図の下の「保存:」を更新
 function figReveal(fp){if(!fp)return;fetch('/api/open',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:fp,reveal:true})}).then(r=>r.json()).then(j=>{if(!j.ok)toast('ファイルが見つかりませんでした');}).catch(()=>{});}
 function figToastSaved(fp){if(typeof toastAct==='function')toastAct('保存しました: '+fp,'Finder で表示',()=>figReveal(fp));else toast('保存しました: '+fp);}
 // meta={tag,type,dpi,key,spec}、p={ext:'png',dataURL} | {ext:'svg'|'json'|'txt',text}
@@ -313,9 +332,11 @@ let figAppVersion='';if(typeof fetch!=='undefined'&&typeof location!=='undefined
 // 書き出す指定に「作ったアプリ・人か AI か」を足す（元データの来歴は読み込み時に st.opts.x.provenance へ入っている）
 function figWithProvenance(spec,aiAssisted){if(!spec||typeof spec!=='object')return spec;const pv=Object.assign({},spec.provenance||{});pv.createdWith='BranCHAT'+(figAppVersion?' '+figAppVersion:'');if(!pv.operator)pv.operator=aiAssisted?'ai-assisted':'human';pv.exportedAt=new Date().toISOString();return Object.assign({},spec,{provenance:pv});}
 // PNG・SVG・JSON から図を開く（来歴として埋め込んだ指定、または .branchat.json）
-async function figOpenFigureFile(f){let txt=null;const nm=String(f.name||'').toLowerCase();
+// 書き出した図のファイル（PNG の branchat:spec、SVG の metadata、.branchat.json）から図の指定を読む。無ければ null
+async function figReadFigureFile(f){let txt=null;const nm=String(f.name||'').toLowerCase();
   try{if(/\.png$/.test(nm)||f.type==='image/png')txt=figPngReadText(new Uint8Array(await f.arrayBuffer()),'branchat:spec');else if(/\.svg$/.test(nm)||f.type==='image/svg+xml')txt=figSvgReadSpec(await f.text());else txt=await f.text();}catch(e){txt=null;}
-  let j=null;try{j=txt?JSON.parse(txt):null;}catch(e){j=null;}
+  let j=null;try{j=txt?JSON.parse(txt):null;}catch(e){j=null;}return j&&typeof j==='object'?j:null;}
+async function figOpenFigureFile(f){const j=await figReadFigureFile(f);
   if(!j||typeof j!=='object'){toast('この画像には BranCHAT の図の指定が入っていません（書き出しの設定で「図の指定を埋め込む」をオンにして保存した画像だけ開けます）');return false;}
   const dlgs=['#figDlg','#figImgDlg','#figGaDlg'];dlgs.forEach(s=>{const d=document.querySelector(s);if(d&&d.open)d.close();});
   if(typeof figIsGA==='function'&&figIsGA(j)){figGaOpen(j);}
@@ -343,7 +364,7 @@ function figNoteDragEnd(fb,k,dx,dy){if(fb.id==='figPreview'){const st=figState;c
 /* ---------- 仕様（チャットとの受け渡し） ---------- */
 // ```figure の中の JSON: {title, kind, type, err, compare, ctrl, ytitle, xtitle, ymin, ymax, data(TSV), style:{...}}
 function figSpecFromState(st){return Object.assign({},st.opts.x||{},{title:st.title||'',kind:st.kind,type:st.type,err:st.opts.errType,compare:st.cmp||'none',ctrl:st.ctrl||0,ytitle:st.opts.yTitle||'',xtitle:st.opts.xTitle||'',ymin:st.opts.ymin||'',ymax:st.opts.ymax||'',data:st.text,style:figStyleOf(st.opts)});}
-const FIG_STYLE_KEYS=['figW','figH','notes','fontPt','bold','axisPt','tickLen','wIn','hIn','symPt','linePt','barFill','bracketShape','pStyle','showNs','legend','scheme','series','barDots','legendPos','frame','grid','tickDir','ylog','xRot','barEdge','fontFamily','refLine','errDir','fillAlpha','capW','axisColor'];
+const FIG_STYLE_KEYS=['valLabels','valDigits','figW','figH','notes','fontPt','bold','axisPt','tickLen','wIn','hIn','symPt','linePt','barFill','bracketShape','pStyle','showNs','legend','scheme','series','barDots','legendPos','frame','grid','tickDir','ylog','xRot','barEdge','fontFamily','refLine','errDir','fillAlpha','capW','axisColor'];
 function figStyleOf(o){const st={};for(const k of FIG_STYLE_KEYS)if(o[k]!==undefined&&o[k]!==''&&o[k]!==null)st[k]=o[k];return st;}
 function figStateFromSpec(j){j=j||{};const opts=Object.assign({errType:j.err||'SD',pThr:0.05,pStyle:'star',showNs:false,yTitle:j.ytitle||'',xTitle:j.xtitle||'',ymin:j.ymin==null?'':j.ymin,ymax:j.ymax==null?'':j.ymax,barFill:'solid',bracketShape:'long'},j.style||{});
   const known=new Set(['title','kind','type','err','compare','ctrl','ytitle','xtitle','ymin','ymax','data','style']);const x={};for(const k of Object.keys(j))if(!known.has(k))x[k]=j[k];if(Object.keys(x).length)opts.x=x; // 図種固有の追加項目（GSEA の nes/pval/fdr など）は opts.x に保ち、書き戻しで元に戻す
@@ -356,8 +377,33 @@ function figRenderSpec(j){if(typeof figRenderLayout==='function'&&figIsLayout(j)
   if(typeof figRenderGA==='function'&&figIsGA(j))return figRenderGA(j); // figure-ga.js（グラフィカルアブストラクト）
   const st=figStateFromSpec(j);const parsed=figParseTable(st.text);if(!parsed)return null;const kind=st.kind||figAutoKind(parsed);const data=figBuildData(parsed,kind);if(!data)return null;const types=FIG_TYPES[kind]||FIG_TYPES.column;const type=types.some(t=>t[0]===st.type)?st.type:types[0][0];
   const compare=st.cmp!=='none'?(kind==='column'?figCompare(data.groups,st.cmp,st.ctrl):kind==='grouped'?figCompareGrouped(data,st.cmp,st.ctrl):null):null;return figRender({data,type,opts:st.opts,title:st.title,compare,cmp:st.cmp,ctrl:st.ctrl,legend:st.opts.legend||'right'});}
-const FIG_SCHEME_OLD={prism:'classic'}; // 旧名の読み替え（保存済みの図の指定用。他社製品名はここ以外に書かない）
-const FIG_SCHEMES={classic:['#0000FF','#FF0000','#00C000','#A000E0','#FF8000','#000000','#906020','#000080','#600050'],colorblind:['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#F0E442','#000000'],gray:['#000000','#707070','#B0B0B0','#404040','#909090','#D0D0D0'],nature:['#E64B35','#4DBBD5','#00A087','#3C5488','#F39B7F','#8491B4','#91D1C2','#DC0000']};
+// 配色セットの選択肢（新しく作る図の既定は colorblind＝Okabe–Ito。scheme の無い保存済みの図はクラシックのまま描く）
+const FIG_SCHEME_OPTS=[['colorblind','色覚に配慮（Okabe–Ito）'],['tol','色覚に配慮（Tol bright）'],['viridis','順序のある色（viridis）'],['classic','クラシック（青・赤・緑…）'],['nature','誌面風（赤・水色・緑…）'],['gray','グレースケール']];
+const FIG_FILLS=[['solid','塗り'],['open','白抜き'],['hatch','斜線'],['hatch2','逆斜線']];
+const FIG_SCHEME_OLD={prism:'classic'};
+// 色の見え方の確認（改善計画 3.1）: Machado ら（2009）の色覚シミュレーション行列（線形 RGB、強度 1.0）と、白背景に対するコントラスト比（WCAG 2.x、図の要素は 3:1 以上が目安）
+const FIG_CVD={p:['1型（P）',[0.152286,1.052583,-0.204868,0.114503,0.786281,0.099216,-0.003882,-0.048116,1.051998]],d:['2型（D）',[0.367322,0.860646,-0.227968,0.280085,0.672501,0.047413,-0.011820,0.042940,0.968881]],t:['3型（T）',[1.255528,-0.076749,-0.178779,-0.078411,0.930809,0.147602,0.004733,0.691367,0.303900]]};
+function figLin(hex){const h=String(hex||'#000').replace('#','');const v=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16)/255);return v.map(c=>c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4));}
+function figHexOfLin(l){return '#'+l.map(c=>{c=Math.min(1,Math.max(0,c));const s=c<=0.0031308?c*12.92:1.055*Math.pow(c,1/2.4)-0.055;return Math.round(s*255).toString(16).padStart(2,'0');}).join('');}
+function figCvdHex(hex,k){if(k==='g'){const l=figLin(hex);const y=0.2126*l[0]+0.7152*l[1]+0.0722*l[2];return figHexOfLin([y,y,y]);}const M=FIG_CVD[k]&&FIG_CVD[k][1];if(!M)return hex;const l=figLin(hex);return figHexOfLin([0,1,2].map(r=>M[r*3]*l[0]+M[r*3+1]*l[1]+M[r*3+2]*l[2]));}
+function figContrast(hex){const l=figLin(hex);const L=0.2126*l[0]+0.7152*l[1]+0.0722*l[2];return 1.05/(L+0.05);}
+function figLab(hex){const l=figLin(hex);const X=(0.4124*l[0]+0.3576*l[1]+0.1805*l[2])/0.95047,Y=0.2126*l[0]+0.7152*l[1]+0.0722*l[2],Z=(0.0193*l[0]+0.1192*l[1]+0.9505*l[2])/1.08883;const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;return [116*f(Y)-16,500*(f(X)-f(Y)),200*(f(Y)-f(Z))];}
+function figDeltaE(a,b){const A=figLab(a),B=figLab(b);return Math.hypot(A[0]-B[0],A[1]-B[1],A[2]-B[2]);}
+function figCvdColors(){const st=figState,o=st.opts;const n=Math.max(1,Math.min(8,((st.data&&st.data.groups)||[]).length||4));return Array.from({length:n},(_,i)=>figSeriesOpt(o,i).color);}
+function figCvdPanel(){const cols=figCvdColors();const rows=[['n','通常']].concat(Object.entries(FIG_CVD).map(([k,v])=>[k,v[0]])).concat([['g','白黒']]);
+  const sw=(c,t)=>`<span style="display:inline-block;width:18px;height:14px;margin-right:2px;border:1px solid #0002;background:${c}" title="${t||c}"></span>`;
+  let h='<div class="irow"><label>色の見え方（いま使っている色）</label><div style="font-size:11px;line-height:1.7">';
+  const warn=[];rows.forEach(([k,l])=>{const cs=cols.map(c=>k==='n'?c:figCvdHex(c,k));h+=`<div><span style="display:inline-block;width:52px">${l}</span>${cs.map((c,i)=>sw(c,(i+1)+': '+c)).join('')}</div>`;
+    if(k!=='n')for(let i=0;i<cs.length;i++)for(let j=i+1;j<cs.length;j++)if(figDeltaE(cs[i],cs[j])<12)warn.push(`${l}で ${i+1} と ${j+1}`);});
+  const low=cols.map((c,i)=>[i+1,figContrast(c)]).filter(([,r])=>r<3);
+  h+='</div></div>';
+  h+=`<div class="hint" style="margin:2px 0 4px">白い背景とのコントラスト比: ${cols.map((c,i)=>`${i+1}=${figContrast(c).toFixed(1)}`).join('、')}${low.length?`<br>⚠ ${low.map(x=>x[0]).join('・')} は 3:1 未満で、細い線や小さな点だと見えにくくなります`:'（すべて 3:1 以上）'}</div>`;
+  h+=warn.length?`<div class="hint" style="margin:0 0 4px">⚠ 見分けにくい組: ${warn.slice(0,4).join('、')}${warn.length>4?' ほか':''}。形・塗り（斜線・白抜き）でも区別すると確実です</div>`:'<div class="hint" style="margin:0 0 4px">色覚の型ごとに見ても、どの組も見分けられます</div>';
+  h+=`<div class="irow"><label>プレビューの見え方を確かめる（書き出しには影響しません）</label><select data-tk="__cvd" aria-label="プレビューの見え方を確かめる">${[['','通常'],['p','1型の見え方'],['d','2型の見え方'],['t','3型の見え方'],['g','白黒で印刷したとき']].map(([a,b])=>`<option value="${a}"${(figState.cvd||'')===a?' selected':''}>${b}</option>`).join('')}</select></div>`;
+  return h;}
+function figCvdApply(){const k=figState&&figState.cvd||'';let defs=document.getElementById('figCvdDefs');if(!defs){defs=document.createElement('div');defs.id='figCvdDefs';defs.style.cssText='position:absolute;width:0;height:0;overflow:hidden';defs.innerHTML='<svg width="0" height="0" aria-hidden="true">'+Object.entries(FIG_CVD).map(([id,v])=>`<filter id="figCvd-${id}" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="${[0,1,2].map(r=>v[1].slice(r*3,r*3+3).join(' ')+' 0 0').join(' ')} 0 0 0 1 0"/></filter>`).join('')+'</svg>';document.body.appendChild(defs);}
+  const pv=document.getElementById('figPreview');if(!pv)return;pv.style.filter=!k?'':k==='g'?'grayscale(1)':`url(#figCvd-${k})`;pv.dataset.cvd=k;} // 旧名の読み替え（保存済みの図の指定用。他社製品名はここ以外に書かない）
+const FIG_SCHEMES={classic:['#0000FF','#FF0000','#00C000','#A000E0','#FF8000','#000000','#906020','#000080','#600050'],colorblind:['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#F0E442','#000000'],tol:['#4477AA','#EE6677','#228833','#CCBB44','#66CCEE','#AA3377','#BBBBBB'],viridis:['#440154','#3B528B','#21908C','#5DC863','#FDE725','#472D7B','#2C728E','#27AD81'],gray:['#000000','#707070','#B0B0B0','#404040','#909090','#D0D0D0'],nature:['#E64B35','#4DBBD5','#00A087','#3C5488','#F39B7F','#8491B4','#91D1C2','#DC0000']};
 // AI に渡す書き方の説明（buildContext から参照）
 let FIG_PROMPT=`## 図（Figure）の作り方
 利用者に図・グラフを求められたら、説明のあとに次の形の \`\`\`figure ブロックを1つ出してください（アプリがその場で描画します）。データは利用者が示した数値を使い、無ければ仮の数値だと明記します。
@@ -365,8 +411,8 @@ let FIG_PROMPT=`## 図（Figure）の作り方
 {"title":"任意","kind":"column|grouped|xy","type":"scatter|bar|box|violin|grouped-bar|grouped-scatter|xy-line|xy-points","err":"SD|SEM|CI","compare":"none|all|dunnett","ytitle":"Y 軸の題","xtitle":"X 軸の題","data":"A\\tB\\tC\\n1\\t2\\t3\\n..."}
 \`\`\`
 data はタブ区切り。column は列＝群・行＝反復、grouped は1列目＝カテゴリで同名の列が反復、xy は1列目＝X。compare は column と grouped で使える（all=全比較: 2 群なら Welch t、3 群以上は ANOVA+Tukey。dunnett=対照群と比較。grouped はカテゴリごとに群を比較してブラケットを付ける）。
-"style" で指定できる主な項目（利用者が「点も重ねて」「幅を広く」などと言ったら使う。編集画面の設定と同じもの）: wIn/hIn（プロット領域の幅・高さ in、既定 3×2）, fontPt（文字 pt、既定 12）, barDots:true（棒・箱・バイオリンに個々の点を重ねる）, legendPos:"right|bottom|none", scheme:"classic|colorblind|gray|nature", series:[{color,symbol,symPt,fill:"open"}], ylog:true, refLine（基準線の Y）, xRot（X ラベルの角度）, grid:"major", frame:"box", stackLabels:"percent|value"（積み上げ棒の区分の文字）, errDir, capW。
-図種固有の項目は「図種の設定」と同じキー: survCI/survMedian/survRisk（生存）, rocFill/rocCutoff, forestLog:"true|false"/forestNull（フォレスト: OR/HR/RR なら対数軸）, pcaEllipse:true（PCA の 95% 楕円）, hmCluster:"rows|cols|both"/hmZ（ヒートマップ）, regBand:"ci|pi", doseBand/doseCI（用量反応）, spColor:"subject"（SuperPlot を個体ごとに色分け）, pieLabels:"percent|value|both", volLabels, mhLabels。
+"style" で指定できる主な項目（利用者が「点も重ねて」「幅を広く」などと言ったら使う。編集画面の設定と同じもの）: wIn/hIn（プロット領域の幅・高さ in、既定 3×2）, fontPt（文字 pt、既定 12）, barDots:true（棒・箱・バイオリンに個々の点を重ねる）, legendPos:"right|bottom|none", scheme:"colorblind|tol|viridis|classic|nature|gray"（新しく作る図は "colorblind"＝Okabe–Ito を入れる。色だけに頼らない）, series:[{color,symbol,symPt,fill:"solid|open|hatch|hatch2"}]（hatch＝斜線。白黒印刷や色覚の配慮で系列を塗りでも区別するとき）, barFill:"solid|open|hatch|hatch2", ylog:true, refLine（基準線の Y）, xRot（X ラベルの角度）, grid:"major", frame:"box", stackLabels:"percent|value"（積み上げ棒の区分の文字）, errDir, capW。
+図種固有の項目は「図種の設定」と同じキー: survCI/survMedian/survRisk（生存）, rocFill/rocCutoff, forestLog:"true|false"/forestNull（フォレスト: OR/HR/RR なら対数軸）, pcaEllipse:true（PCA の 95% 楕円）, hmCluster:"rows|cols|both"/hmScale:"raw|log2|z|log2z"・hmColGroup/hmRowGroup:"auto|none"（ヒートマップ。旧 hmZ:true は z と同じ）, regBand:"ci|pi", doseBand/doseCI（用量反応）, spColor:"subject"（SuperPlot を個体ごとに色分け）, pieLabels:"percent|value|both", volLabels, mhLabels。
 注意: できないと決めつけない。幅・高さ・文字サイズ・点の重ね描き・楕円・HR・at-risk 表・対数軸はすべて指定できる。ROC の AUC と 95% CI、KM の log-rank P と HR、用量反応の EC50/IC50・Hill・R²、酵素反応の Vmax/Km、回帰の r/R²/P は自動で図に書かれる（「要確認」と言わず、書かれると説明する）。xy で記号を消すには style.symPt を 0。bland-altman の差は 1 列目 − 2 列目（ytitle もその向きで書く）。列名は意味が伝わるもの（例: OR, Lower, Upper, P）にする。`;
 
 
@@ -379,7 +425,9 @@ const FIG_TOOLS=[
    {k:'errDir',t:'select',l:'誤差棒の向き',o:[['auto','自動（棒は上のみ）'],['both','上下'],['up','上のみ']]},
    {k:'capW',t:'num',l:'キャップ幅（棒幅×）',min:0,max:1.5,step:0.1},
    {k:'barDots',t:'check',l:'棒・箱・バイオリンに点を重ねる'},
-   {k:'barFill',t:'select',l:'棒の塗り',o:[['solid','塗り'],['open','白抜き']]},
+   {k:'valLabels',t:'check',l:'棒の上に値（平均）を書く'},
+   {k:'valDigits',t:'select',l:'値の桁',o:[['auto','自動（大きさに合わせる）'],['0','整数'],['1','小数 1 桁'],['2','小数 2 桁'],['3','小数 3 桁']]},
+   {k:'barFill',t:'select',l:'棒の塗り',o:()=>FIG_FILLS},
    {k:'fillAlpha',t:'num',l:'塗りの濃さ (0–1)',min:0.1,max:1,step:0.1},
    {k:'barEdge',t:'select',l:'棒・点の縁',o:[['series','系列の色'],['black','黒']]},
    {k:'symPt',t:'num',l:'記号の大きさ (pt)',min:2,max:20,step:0.5},
@@ -407,7 +455,8 @@ const FIG_TOOLS=[
    {k:'xTitle',t:'text',l:'X 軸の題'},
  ]},
  {id:'color',l:'配色',items:[
-   {k:'scheme',t:'select',l:'配色セット',o:[['classic','既定（青・赤・緑…）'],['colorblind','色覚多様性に配慮'],['nature','誌面風'],['gray','グレースケール']]},
+   {k:'scheme',t:'select',l:'配色セット',o:()=>FIG_SCHEME_OPTS},
+   {k:'__cvdBox',t:'html',h:()=>figCvdPanel()},
    {k:'__seriesColors',t:'series'},
  ]},
  {id:'annot',l:'注釈',items:[
@@ -465,8 +514,9 @@ const FIG_NA_LABEL='この図では使いません';
 function figToolPanel(g){
   const st=figState,o=st.opts;const val=k=>k==='__type'?st.type:k==='__title'?st.title:k==='__cmp'?st.cmp:k==='__noteSize'?(st.noteSize||'0.85'):k==='__noteColor'?(st.noteColor||'#000000'):k==='volGenes'?((o.x&&Array.isArray(o.x.labelGenes))?o.x.labelGenes.join(', '):(o.volGenes||'')):k==='__unit'?figUnit():k==='__preset'?(Object.entries(FIG_PRESETS).find(([n,v])=>v[0]==+(o.wIn||3)&&v[1]==+(o.hIn||2))||['custom'])[0]:(o[k]===undefined?(FIG_DEF[k]===undefined?'':FIG_DEF[k]):o[k]);
   if(!g.items.length)return '<div class="hint">この図種に固有の設定はありません</div>';const app=figApplicable();
-  return g.items.map(it=>{if(it.t==='series'){const gs=(st.data&&st.data.groups)||[];return gs.map((gr,i)=>{const so=figSeriesOpt(o,i);return `<div class="irow"><label>${figEsc(gr.name)}</label><span class="srow"><input type="color" data-tk="series.${i}.color" value="${so.color}"><select data-tk="series.${i}.symbol">${FIG_SYMBOLS.map(([a,b])=>`<option value="${a}"${a===so.symbol?' selected':''}>${b}</option>`).join('')}</select><select data-tk="series.${i}.fill"><option value="solid"${so.fill==='solid'?' selected':''}>塗り</option><option value="open"${so.fill==='open'?' selected':''}>白抜き</option></select></span></div>`;}).join('')||'<div class="hint">データを入れると系列ごとの色が出ます</div>';}
+  return g.items.map(it=>{if(it.t==='series'){const gs=(st.data&&st.data.groups)||[];return gs.map((gr,i)=>{const so=figSeriesOpt(o,i);return `<div class="irow"><label>${figEsc(gr.name)}</label><span class="srow"><input type="color" data-tk="series.${i}.color" value="${so.color}"><select data-tk="series.${i}.symbol">${FIG_SYMBOLS.map(([a,b])=>`<option value="${a}"${a===so.symbol?' selected':''}>${b}</option>`).join('')}</select><select data-tk="series.${i}.fill">${FIG_FILLS.map(([a,b])=>`<option value="${a}"${so.fill===a?' selected':''}>${b}</option>`).join('')}</select></span></div>`;}).join('')||'<div class="hint">データを入れると系列ごとの色が出ます</div>';}
     const v=val(it.k);const opts=typeof it.o==='function'?it.o():it.o;const na=app[it.k]===false;const dis=na?' disabled':'';const cls=na?' na':'';const lab=na?`${it.l} <span class="hint">（${FIG_NA_LABEL}）</span>`:it.l;
+    if(it.t==='select'&&!it.k.startsWith('__')&&(opts||[]).length&&(opts||[]).every(([a])=>a!==''&&isFinite(+a))){const dl='dl-'+it.k.replace(/[^\w-]/g,'_');return `<div class="irow${cls}"><label>${lab}</label><input type="number" step="any" data-tk="${it.k}" list="${dl}" value="${figEsc(String(v))}" aria-label="${figEsc(it.l)}"${dis}><datalist id="${dl}">${opts.map(([a,b])=>`<option value="${a}" label="${figEsc(b)}">`).join('')}</datalist></div>`;} // 数値の選択肢は、キーボードで値を直接入れられる欄＋候補（改善計画 3.6）
     if(it.t==='select')return `<div class="irow${cls}"><label>${lab}</label><select data-tk="${it.k}"${dis}>${(opts||[]).map(([a,b])=>`<option value="${a}"${String(a)===String(v)?' selected':''}>${b}</option>`).join('')}</select></div>`;
     if(it.t==='num')return `<div class="irow${cls}"><label>${lab}</label><input type="number" data-tk="${it.k}" value="${v===''?'':v}" min="${it.min}" max="${it.max}" step="${it.step}"${dis}></div>`;
     if(it.t==='len'){const u=figUnit();return `<div class="irow${cls}"><label>${lab} (${u})</label><input type="number" data-tk="${it.k}" data-len="1" value="${figLenShow(v)}" min="${figLenShow(it.min)}" max="${figLenShow(it.max)}" step="${FIG_UNITS[u][1]}" aria-label="${figEsc(it.l)} (${u})"${dis}></div>`;}
@@ -474,11 +524,13 @@ function figToolPanel(g){
     if(it.t==='color')return `<div class="irow${cls}"><label>${lab}</label><input type="color" data-tk="${it.k}" value="${v||'#000000'}"${dis}></div>`;
     if(it.t==='btn')return `<div class="irow"><button type="button" class="small" data-tbtn="${it.k}">${typeof it.l==='function'?it.l():it.l}</button></div>`;
     if(it.t==='hint')return `<div class="hint" style="margin:2px 0 6px">${it.l}</div>`;
+    if(it.t==='html')return it.h();
     return `<div class="irow${cls}"><label>${lab}</label><input type="text" data-tk="${it.k}" value="${figEsc(v==null?'':v)}"${dis}></div>`;}).join('');
 }
 function figApplyTool(k,v){
   const st=figState,o=st.opts;const $=s=>document.querySelector(s);
   if(k==='__gallery'){document.querySelectorAll('#figToolbar .ftm.open').forEach(x=>x.classList.remove('open'));figGalleryOpen();return;}
+  if(k==='__cvd'){st.cvd=v;figCvdApply();return;}
   if(k==='__noteSize'){st.noteSize=v;return;}if(k==='__noteColor'){st.noteColor=v;return;}
   if(k==='__noteAdd'){st.noteTool=!st.noteTool;document.querySelectorAll('#figToolbar .ftm.open').forEach(x=>x.classList.remove('open'));toast(st.noteTool?'右のプレビュー（グラフ）の、文字を書きたい場所をクリックしてください':'文字の書き込みをやめました');return;}
   if(k==='__noteDel'){if(o.notes&&o.notes.length){o.notes.pop();figSync();figPushUndo();}else toast('消す文字がありません');return;}
@@ -502,7 +554,7 @@ function figToolsInit(){
   bar.querySelectorAll('[data-fact]').forEach(b=>b.onclick=()=>{const act=b.dataset.fact;if(act==='gallery')figGalleryOpen();else if(act==='copy')document.querySelector('#figCopy').click();else if(act==='svg')document.querySelector('#figSvg').click();else figSavePng(act==='png600'?600:300);});
   document.addEventListener('keydown',e=>{if(!document.querySelector('#figDlg').open)return;const mod=e.metaKey||e.ctrlKey;if(mod&&e.key==='z'&&!e.shiftKey){e.preventDefault();figDoUndo();}else if(mod&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){e.preventDefault();figDoRedo();}});
 }
-function figBindTools(panel){panel.querySelectorAll('[data-tbtn]').forEach(b=>{b.addEventListener('click',()=>figApplyTool(b.dataset.tbtn,true));});panel.querySelectorAll('[data-tk]').forEach(el=>{el.addEventListener(el.type==='checkbox'||el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.tk;let v=el.type==='checkbox'?el.checked:el.dataset.len?figLenParse(el.value):el.value;if(k==='bold'||k==='showNs'||k==='ylog'||k==='barDots')v=!!v;figApplyTool(k,v);const g=FIG_TOOLS.find(x=>x.id===panel.id.replace('ftp-',''));if(g&&g.id==='graph'&&k==='__type'){panel.innerHTML=figToolPanel(g);figBindTools(panel);}});});}
+function figBindTools(panel){panel.querySelectorAll('[data-tbtn]').forEach(b=>{b.addEventListener('click',()=>figApplyTool(b.dataset.tbtn,true));});panel.querySelectorAll('[data-tk]').forEach(el=>{el.addEventListener(el.type==='checkbox'||el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.tk;let v=el.type==='checkbox'?el.checked:el.dataset.len?figLenParse(el.value):el.value;if(k==='bold'||k==='showNs'||k==='ylog'||k==='barDots')v=!!v;figApplyTool(k,v);const g=FIG_TOOLS.find(x=>x.id===panel.id.replace('ftp-',''));if(g&&((g.id==='graph'&&k==='__type')||(g.id==='color'&&k==='scheme'))){panel.innerHTML=figToolPanel(g);figBindTools(panel);}});});}
 // 作成画面の図の書き出し情報（タグ・種類・記録のキー・来歴として埋め込む指定）
 function figDlgMeta(){const st=figState;const tag=(st.opts.x&&st.opts.x.figureTag)||'';return {tag,type:st.type||st.kind||'figure',key:st.src?`${st.src.nodeId}:${st.src.index}${st.src.panel!=null?':'+st.src.panel:''}`:'dlg:'+(tag||'figure'),spec:figWithProvenance(figSpecFromState(st),!!st.src)};}
 function figBlockMeta(el){const nid=el.dataset.fignode,idx=+el.dataset.figidx;let j=null;try{const n=N(nid);const b=n&&figFindBlocks(n.content)[idx];j=b?JSON.parse(b.json):null;}catch(e){j=null;}return {tag:(j&&j.figureTag)||'',type:j?(j.type||j.kind||'figure'):'figure',key:nid+':'+idx,spec:figWithProvenance(j,true)};}
@@ -514,17 +566,17 @@ const FIG_SYMBOLS=[['circle','● 丸'],['square','■ 四角'],['triangle','▲
 let figState=null;
 function figOpen(init){
   const $=s=>document.querySelector(s);
-  figState=Object.assign({text:'',kind:'',type:'',opts:{errType:'SD',pThr:0.05,pStyle:'star',showNs:false,yTitle:'',xTitle:'',ymin:'',ymax:'',barFill:'solid',bracketShape:'long',legend:'right',scheme:'classic'},title:'',cmp:'none',ctrl:0,sel:null,src:null},init||{});
+  figState=Object.assign({text:'',kind:'',type:'',opts:{errType:'SD',pThr:0.05,pStyle:'star',showNs:false,yTitle:'',xTitle:'',ymin:'',ymax:'',barFill:'solid',bracketShape:'long',legend:'right',scheme:'colorblind'},title:'',cmp:'none',ctrl:0,sel:null,src:null},init||{});
   if(!figState.text)figState.text='Control\tTreated\n12.1\t15.4\n11.8\t16.0\n12.6\t14.9\n13.0\t15.8\n12.3\t16.3';
   $('#figData').value=figState.text;$('#figTitle').value=figState.title||'';$('#figKind').value=figState.kind||'column';$('#figCmp').value=figState.cmp||'none';
   document.querySelectorAll('#figDlg [data-fopt]').forEach(el=>{const v=figState.opts[el.dataset.fopt];if(el.type==='checkbox')el.checked=!!v;else el.value=v==null?'':v;});
   $('#figUpdate').style.display=figState.src?'':'none';{const tg=$('#figTag');if(tg)tg.value=(figState.opts.x&&figState.opts.x.figureTag)||'';figExpBarRefresh();}
-  figUndo=[];figRedo=[];
+  figUndo=[];figRedo=[];figCvdApply();
   figSync(true);figPushUndo();$('#figDlg').showModal();
 }
 function figSync(reset){
   const $=s=>document.querySelector(s);const st=figState;st.text=$('#figData').value;st.title=$('#figTitle').value.trim();
-  const parsed=figParseTable(st.text);const autoKind=parsed?figAutoKind(parsed):'column';
+  const parsed=figParseTable(st.text);figColTypesShow(parsed);const autoKind=parsed?figAutoKind(parsed):'column';
   if(reset||!st.kind){st.kind=st.kind||autoKind;}
   const kindSel=$('#figKind');if(kindSel.value!==st.kind)kindSel.value=st.kind;
   const types=FIG_TYPES[st.kind]||FIG_TYPES.column;if(!types.some(t=>t[0]===st.type))st.type=types[0][0];
@@ -562,23 +614,23 @@ function figInspector(){
   const selx=(k,v,opts)=>`<select data-ik="${k}">${opts.map(([a,b])=>`<option value="${a}"${String(a)===String(v)?' selected':''}>${b}</option>`).join('')}</select>`;
   let h='',title='全体';
   if(sel&&sel.startsWith('series:')){const i=+sel.split(':')[1];const g=st.data&&st.data.groups[i];const so=figSeriesOpt(o,i);title=`系列「${figEsc(g?g.name:i+1)}」`;
-    h+=row('表示名（凡例・軸）',`<input type="text" data-ik="series.name" value="${figEsc(so.name||'')}" placeholder="${figEsc(g?g.name:'')}">`)+row('色',`<input type="color" data-ik="series.color" value="${so.color}">`)+row('記号',selx('series.symbol',so.symbol,FIG_SYMBOLS))+row('記号の大きさ (pt)',num('series.symPt',so.symPt,0.5,2,20))+row('塗り',selx('series.fill',so.fill,[['solid','塗りつぶし'],['open','白抜き']]));
+    h+=row('表示名（凡例・軸）',`<input type="text" data-ik="series.name" value="${figEsc(so.name||'')}" placeholder="${figEsc(g?g.name:'')}">`)+row('色',`<input type="color" data-ik="series.color" value="${so.color}">`)+row('記号',selx('series.symbol',so.symbol,FIG_SYMBOLS))+row('記号の大きさ (pt)',num('series.symPt',so.symPt,0.5,2,20))+row('塗り',selx('series.fill',so.fill,FIG_FILLS));
     if(st.kind==='xy')h+=row('線の太さ (pt)',num('series.lineW',so.lineW,0.25,0.25,6));
     h+=`<div class="hint">このボタンで系列の設定を既定に戻します</div><button class="small" data-iact="resetSeries">既定に戻す</button>`;}
   else if(sel&&sel.startsWith('cut:')){const i=+sel.split(':')[1];const g=st.data&&st.data.groups[i];const ov=(o.series&&o.series[i])||{};title=`カットオフの文字（${figEsc(g?g.name:i+1)}）`;
     h+=row('文字（空なら自動）',`<input type="text" data-ik="cut.cutText" value="${figEsc(ov.cutText||'')}" placeholder="自動（≥ 6.8 など）">`)+row('自動の内容',selx('rocCutText',o.rocCutText||'thr',[['thr','しきい値（≥ 6.8）'],['sens','感度/特異度'],['both','両方'],['none','なし']]))+row('大きさ',selx('rocCutSize',String(o.rocCutSize||'0.8'),[['0.6','小'],['0.8','ふつう'],['1','本文と同じ'],['1.2','大']]))+row('基準の位置',selx('rocCutPos',o.rocCutPos||'right',[['right','右上'],['left','左下'],['above','真上'],['below','真下']]))+`<div class="hint">文字はプレビューでドラッグして動かせます</div><button class="small" data-iact="resetCut">ずらした位置を戻す</button> <button class="small" data-iact="hideCut">この文字を消す</button>`;}
-  else if(sel&&sel.startsWith('note:')){const k=+sel.split(':')[1];const n=(o.notes||[])[k];if(n){title=`書き込んだ文字「${figEsc(String(n.text||'').slice(0,12))}」`;h+=row('文字',`<textarea data-ik="note.text" rows="2" style="width:100%">${figEsc(n.text||'')}</textarea>`)+row('大きさ',selx('note.size',n.size||0.85,[['0.7','小'],['0.85','ふつう'],['1','本文と同じ'],['1.2','大'],['1.5','特大']]))+row('色',`<input type="color" data-ik="note.color" value="${n.color||'#000000'}">`)+row('揃え',selx('note.anchor',n.anchor||'start',[['start','左揃え'],['middle','中央'],['end','右揃え']]))+row('太さ',selx('note.bold',n.bold===false?'0':'1',[['1','太字'],['0','標準']]))+`<div class="hint">文字はプレビューでドラッグして動かせます</div><button class="small" data-iact="delNote">この文字を消す</button>`;}else{title='文字';h+='<div class="hint">見つかりません</div>';}}
+  else if(sel&&sel.startsWith('note:')){const k=+sel.split(':')[1];const n=(o.notes||[])[k];if(n){title=`書き込んだ文字「${figEsc(String(n.text||'').slice(0,12))}」`;h+=row('文字',`<textarea data-ik="note.text" rows="2" style="width:100%">${figEsc(n.text||'')}</textarea>`)+row('大きさ',selx('note.size',n.size||0.85,[['0.7','小'],['0.85','ふつう'],['1','本文と同じ'],['1.2','大'],['1.5','特大']]))+row('色',`<input type="color" data-ik="note.color" value="${n.color||'#000000'}">`)+row('揃え',selx('note.anchor',n.anchor||'start',[['start','左揃え'],['middle','中央'],['end','右揃え']]))+row('太さ',selx('note.bold',n.bold===false?'0':'1',[['1','太字'],['0','標準']]))+row('横の位置（描画部分の左端 0〜右端 100）',`<input type="number" step="0.5" data-ik="note.xp" value="${(+n.x*100).toFixed(1)}">`)+row('縦の位置（上端 0〜下端 100）',`<input type="number" step="0.5" data-ik="note.yp" value="${(+n.y*100).toFixed(1)}">`)+`<div class="hint">文字はプレビューでドラッグしても動かせます</div><button class="small" data-iact="delNote">この文字を消す</button>`;}else{title='文字';h+='<div class="hint">見つかりません</div>';}}
   else if(sel==='axes'){title='軸と目盛';h+=row('軸の太さ (pt)',num('axisPt',o.axisPt||1,0.25,0.25,4))+row('目盛の長さ (数字の高さ×)',num('tickLen',o.tickLen||0.7,0.1,0,3))+row('文字の大きさ (pt)',num('fontPt',o.fontPt||12,1,6,24))+row('太字',selx('bold',o.bold===false?'0':'1',[['1','太字'],['0','標準']]))+row('Y の最小',`<input type="text" data-ik="ymin" value="${figEsc(o.ymin||'')}" placeholder="自動">`)+row('Y の最大',`<input type="text" data-ik="ymax" value="${figEsc(o.ymax||'')}" placeholder="自動">`);}
   else if(sel==='ytitle'||sel==='xtitle'){title=sel==='ytitle'?'Y 軸の題':'X 軸の題';h+=row('文字',`<input type="text" data-ik="${sel==='ytitle'?'yTitle':'xTitle'}" value="${figEsc(sel==='ytitle'?o.yTitle:o.xTitle)}">`);}
   else if(sel==='title'){title='題名';h+=row('文字',`<input type="text" data-ik="title" value="${figEsc(st.title)}">`);}
   else if(sel==='brackets'){title='有意差のブラケット';h+=row('形',selx('bracketShape',o.bracketShape||'long',[['long','長脚'],['short','短脚']]))+row('P の表示',selx('pStyle',o.pStyle||'star',[['star','アスタリスク'],['num','数値']]))+row('ns も表示',selx('showNs',o.showNs?'1':'0',[['0','表示しない'],['1','表示する']]));}
   else if(sel==='legend'){title='凡例';h+=row('表示',selx('legend',o.legend||'right',[['right','右に表示'],['none','表示しない']]));const gs=(st.data&&st.data.groups)||[];if(gs.length)h+='<div class="hint">凡例の文字（系列の表示名）。空なら列名のまま</div>'+gs.map((g,i)=>row(figEsc(g.name),`<input type="text" data-ik="sname.${i}" value="${figEsc(figSeriesOpt(o,i).name||'')}" placeholder="${figEsc(g.name)}">`)).join('');}
-  else{h+=row('配色',selx('scheme',o.scheme||'classic',[['classic','既定（青・赤・緑…）'],['colorblind','色覚多様性に配慮'],['nature','誌面風（赤・水色・緑…）'],['gray','グレースケール']]))+row('文字の大きさ (pt)',num('fontPt',o.fontPt||12,1,6,24))+row('記号の大きさ (pt)',num('symPt',o.symPt||5.5,0.5,2,20))+row('軸の太さ (pt)',num('axisPt',o.axisPt||1,0.25,0.25,4))+(()=>{const u=figUnit(),stp=FIG_UNITS[u][1],L=(k,v,ph,lab)=>row(`${lab} (${u})`,`<input type="number" data-ik="${k}" data-len="1" value="${figLenShow(v)}" step="${stp}" min="0" placeholder="${ph}" aria-label="${lab} (${u})">`);return L('figW',o.figW,'自動','図全体の幅')+L('figH',o.figH,'自動','図全体の高さ')+L('wIn',o.wIn||3,'','描画部分の幅')+L('hIn',o.hIn||2,'','描画部分の高さ');})()+row('棒の塗り',selx('barFill',o.barFill||'solid',[['solid','塗り'],['open','白抜き']]))+`<div class="hint">プレビューの点・棒・軸・題名・ブラケット・凡例をクリックすると、その要素の設定に切り替わります。</div>`;}
+  else{h+=row('配色',selx('scheme',o.scheme||'classic',FIG_SCHEME_OPTS))+row('文字の大きさ (pt)',num('fontPt',o.fontPt||12,1,6,24))+row('記号の大きさ (pt)',num('symPt',o.symPt||5.5,0.5,2,20))+row('軸の太さ (pt)',num('axisPt',o.axisPt||1,0.25,0.25,4))+(()=>{const u=figUnit(),stp=FIG_UNITS[u][1],L=(k,v,ph,lab)=>row(`${lab} (${u})`,`<input type="number" data-ik="${k}" data-len="1" value="${figLenShow(v)}" step="${stp}" min="0" placeholder="${ph}" aria-label="${lab} (${u})">`);return L('figW',o.figW,'自動','図全体の幅')+L('figH',o.figH,'自動','図全体の高さ')+L('wIn',o.wIn||3,'','描画部分の幅')+L('hIn',o.hIn||2,'','描画部分の高さ');})()+row('棒の塗り',selx('barFill',o.barFill||'solid',FIG_FILLS))+`<div class="hint">プレビューの点・棒・軸・題名・ブラケット・凡例をクリックすると、その要素の設定に切り替わります。</div>`;}
   box.innerHTML=`<h4>${title}${sel?' <button class="small" data-iact="unsel">全体の設定へ</button>':''}</h4>${h}`;
   if(!sel||sel==='axes'){const app=figApplicable();box.querySelectorAll('[data-ik]').forEach(el=>{const k=el.dataset.ik==='title'?'__title':el.dataset.ik;if(app[k]===false){el.disabled=true;const r=el.closest('.irow');if(r){r.classList.add('na');const lb=r.querySelector('label');if(lb&&!lb.querySelector('.hint'))lb.insertAdjacentHTML('beforeend',` <span class="hint">（${FIG_NA_LABEL}）</span>`);}}});}
   box.querySelectorAll('[data-ik]').forEach(el=>{el.addEventListener(el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.ik;let v=el.dataset.len?figLenParse(el.value):el.value;
     if(k.startsWith('sname.')){const i=+k.slice(6);o.series=o.series||{};o.series[i]=o.series[i]||{};if(v)o.series[i].name=v;else delete o.series[i].name;}
-    else if(k.startsWith('note.')){const i=+st.sel.split(':')[1];const n=(o.notes||[])[i];if(n){const kk=k.slice(5);if(kk==='bold')n.bold=v==='1';else if(kk==='size')n.size=+v;else n[kk]=v;}}
+    else if(k.startsWith('note.')){const i=+st.sel.split(':')[1];const n=(o.notes||[])[i];if(n){const kk=k.slice(5);if(kk==='bold')n.bold=v==='1';else if(kk==='size')n.size=+v;else if(kk==='xp'||kk==='yp'){const f=parseFloat(v);if(isFinite(f))n[kk==='xp'?'x':'y']=+(f/100).toFixed(4);}else n[kk]=v;}}
     else if(k.startsWith('cut.')){const i=+st.sel.split(':')[1];o.series=o.series||{};o.series[i]=o.series[i]||{};if(v)o.series[i][k.slice(4)]=v;else delete o.series[i][k.slice(4)];}
     else if(k.startsWith('series.')){const i=+st.sel.split(':')[1];o.series=o.series||{};o.series[i]=o.series[i]||{};if(k==='series.name'&&!v)delete o.series[i].name;else o.series[i][k.slice(7)]=v;}
     else if(k==='title'){$('#figTitle').value=v;}else if(k==='bold'||k==='showNs'){o[k]=v==='1';}else if(k==='scheme'){o.scheme=v;o.colors=FIG_SCHEMES[v];delete o.series;}else{o[k]=v;}
@@ -589,6 +641,8 @@ function figInspector(){
 function figInit(){
   const $=s=>document.querySelector(s);
   $('#figData').addEventListener('input',()=>figSync(false));
+  // 狭いウィンドウでは右の設定欄を引き出しにする（改善計画 4.4）。プレビューの要素を選んだら開く
+  {const tab=$('#figInspTab');if(tab)tab.onclick=()=>$('#figDlg').classList.toggle('inspOpen');$('#figPreview').addEventListener('click',e=>{if(e.target.closest('[data-sel]')&&window.matchMedia('(max-width:1280px)').matches)$('#figDlg').classList.add('inspOpen');});}
   $('#figKind').onchange=e=>{figState.kind=e.target.value;figSync(false);};
   $('#figType').onchange=e=>{figState.type=e.target.value;figSync(false);};{const gb=$('#figGalBtn');if(gb)gb.onclick=()=>figGalleryOpen();}
   $('#figTitle').addEventListener('input',()=>figSync(false));
@@ -619,6 +673,11 @@ async function figAttach(){const $=s=>document.querySelector(s);if(!figState.svg
   conv.figures=conv.figures||[];conv.figures.push({id:uid(),ts:Date.now(),spec:figSpecFromState(figState)});persist();
   renderPlus();$('#figDlg').close();const t=$('#input');t.value=(t.value?t.value+'\n':'')+'```figure\n'+JSON.stringify(figSpecFromState(figState))+'\n```\n';fitInput();t.focus();toast('図を添付し、図の指定を入力欄に入れました。質問を添えて送信してください');}
 // チャットの本文にある ```figure ブロックを描画する（mdBlocks から呼ばれる）。JSON が途中（生成中）なら作成中の表示
+// 回答の図の下の 1 行（改善計画 4.4）: タグ（無ければ「Figure として登録」）と、最後に保存した場所＋Finder で表示。figHydrate（発言 id が付いたあと）から呼ぶ
+function figBlockMetaRow(el){const nid=el.dataset.fignode,idx=+el.dataset.figidx;const n=nid&&N(nid);if(!n)return;const b=figFindBlocks(n.content)[idx];let j=null;try{j=b?JSON.parse(b.json):null;}catch(e){j=null;}if(!j)return;
+  const rec=(conv.figExports||{})[nid+':'+idx];const tag=j.figureTag;
+  const html=`${tag?`<span class="figTagChip" data-tip="図の番号（タグ）。図版一覧で書き換えられます">${figEsc(tag)}</span>`:`<button class="small" data-figreg data-tip="図版一覧・凡例の下書きで使う図の番号（例: Fig1A）を付ける">🏷 Figure として登録</button>`}${rec&&rec.path?`<span class="hint" data-tip="${figEsc(rec.path)}">保存: ${figEsc(rec.path.split('/').slice(-2).join('/'))}</span><button class="small" data-figreveal="${figEsc(rec.path)}" data-tip="保存したファイルを Finder で表示">📁 Finder</button>`:''}`;
+  let row=el.querySelector(':scope > .figmetaRow');if(!row){row=document.createElement('div');row.className='figmetaRow';el.appendChild(row);}if(row.innerHTML!==html)row.innerHTML=html;}
 function figBlockHTML(json,nodeId,index){
   let j=null;try{j=JSON.parse(json);}catch(e){return `<div class="figblock waiting"><span class="spin4 mini"><i></i><i></i><i></i><i></i></span><span class="ui">図を作成中…</span></div>`;}
   let r=null;try{r=figRenderSpec(j);}catch(e){r=null;}

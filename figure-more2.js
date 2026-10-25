@@ -12,10 +12,10 @@ FIG_TYPES.xy.push(['xy-band','折れ線＋誤差の帯（学習曲線）']);
 FIG_TYPES.heatmap.push(['confusion','混同行列（行＝実際、列＝予測）']);
 Object.assign(FIG_TYPES,{
   multi:[['bubble','バブルプロット'],['pca-scores','PCA スコア（PC1 × PC2）'],['pca-biplot','PCA バイプロット'],['pca-scree','PCA スクリー（Parallel analysis）'],['pca-variance','PCA 寄与率']],
-  nested:[['superplot','入れ子散布（SuperPlot）']],
+  nested:[['superplot','入れ子散布（SuperPlot）'],['barjitter','棒＋個別の点（点の形＝個体・副分類）']],
   swimmer:[['swimmer','スイマープロット']],
   spider:[['spider','スパイダープロット']],
-  feature:[['volcano','ボルケーノ'],['ma','MA プロット']],
+  feature:[['volcano','ボルケーノ'],['ma','MA プロット'],['fcdot','効果量のドットプロット（選んだ遺伝子の log2FC）']],
   importance:[['importance','特徴量重要度（横棒）']]});
 const FIG_KINDS_P3=[['multi','多変数（行＝個体、列＝変数、Group 列任意）'],['nested','入れ子（Group, Subject, Value）'],['swimmer','スイマー（Patient, Duration, Response, …）'],['spider','スパイダー（Patient, Time, Change%）'],['feature','遺伝子表（Gene, log2FC, P）'],['importance','重要度（Feature, Value）']];
 const FIG_DEF_P3={estCI:true,estText:true,estErr:'SD',qqLine:true,qqText:true,baLoA:true,baText:true,baMode:'diff',glErr:true,bandAlpha:0.2,
@@ -25,6 +25,7 @@ const FIG_DEF_P3={estCI:true,estText:true,estErr:'SD',qqLine:true,qqText:true,ba
   swSort:'duration',swEvents:true,swArrow:true,swUnit:'',
   sdLines:true,sdEnd:true,sdColor:'group',pieLabels:'percent',pieStart:0,pieSort:false,
   volFC:1,volP:0.05,volQ:false,volSig:'auto',volGenes:'',volItalic:true,volNote:true,volLabels:10,volLines:true,volCounts:true,
+  fdN:20,fdSort:'input',fdCap:50,bjStat:'all',bjErr:'SD',bjPt:'group',
   cmNorm:'none',cmScheme:'wb',cmValues:true,impN:'',impSort:'desc',impErr:true};
 Object.assign(FIG_DEF,FIG_DEF_P3);FIG_STYLE_KEYS.push(...Object.keys(FIG_DEF_P3));
 Object.assign(FIG_TOOLS_MORE,{
@@ -47,14 +48,16 @@ Object.assign(FIG_TOOLS_MORE,{
   volcano:[{k:'volFC',t:'select',l:'|log2FC| のしきい値',o:[['0.585','0.585（1.5 倍）'],['1','1（2 倍）'],['2','2（4 倍）'],['0','なし']]},{k:'volP',t:'select',l:'P のしきい値',o:[['0.05','0.05'],['0.01','0.01'],['0.001','0.001']]},{k:'volSig',t:'select',l:'判定に使う値',o:[['auto','自動（q・FDR の列があればそれ、無ければ P）'],['p','P 値'],['q','表の q（FDR）の列'],['bh','P から BH 法で計算し直す']]},{k:'volLabels',t:'select',l:'名前を書く上位 n',o:[['0','なし'],['5','5'],['10','10'],['20','20']]},{k:'volGenes',t:'text',l:'ラベルする名前（カンマ区切り。例: MS4A1, SPIB, SPI1）'},{k:'volItalic',t:'check',l:'名前を斜体に（遺伝子名の慣例）'},{k:'volLines',t:'check',l:'しきい値の線'},{k:'volCounts',t:'check',l:'上昇・下降の数を書く'},{k:'volNote',t:'check',l:'P = 0 を丸めた件数を図に書く'}],
   ma:[{k:'volFC',t:'select',l:'|log2FC| のしきい値',o:[['0.585','0.585'],['1','1'],['2','2'],['0','なし']]},{k:'volP',t:'select',l:'P のしきい値',o:[['0.05','0.05'],['0.01','0.01'],['0.001','0.001']]},{k:'volSig',t:'select',l:'判定に使う値',o:[['auto','自動（q・FDR の列があればそれ、無ければ P）'],['p','P 値'],['q','表の q（FDR）の列'],['bh','P から BH 法で計算し直す']]},{k:'volLabels',t:'select',l:'名前を書く上位 n',o:[['0','なし'],['5','5'],['10','10'],['20','20']]},{k:'volGenes',t:'text',l:'ラベルする名前（カンマ区切り。例: MS4A1, SPIB, SPI1）'},{k:'volItalic',t:'check',l:'名前を斜体に（遺伝子名の慣例）'}],
   importance:[{k:'impN',t:'text',l:'上位 n 件（空で全部）'},{k:'impSort',t:'select',l:'並べ方',o:[['desc','大きい順'],['input','入力順']]},{k:'impErr',t:'check',l:'誤差棒（Error 列）'}]});
+FIG_TOOLS_MORE.fcdot=FIG_TOOLS_MORE.volcano.filter(t=>['volFC','volP','volSig','volGenes','volItalic'].includes(t.k)).concat([{k:'fdN',t:'select',l:'遺伝子を指定しないときの件数（有意な上位）',o:[['10','10'],['20','20'],['30','30'],['50','50']]},{k:'fdSort',t:'select',l:'並べ方',o:[['input','指定した順（群ごと）'],['fc','log2FC の大きい順']]},{k:'volLines',t:'check',l:'しきい値の帯と線'}]);
+FIG_TOOLS_MORE.barjitter=[{k:'bjStat',t:'select',l:'棒の高さ',o:[['all','全部の値の平均'],['subject','個体ごとの平均の平均']]},{k:'bjErr',t:'select',l:'誤差',o:[['SD','SD'],['SEM','SEM'],['CI','95% CI'],['none','なし']]},{k:'bjPt',t:'select',l:'点の色',o:[['group','群の色'],['black','黒'],['open','白抜き']]},{k:'valLabels',t:'check',l:'棒の上に値（平均）を書く'}];
 
 FIG_PROMPT+=`
 さらに: column に estimation（2 群の推定プロット: 右軸に平均差と 95% CI）・qq（正規 QQ）・bland-altman（列 A, B）・ecdf（経験累積分布、生データから自動）・pie/donut（列＝区分、値の合計）、grouped に grouped-line・pie/donut（行＝区分）、xy に xy-band（反復の平均 ± 誤差の帯、学習曲線）。
 kind "multi"（行＝個体、列＝変数、Group 列は文字）: type bubble（列 X, Y, Size, Color/Group 任意, Label 任意）、pca-scores・pca-biplot・pca-scree・pca-variance（数値列を変数として PCA）。
-kind "nested": 列 Group, Subject（個体）, Value。type superplot。
+kind "nested": 列 Group, Subject（個体）, Value。type superplot か barjitter（棒＝群の平均＋誤差、点＝個々の値、点の形＝Subject。Subject に WT/OE や「既報値/再解析値」などの副分類を入れると、群をまたいで同じ形になる。style の bjStat:"all|subject"、bjErr:"SD|SEM|CI|none"、bjPt:"group|black|open"）。
 kind "swimmer": 列 Patient, Duration（または Start と End）, Response/Group（任意）, Ongoing（1/0、任意）、ほかの数値列はイベントの時刻（列名がイベント名）。
 kind "spider": 列 Patient, Time, Change（%）, Group（任意）。
-kind "feature": 列 Gene, log2FC, P（または padj）, baseMean（任意）。type volcano か ma。特定の遺伝子に名前を付けるときは最上位に "labelGenes":["MS4A1","SPIB"]（円で囲み、引き出し線つきで重ならないように置く）。判定に使う値は style の volSig: auto（q・FDR 列があればそれ）/ p / q / bh（P から BH で計算し直す）。
+kind "feature": 列 Gene, log2FC, P（または padj）, baseMean（任意）。type volcano か ma か fcdot（選んだ遺伝子の log2FC を横軸に並べるドットプロット。点の大きさ＝−log10 q、塗り＝有意、白抜き＝有意でない、|log2FC| のしきい値の帯。labelGenes の順に並べ、無ければ有意な上位 fdN 件。Group／Pathway などの文字の列があれば群ごとに区切り線と群名）。特定の遺伝子に名前を付けるときは最上位に "labelGenes":["MS4A1","SPIB"]（円で囲み、引き出し線つきで重ならないように置く）。判定に使う値は style の volSig: auto（q・FDR 列があればそれ）/ p / q / bh（P から BH で計算し直す）。
 kind "importance": 列 Feature, Value, Error（任意）。
 kind "heatmap" の type confusion: 行＝実際、列＝予測の件数行列。`;
 
@@ -125,9 +128,9 @@ function figBuildSpider(parsed){const cols=parsed.cols;const lc=figLC;
   const tCol=cols[0];const pats=cols.slice(1).filter(c=>c.vals.some(v=>v!==null)).map(c=>({id:c.name,group:'',pts:tCol.vals.map((t,i)=>t===null||c.vals[i]===null?null:[t,c.vals[i]]).filter(Boolean).sort((a,b)=>a[0]-b[0])}));if(!pats.length)return null;return {kind:'spider',patients:pats,groups:[],tname:tCol.name,vname:''};}
 function figBuildFeature(parsed){const cols=parsed.cols;const lc=figLC;const fc=cols.find(c=>/log2?\s*fc|fold|log2foldchange|効果量|logfc/.test(lc(c))&&!figTextCol(c));if(!fc)return null;
   const padj=cols.find(c=>/padj|p_adj|adj\.?p|fdr|^q|qvalue|q_value|q\.value/.test(lc(c))&&!figTextCol(c))||null;const p=cols.find(c=>c!==padj&&/^(p|pvalue|p\.?val(ue)?|p_value|pval)$/.test(lc(c))&&!figTextCol(c))||padj;if(!p)return null;
-  const base=cols.find(c=>/basemean|mean|avg|expr|logcpm|aveexpr|平均/.test(lc(c))&&!figTextCol(c)&&c!==fc&&c!==p)||null;const nameC=cols.find(c=>figTextCol(c))||null;
+  const base=cols.find(c=>/basemean|mean|avg|expr|logcpm|aveexpr|平均/.test(lc(c))&&!figTextCol(c)&&c!==fc&&c!==p)||null;const nameC=cols.find(c=>figTextCol(c))||null;const grpC=cols.find(c=>c!==nameC&&figTextCol(c)&&/group|category|pathway|class|module|cluster|^set$|群|分類|経路|カテゴリ/.test(lc(c)))||null;
   const PMIN=1e-300;const onlyQ=!!padj&&padj===p;const hasQ=!!padj; // 補正済みの列しか無いとき（onlyQ）は、その列を q として扱い BH をかけ直さない // P が 0 や表示できないほど小さいときは 1e-300 に丸め、件数を数えて図注に書く（改善計画 3.4）
-  const items=fc.vals.map((v,i)=>{const pv=p.vals[i];if(v===null||pv===null||!(pv>=0))return null;const qv=hasQ?padj.vals[i]:null;return {name:nameC?nameC.raw[i]:String(i+1),fc:v,p:Math.max(pv,PMIN),p0:pv<PMIN,qOrig:qv==null||!(qv>=0)?null:Math.max(qv,PMIN),q0:qv!=null&&qv>=0&&qv<PMIN,base:base?base.vals[i]:null};}).filter(Boolean);if(!items.length)return null;
+  const items=fc.vals.map((v,i)=>{const pv=p.vals[i];if(v===null||pv===null||!(pv>=0))return null;const qv=hasQ?padj.vals[i]:null;return {name:nameC?nameC.raw[i]:String(i+1),fc:v,p:Math.max(pv,PMIN),p0:pv<PMIN,qOrig:qv==null||!(qv>=0)?null:Math.max(qv,PMIN),q0:qv!=null&&qv>=0&&qv<PMIN,base:base?base.vals[i]:null,group:grpC?String(grpC.raw[i]==null?'':grpC.raw[i]).trim():''};}).filter(Boolean);if(!items.length)return null;
   const qs=onlyQ?items.map(it=>it.qOrig!=null?it.qOrig:it.p):bhFDR(items.map(it=>it.p));items.forEach((it,i)=>{it.qBH=Math.max(qs[i],PMIN);it.q=hasQ&&it.qOrig!=null?it.qOrig:it.qBH;});
   return {kind:'feature',items,onlyQ,pname:p.name,qname:hasQ?padj.name:'BH q',qcol:hasQ?padj.name:'',fcname:fc.name,bname:base?base.name:'',groups:[],p0:items.filter(it=>it.p0).length};}
 function figBuildImportance(parsed){const cols=parsed.cols;const num=cols.filter(c=>c.vals.some(v=>v!==null)&&!figTextCol(c));const vC=num.find(c=>/importance|重要度|gain|shap|value|score|coef/.test(figLC(c)))||num[0];if(!vC)return null;const eC=num.find(c=>c!==vC&&/err|sd|se|std|誤差/.test(figLC(c)))||null;
@@ -136,7 +139,7 @@ function figBuildImportance(parsed){const cols=parsed.cols;const num=cols.filter
 /* ---------- 描画 ---------- */
 function figRenderP3(spec){const d=spec.data,t=spec.type;
   if(typeof figRenderP4==='function'){const r=figRenderP4(spec);if(r)return r;}
-  if(d.kind==='multi')return /^pca/.test(t)?figRenderPCA(spec):figRenderBubble(spec);if(d.kind==='nested')return figRenderSuper(spec);if(d.kind==='swimmer')return figRenderSwimmer(spec);if(d.kind==='spider')return figRenderSpider(spec);if(d.kind==='feature')return figRenderVolcano(spec);if(d.kind==='importance')return figRenderImportance(spec);
+  if(d.kind==='multi')return /^pca/.test(t)?figRenderPCA(spec):figRenderBubble(spec);if(d.kind==='nested')return t==='barjitter'?figRenderBarJitter(spec):figRenderSuper(spec);if(d.kind==='swimmer')return figRenderSwimmer(spec);if(d.kind==='spider')return figRenderSpider(spec);if(d.kind==='feature')return t==='fcdot'?figRenderFcDot(spec):figRenderVolcano(spec);if(d.kind==='importance')return figRenderImportance(spec);
   if(d.kind==='heatmap'&&t==='confusion')return figRenderConfusion(spec);
   if(t==='estimation')return figRenderEstimation(spec);if(t==='pie'||t==='donut')return figRenderPie(spec);if(t==='ecdf')return figRenderECDF(spec);if(t==='qq')return figRenderQQ(spec);if(t==='bland-altman')return figRenderBA2(spec);if(t==='grouped-line')return figRenderGroupedLine(spec);if(t==='xy-band')return figRenderBand(spec);
   return null;}
@@ -339,6 +342,55 @@ function figRenderVolcano(spec){const d=spec.data;const o=Object.assign({},FIG_D
   let diff=null;if(sig==='bh'&&d.qcol&&!d.onlyQ){const c2=it=>((it.qOrig!=null?it.qOrig:1)<pT&&Math.abs(it.fc)>=fcT)?(it.fc>0?'up':'down'):'ns';let upAdd=0,upDel=0,dnAdd=0,dnDel=0,n=0;items.forEach(it=>{const a1=c2(it),b1=cls(it);if(a1===b1)return;n++;if(b1==='up')upAdd++;if(a1==='up')upDel++;if(b1==='down')dnAdd++;if(a1==='down')dnDel++;});diff={n,upAdd,upDel,dnAdd,dnDel};}
   r.res={n:items.length,up:nUp,down:nDown,ns:items.length-nUp-nDown,fcT,pT,sig,sigName,n0,diff,genes:want,missing,top:items.slice().sort((p,q)=>pv(p)-pv(q)).slice(0,10).map(it=>Object.assign({},it,{v:pv(it)}))};return r;}
 
+// 効果量のドットプロット（feature の fcdot。改善計画 3.2）: 選んだ遺伝子の log2FC を横軸に並べる。点の大きさ＝−log10 q（面積が比例）、塗り＝有意・白抜き＝有意でない、
+// |log2FC| のしきい値の帯と 0 の基準線、Group／Pathway の列があれば群ごとに区切り線と群名。判定はボルケーノと同じ（volSig・volP・volFC）
+function figRenderFcDot(spec){const d=spec.data;const o=Object.assign({},FIG_DEF,spec.opts||{});
+  const fcT=+o.volFC||0,pT=+o.volP||0.05;const sig=figVolSig(spec,d);const pv=it=>figVolValue(it,sig);const sigName=sig==='p'?(d.pname||'P'):sig==='q'?(d.qcol||'q'):'BH q';
+  const want=figVolGenes(spec);let items=[];const missing=[];
+  if(want.length)want.forEach(g=>{const it=d.items.find(x=>String(x.name).toLowerCase()===g.toLowerCase());if(it&&!items.includes(it))items.push(it);else if(!it)missing.push(g);});
+  else items=d.items.slice().sort((p,q)=>pv(p)-pv(q)).slice(0,+o.fdN>0?+o.fdN:20);
+  if(!items.length)return {svg:'',w:0,h:0,res:{n:0,up:0,down:0,ns:0,fcT,pT,sig,sigName,n0:0,diff:null,genes:want,missing,top:[]}};
+  if(o.fdSort==='fc')items=items.slice().sort((p,q)=>q.fc-p.fc);
+  if(items.some(it=>it.group)){const order=[...new Set(items.map(it=>it.group||''))];items=order.flatMap(g=>items.filter(it=>(it.group||'')===g));} // 群は続けて並べる
+  const n=items.length;const cap=+o.fdCap>0?+o.fdCap:50;const L=it=>Math.min(-Math.log10(Math.max(pv(it),1e-300)),cap);const lmax=Math.max(...items.map(L),-Math.log10(pT),1);
+  const isSig=it=>pv(it)<pT&&Math.abs(it.fc)>=fcT;const fs0=(+o.fontPt||12)*FIG_PT;const italic=o.volItalic!==false;
+  const xr=Math.max(...items.map(it=>Math.abs(it.fc)),fcT)*1.15||1;const xs=figAxisLin(-xr,xr,5);
+  const ys={lo:0,hi:n,cat:true,ticks:items.map((it,i)=>({v:n-i-0.5,l:it.name,raw:italic?`<tspan font-style="italic">${figEsc(it.name)}</tspan>`:null}))};
+  const groups=[...new Set(items.map(it=>it.group).filter(Boolean))];const grpW=groups.length?Math.max(...groups.map(g=>figTW(g,fs0*0.85)))+fs0*1.1:0;const sigLab=`${sigName} < ${pT}`+(fcT>0?`, |log2FC| ≥ ${fcT}`:'');const legW=Math.max(figTW(`−log10 ${sigName}`,fs0*0.8),figTW(sigLab,fs0*0.7)+fs0*1.6,fs0*4)+fs0*1.4;
+  const labW=Math.max(...items.map(it=>figTW(String(it.name),fs0)));
+  const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle||(d.fcname||'log2 fold change'),padL:Math.max(0,labW-fs0*1.6),padR:grpW+legW,wIn:figDefSize(spec,'wIn')?2.2:0,hIn:figDefSize(spec,'hIn')?Math.max(1.3,n*0.21):0});
+  const {xOf,yOf,a,fs,txt,dash,x0,y0,plotW,padT,S}=F;const cUp=S(1).color,cDn=S(0).color;
+  const rMin=fs*0.16,rMax=fs*0.55;const rOf=l=>rMin+(rMax-rMin)*Math.sqrt(Math.max(0,l)/lmax);
+  let back='';if(o.volLines!==false&&fcT>0)back+=`<rect x="${xOf(-fcT)}" y="${padT}" width="${xOf(fcT)-xOf(-fcT)}" height="${y0-padT}" fill="#000" fill-opacity="0.06"/>`+[-fcT,fcT].map(v=>`<line x1="${xOf(v)}" y1="${padT}" x2="${xOf(v)}" y2="${y0}" stroke="#777" stroke-width="${a*0.6}" stroke-dasharray="${dash}"/>`).join('');
+  back+=`<line x1="${xOf(0)}" y1="${padT}" x2="${xOf(0)}" y2="${y0}" stroke="#444" stroke-width="${a*0.8}"/>`;
+  let seps='',glab='';if(groups.length){let start=0;for(let i=1;i<=n;i++){if(i===n||(items[i].group||'')!==(items[start].group||'')){const yA=yOf(n-start),yB=yOf(n-i);if(i<n)seps+=`<line x1="${x0}" y1="${yB}" x2="${x0+plotW}" y2="${yB}" stroke="#999" stroke-width="${a*0.6}"/>`;const g=items[start].group;if(g){const gx=x0+plotW+fs*0.35;glab+=`<line x1="${gx}" y1="${yA+fs*0.15}" x2="${gx}" y2="${yB-fs*0.15}" stroke="#000" stroke-width="${a}"/>`+txt(gx+fs*0.3,(yA+yB)/2+fs*0.3,g,'start','font-weight="bold"',null,fs*0.85);}start=i;}}}
+  let dots='';items.forEach((it,i)=>{const cx=xOf(it.fc),cy=yOf(n-i-0.5);const c=it.fc>=0?cUp:cDn;const r=rOf(L(it));dots+=`<circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}" fill="${isSig(it)?c:'#fff'}" stroke="${c}" stroke-width="${a*0.9}"><title>${figEsc(it.name)}: log2FC ${it.fc.toFixed(2)}, ${sigName} ${figSci(pv(it))}</title></circle>`;});
+  const cand=[1.3,2,3,5,10,20,50,100,200,300].filter(v=>v<=lmax*1.001);const pick=cand.length<=3?cand:[cand[0],cand[Math.floor(cand.length/2)],cand[cand.length-1]];
+  const lx=x0+plotW+grpW+fs*0.8;let ly=padT+fs*0.6;let leg=txt(lx,ly,`−log10 ${sigName}`,'start',null,null,fs*0.8);ly+=fs*0.5;
+  pick.forEach(v=>{const r=rOf(v);ly+=Math.max(r*2,fs*0.9)*0.5+fs*0.35;leg+=`<circle cx="${lx+rMax}" cy="${ly}" r="${r}" fill="#888" stroke="#555" stroke-width="${a*0.6}"/>`+txt(lx+rMax*2+fs*0.4,ly+fs*0.28,v>=10||v===2||v===3||v===5?String(v):v.toFixed(1),'start',null,null,fs*0.75);ly+=Math.max(r*2,fs*0.9)*0.5;});
+  ly+=fs*1.1;leg+=`<circle cx="${lx+rMax}" cy="${ly-fs*0.25}" r="${rMin*1.6}" fill="#555" stroke="#555" stroke-width="${a*0.8}"/>`+txt(lx+rMax*2+fs*0.4,ly,sigLab,'start',null,null,fs*0.7);ly+=fs*1.05;
+  leg+=`<circle cx="${lx+rMax}" cy="${ly-fs*0.25}" r="${rMin*1.6}" fill="#fff" stroke="#555" stroke-width="${a*0.8}"/>`+txt(lx+rMax*2+fs*0.4,ly,'NS','start',null,null,fs*0.7);
+  const r=F.wrap(back+seps+`<g data-sel="series:0">${dots}</g>`+(glab?`<g data-sel="text">${glab}</g>`:'')+`<g data-sel="legend">${leg}</g>`);
+  const up=items.filter(it=>isSig(it)&&it.fc>0).length,down=items.filter(it=>isSig(it)&&it.fc<0).length;
+  r.res={n,up,down,ns:n-up-down,fcT,pT,sig,sigName,n0:0,diff:null,genes:want,missing,top:items.slice(0,10).map(it=>Object.assign({},it,{v:pv(it)})),fcdot:true,groups};return r;}
+
+// 棒＋個別の点（nested の barjitter。改善計画 3.2）: 棒＝群の平均（全反復、または個体平均の平均）± 誤差、点＝個々の値。点の形＝個体（副分類: WT/OE、既報値/再解析値など）。名前が同じ個体は群をまたいで同じ形
+function figRenderBarJitter(spec){const d=spec.data;const gs=d.groups.filter(g=>g.values.length);const n=gs.length;if(!n)return {svg:'',w:0,h:0};const o=Object.assign({},FIG_DEF,spec.opts||{});
+  const subj=[];gs.forEach(g=>g.subjects.forEach(s=>{if(!subj.includes(s.name))subj.push(s.name);}));const shapeOf=k=>FIG_SYMBOLS[k%FIG_SYMBOLS.length][0];
+  const bySub=o.bjStat==='subject';const vals=g=>bySub?g.means:g.values;const ers=gs.map(g=>figErr(vals(g),o.bjErr||'SD'));
+  const cmp=spec.cmp&&spec.cmp!=='none'?figCompare(gs.map(g=>({name:g.name,values:vals(g)})),spec.cmp,spec.ctrl):null;const pairs=cmp?cmp.pairs:[];const nLv=figNLevels(pairs,o);const head=(nLv?0.14+0.16*nLv:0.08)+(o.valLabels?0.08:0);
+  const all=gs.flatMap(g=>g.values).concat(ers.map(e=>e.m+(e.e||0)));const lo=Math.min(0,...all),hi=Math.max(...all);
+  const [ylo,yhi]=figYRange(o,lo,hi+(hi-lo)*head);const ys=figAxisLin(ylo,yhi,5);const xs={lo:0,hi:n,cat:true,ticks:gs.map((g,i)=>({v:i+0.5,l:g.name}))};
+  const ptFill=o.bjPt==='open'?'open':'solid';const legend=subj.length>1&&subj.length<=10?subj.map((nm,k)=>({name:nm,kind:'sym',i:0,color:'#000',fill:ptFill,shape:shapeOf(k)})):[];
+  const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle,yTitle:o.yTitle||d.vname,legend});const {xOf,yOf,S,a,fs,txt}=F;const bw=(xOf(1)-xOf(0))*0.62;const base=Math.max(ys.lo,0);
+  let body='';const centers=[];gs.forEach((g,i)=>{const so=S(i),c=so.color;const cx=xOf(i+0.5);const e=ers[i];let s='';
+    s+=`<rect x="${cx-bw/2}" y="${yOf(Math.max(base,e.m))}" width="${bw}" height="${Math.abs(yOf(e.m)-yOf(base))}" fill="${figPaint(so.fillSet?so.fill:(o.barFill||so.fill),c)}" fill-opacity="${Math.min(+o.fillAlpha,0.45)}" stroke="${o.barEdge==='black'?'#000':c}" stroke-width="${a}"/>`+figErrBarP3(F,cx,e.m,e.e,bw*0.6,'#000');
+    const pv=[],pk=[];g.subjects.forEach(sb=>{const k=subj.indexOf(sb.name);(bySub?[mean(sb.values)]:sb.values).forEach(v=>{pv.push(v);pk.push(k);});});
+    const r=so.symPt*FIG_PT/2;const pos=figArrangeDots(pv,yOf,r,bw*0.85);const pc=o.bjPt==='black'?'#000':c;pv.forEach((v,k)=>{s+=figSymbol(cx+pos[k].dx,pos[k].y,r,shapeOf(pk[k]),o.bjPt==='open'?'#fff':pc,o.bjPt==='open'?pc:'#000');});
+    const top=Math.max(e.m+(e.e||0),...pv);if(o.valLabels)s+=txt(cx,yOf(top)-fs*0.3,figValFmt(e.m,o),'middle','',null,fs*0.75);
+    body+=`<g data-sel="series:${i}">${s}</g>`;centers.push({cx,top:yOf(top)-(o.valLabels?fs*0.85:0)});});
+  const br=figBracketsMore(pairs,centers,F);const r=F.wrap(body+(br.svg?`<g data-sel="brackets">${br.svg}</g>`:''));r.res={cmp,nsub:gs.map(g=>g.subjects.length),bj:true,stat:bySub?'subject':'all',err:o.bjErr||'SD',subjects:subj};return r;}
+
 // 特徴量重要度（importance: 横棒を大きい順）
 function figRenderImportance(spec){const d=spec.data;const o=Object.assign({},FIG_DEF,spec.opts||{});let items=d.items.slice();if(o.impSort!=='input')items.sort((p,q)=>q.v-p.v);const nTop=o.impN!==''&&+o.impN>0?+o.impN:items.length;items=items.slice(0,nTop);const n=items.length;if(!n)return {svg:'',w:0,h:0};
   const xv=items.flatMap(it=>[it.v+(o.impErr&&it.e?it.e:0),it.v-(o.impErr&&it.e?it.e:0)]);const xs=figAxisLin(Math.min(0,...xv),Math.max(0,...xv)*1.05||1,5);const ys={lo:0,hi:n,cat:true,ticks:items.map((it,i)=>({v:n-i-0.5,l:it.name}))};
@@ -351,6 +403,9 @@ function figStatsP3(data,st){if(!data)return null;if(typeof figStatsP4==='functi
   if(data.kind==='multi'){if(/^pca/.test(t)){const pca=res.pca;if(!pca)return '<div class="hint">PCA には 3 行以上・2 変数以上が必要です</div>';let s=`<div class="hint">PCA（${pca.scale?'標準化・相関行列':'中心化のみ・共分散行列'}）: n = ${pca.n}、変数 ${pca.p}${pca.pa?' ／ Parallel analysis（同じ n・変数数の正規乱数 '+(st.opts.pcaNPA||100)+' 回。帯は 5–95 パーセンタイル、破線は平均。固有値が帯を上回る成分を採用）':''}</div><table><tr><th>PC</th><th>固有値</th><th>寄与率</th><th>累積</th>${pca.pa?'<th>PA 平均</th><th>PA 95%</th>':''}</tr>`;let cum=0;pca.values.forEach((v,i)=>{cum+=pca.prop[i];s+=`<tr><td>PC${i+1}</td><td>${v.toFixed(4)}</td><td>${(pca.prop[i]*100).toFixed(2)}%</td><td>${(cum*100).toFixed(2)}%</td>${pca.pa?`<td>${pca.pa[i].mean.toFixed(3)}</td><td>${pca.pa[i].p95.toFixed(3)}</td>`:''}</tr>`;});s+='</table>';
       const show=Math.min(pca.p,3);s+=`<table><tr><th>ローディング</th>${Array.from({length:show},(_,k)=>`<th>PC${k+1}</th>`).join('')}</tr>`+data.vars.map((v,j)=>`<tr><td>${esc(v)}</td>${Array.from({length:show},(_,k)=>`<td>${pca.loadings[k][j].toFixed(3)}</td>`).join('')}</tr>`).join('')+'</table>';if(res.scl)s+=`<div class="hint">バイプロットのローディングは ${res.scl.toFixed(2)} 倍（スコアの 90% に収める）</div>`;return s;}
     return `<div class="hint">n = ${res.n||data.X.length}${res.size?` ／ 大きさ（面積比例）: 最小 ${f3(res.size.min)}、中間 ${f3(res.size.mid)}（幾何平均）、最大 ${f3(res.size.max)}`:''}${res.cont?' ／ 色＝'+esc(data.bubble.cname):''}${data.group?' ／ 群 '+data.groups.length:''}</div>`;}
+  if(data.kind==='nested'&&res.bj){const c=res.cmp;const all=res.stat!=='subject';let s=`<div class="hint">棒＋個別の点: 棒＝${all?'全部の値':'個体ごとの平均'}の平均 ± ${esc(res.err)}、点＝${all?'個々の値':'個体の平均'}、点の形＝${esc(data.sname)}（${(res.subjects||[]).map(esc).join(' / ')}）。検定は${all?'全部の値':'個体ごとの平均'}で行います（${c?esc(c.test):'比較なし'}）。</div>`;
+    s+='<table><tr><th>群</th><th>個体</th><th>値の数</th><th>平均</th><th>SD</th></tr>'+data.groups.map(g=>{const v=all?g.values:g.means;return `<tr><td>${esc(g.name)}</td><td>${g.subjects.length}</td><td>${g.values.length}</td><td>${f3(mean(v))}</td><td>${v.length>1?f3(sd(v)):'–'}</td></tr>`;}).join('')+'</table>';
+    if(c&&c.pairs.length)s+='<table><tr><th>比較</th><th>P 値</th></tr>'+c.pairs.map(p=>`<tr><td>${esc(data.groups[p.a].name)} vs ${esc(data.groups[p.b].name)}</td><td>${P(p.p)}</td></tr>`).join('')+'</table>';return s;}
   if(data.kind==='nested'){const c=res.cmp;let s=`<div class="hint">入れ子: 群 ${data.groups.length}、個体 ${res.nsub?res.nsub.join(' / '):''}。小さな点＝反復、記号＝個体の平均、横線＝個体平均の平均。検定は個体平均で行います（${c?esc(c.test):'比較なし'}）。</div>`;s+='<table><tr><th>群</th><th>個体</th><th>反復</th><th>平均（個体平均の）</th><th>SD</th></tr>'+data.groups.map(g=>`<tr><td>${esc(g.name)}</td><td>${g.subjects.length}</td><td>${g.values.length}</td><td>${f3(mean(g.means))}</td><td>${g.means.length>1?f3(sd(g.means)):'–'}</td></tr>`).join('')+'</table>';
     if(c&&c.pairs.length)s+='<table><tr><th>比較</th><th>P 値</th></tr>'+c.pairs.map(p=>`<tr><td>${esc(data.groups[p.a].name)} vs ${esc(data.groups[p.b].name)}</td><td>${P(p.p)}</td></tr>`).join('')+'</table>';return s;}
   if(data.kind==='swimmer'){return `<div class="hint">n = ${res.n} ／ 期間の中央値 ${f3(res.median)} ／ 継続中 ${res.ongoing}${res.groups&&res.groups.length?' ／ '+res.groups.map(g=>esc(g.name)+' '+g.n).join('、'):''}${data.eventNames.length?' ／ イベント: '+data.eventNames.map(esc).join('、'):''}</div>`;}
