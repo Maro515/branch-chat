@@ -683,7 +683,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div class="row">
         <div class="plusWrap"><button id="plusBtn" title="Web検索・連携ツール・画像">＋</button>
           <div id="plusPop"><button id="webBtn" class="prow"></button><button id="mcpBtn" class="prow"></button><div id="mcpPop"></div><button id="imgBtn" class="prow"></button><input type="file" id="imgFile" accept="image/*" multiple hidden><button id="figBtn" class="prow"><span class="ui">📊 Figure・パネルを作成</span><span class="st ui">統計グラフ・画像パネル</span></button><button id="figListBtn" class="prow"><span class="ui">🗂 図版一覧</span><span class="st ui">この会話の図・複合パネル・凡例の下書き</span></button><button id="figGaBtn" class="prow"><span class="ui">🧩 グラフィックス</span><span class="st ui">イラストで GA・模式図を作る</span></button><input type="file" id="figImgFile" accept="image/*" multiple hidden></div></div>
-        <textarea id="input" rows="1" placeholder="メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）"></textarea>
+        <textarea id="input" rows="1" placeholder="メッセージ"></textarea>
         <div class="sendCol"><div id="modelPop"></div><button id="aiBtn" title="この枝で AI が答えるかどうか（オフにするとノートとして書き留めるだけ）"></button><button id="modelBtn" title="モデルと思考量を変更"></button><button class="primary" id="sendBtn">送信</button></div>
       </div>
       <div id="status"></div>
@@ -2460,7 +2460,7 @@ const sourceName=(src,bid)=>src===bid?'このブランチの設定':(src==='glob
 let mpScope='branch';
 // 枝ごとの「AI 回答 オン/オフ」。オフの枝ではノートとして書き留めるだけ（AI は答えず、要約も更新しない）
 function renderAiBtn(){const b=B(effectiveBranchForSend());const off=!!(b&&b.noAi);const btn=$('#aiBtn');if(!btn)return;btn.classList.toggle('off',off);btn.innerHTML=`<span class="ui">${off?'🤖 AI 回答: オフ':'🤖 AI 回答: オン'}</span>`;
-  const inp=$('#input');if(inp)inp.placeholder=off?'ノート（Enterで書き留める / Shift+Enterで改行。この枝では AI は答えません）':'メッセージ（Enterで送信 / Shift+Enterで改行 / 画像は貼り付けかドロップ）';
+  const inp=$('#input');if(inp)inp.placeholder=off?'ノート（Enterで書き留める / Shift+Enterで改行。この枝では AI は答えません）':'メッセージ';
   const sb=$('#sendBtn');if(sb&&!busy){sb.textContent=off?'書き留める':'送信';sb.classList.toggle('note',off);}}
 function renderModelBtn(){
   migrateConvModel();
@@ -2745,7 +2745,7 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
   - 自分の発言にカーソルを重ねると ✎（この質問を書き直して送り直す）。
 - 中央の右上: 枝の形の小さな縮図（クリックすると俯瞰図）。
 - 右の欄【アジェンダ・進捗】: 上から【進行中】【未解決項目】【解決済み】。右上の ⧉ で一覧をコピー、✕ で欄を隠す（隠した欄は最上段の【📋 進捗】で戻る）。
-- 最下段（入力欄の列）: 左端に【＋】、真ん中に入力欄（薄い字で「メッセージ（Enterで送信 / Shift+Enterで改行 …」）、右に【🤖 AI 回答: オン】（またはオフ）、モデル名のボタン（例「Opus 5.5 · high ▾」）、【送信】。
+- 最下段（入力欄の列）: 左端に【＋】、真ん中に入力欄（薄い字で「メッセージ」。Enter で送信、Shift+Enter で改行、画像は貼り付けかドロップ）、右に【🤖 AI 回答: オン】（またはオフ）、モデル名のボタン（例「Opus 5.5 · high ▾」）、【送信】。
 
 ## 2. 操作の基本ルール
 - クリックは文字やボタンの中央を押す。記号だけのボタン（⧉ ⑂ ☆ ✎ 🗑 ✕）は小さいので、押す前にその部分を拡大したスクリーンショットで位置を確かめる。
