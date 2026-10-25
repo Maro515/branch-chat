@@ -615,8 +615,10 @@ function gaDlgEnsure(){let d=document.querySelector('#figGaDlg');if(d)return d;
    <div class="gaCenter"><div id="gaCanvas" class="figPreview"></div><div class="gaOut"><button class="primary" id="gaAttach">チャットに添付して質問する</button><button id="gaUpdate">回答の図を更新</button><button class="small" id="gaCopy">画像をコピー</button><button class="small" id="gaPng">PNG（300 dpi）</button><button class="small" id="gaSvg">SVG</button><button class="small" id="gaJson">{} JSON</button></div></div>
    <div class="gaRight" id="gaInspect"></div></div>`;
   document.body.appendChild(d);gaDlgBind(d);return d;}
+// グラフィックスの書き出し情報（改善計画 2.1）
+function gaMeta(){const j=gaState.spec,src=gaState.src;const tag=j.figureTag||'';return {tag,type:'graphics',key:src?`${src.nodeId}:${src.index}`:'dlg:'+(tag||'graphics'),spec:j};}
 function figGaOpen(spec,src){const d=gaDlgEnsure();gaState={spec:JSON.parse(JSON.stringify(spec&&figIsGA(spec)?spec:gaNewSpec())),src:src||null,sel:null,undo:[],redo:[],cat:'細胞',q:'',replace:false};gaState.undo.push(JSON.stringify(gaState.spec));
-  d.querySelector('#gaUpdate').style.display=src?'':'none';d.querySelector('#gaQ').value='';gaRenderThemes();gaRenderPal();gaSync();if(!d.open)d.showModal();}
+  d.querySelector('#gaUpdate').style.display=src?'':'none';d.querySelector('#gaQ').value='';{const tg=d.querySelector('#gaTag');if(tg)tg.value=gaState.spec.figureTag||'';if(typeof figExpBarRefresh==='function')figExpBarRefresh();}gaRenderThemes();gaRenderPal();gaSync();if(!d.open)d.showModal();}
 function gaPush(){const s=JSON.stringify(gaState.spec);if(gaState.undo[gaState.undo.length-1]!==s){gaState.undo.push(s);if(gaState.undo.length>80)gaState.undo.shift();gaState.redo=[];}}
 function gaRenderThemes(){const d=document.querySelector('#figGaDlg');const sp=gaState.spec;d.querySelector('#gaThemes').innerHTML=`<span class="hint" style="align-self:center">絵柄（論文で多い順）</span>`+GA_THEMES.map(([k,n,desc,pct],i)=>`<button class="small${gaTheme(sp.theme)===k?' on':''}" data-gatheme="${k}" data-tip="${gaEsc(desc)}">${gaIconSVG('cancer_cell',30,k,false,sp.accent)}${gaIconSVG('mitochondria',30,k,false,sp.accent)}<span>${i+1}. ${n}<br><small style="opacity:.75">論文の ${pct}%</small></span></button>`).join('');}
 function gaRenderPal(){const d=document.querySelector('#figGaDlg');const sp=gaState.spec;const q=gaState.q.trim().toLowerCase();
@@ -681,8 +683,9 @@ function gaDlgBind(d){const $=s=>d.querySelector(s);
     gaPush();gaSync();});
   // 出力
   const png=async dpi=>{const r=figRenderGA(gaState.spec);return figToPng(r.svg,r.w,r.h,dpi||300);};
-  $('#gaPng').onclick=async()=>{const c=await png(300);const a=document.createElement('a');a.href=figPngDataURL(c,300);a.download=`graphics_${Date.now()}.png`;a.click();toast('PNG（300 dpi）を保存しました');};
-  $('#gaSvg').onclick=()=>{const r=figRenderGA(gaState.spec);saveTextFile(`graphics_${Date.now()}.svg`,r.svg);};
+  $('#gaPng').onclick=async()=>{const c=await png(300);await figExportPng(gaMeta(),c,300);};
+  $('#gaSvg').onclick=()=>{const r=figRenderGA(gaState.spec);figExport(gaMeta(),{ext:'svg',text:r.svg});};
+  {const out=$('.gaOut');if(out&&!d.querySelector('#gaTag')){out.insertAdjacentHTML('afterbegin',figExpBarHTML('ga'));d.querySelector('#gaTag').addEventListener('input',e=>{const v=e.target.value.trim();if(v)gaState.spec.figureTag=v;else delete gaState.spec.figureTag;});}}
   $('#gaCopy').onclick=async()=>{try{const c=await png(300);const blob=await new Promise(r=>c.toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);toast('画像をコピーしました');}catch(e){toast('コピーできませんでした');}};
   $('#gaJson').onclick=async()=>{const txt=await figPrompt('図の指定（JSON）。直して OK で反映',JSON.stringify(gaState.spec,null,1),{multiline:true});if(txt==null)return;try{const j=JSON.parse(txt);if(!figIsGA(j))throw new Error('kind が ga ではありません');gaState.spec=j;gaState.sel=null;gaPush();gaRenderThemes();gaRenderPal();gaSync();}catch(e){toast('JSON の誤り: '+e.message);}};
   $('#gaAttach').onclick=async()=>{const j=gaState.spec;try{if(typeof imagesSupported!=='undefined'&&imagesSupported&&pendingImgs.length<4){const c=await png(150);const full=c.toDataURL('image/jpeg',.9);const tc=document.createElement('canvas');const sc=256/Math.max(c.width,c.height);tc.width=Math.round(c.width*sc);tc.height=Math.round(c.height*sc);tc.getContext('2d').drawImage(c,0,0,tc.width,tc.height);pendingImgs.push({full:{media_type:'image/jpeg',data:full.split(',')[1]},thumb:tc.toDataURL('image/jpeg',.8)});renderPlus();}}catch(e){}

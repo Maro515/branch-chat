@@ -35,6 +35,7 @@
       "engines.js",
       "codex-server.js",
       "claude-session.js",
+      "preload.js",
       "app/**/*",
       "package.json"
     ],

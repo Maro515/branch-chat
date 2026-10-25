@@ -48,8 +48,18 @@ missing=[l for l in labels if l not in src]
 if missing: print('FAIL AI_SOP_CU の【】の文字が画面に無い: '+', '.join(missing)); sys.exit(1)
 print('OK   AI_SOP_CU の【】の文字（%d 個）が画面に存在する'%len(labels))
 PY
+python3 - <<'PY' || fail=1
+import re,glob,collections,sys
+files=['index.html']+sorted(f for f in glob.glob('figure*.js') if 'art' not in f)
+c=collections.defaultdict(list)
+for f in files:
+    for m in re.finditer(r'(?m)^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(',open(f,encoding='utf-8').read()):c[m.group(1)].append(f)
+d={k:v for k,v in c.items() if len(v)>1}
+if d: print('FAIL 同じ名前の関数が 2 回定義されている（後の定義が前を上書きする）: '+', '.join(f'{k}（{"/".join(v)}）' for k,v in d.items())); sys.exit(1)
+print('OK   関数名の重複なし（%d 個）'%len(c))
+PY
 python3 -c "import ast,sys;ast.parse(open('bridge.py').read());print('OK   bridge.py 構文')" || fail=1
-for f in desktop/main.js desktop/engines.js figure.js figure-stats.js figure-more.js figure-more2.js figure-layout.js figure-image.js figure-schematic.js figure-omics.js figure-more3.js figure-gallery.js figure-ga-art.js figure-ga.js; do
+for f in desktop/main.js desktop/preload.js desktop/engines.js figure.js figure-stats.js figure-more.js figure-more2.js figure-layout.js figure-image.js figure-schematic.js figure-omics.js figure-more3.js figure-gallery.js figure-ga-art.js figure-ga.js; do
   if node --check "$f" 2>/dev/null; then echo "OK   $f 構文"; else echo "FAIL $f 構文"; fail=1; fi
 done
 # 他社の製品名（商標）を画面・AI への指示文・コード・文書に書いていないか（旧名の読み替え表 FIG_SCHEME_OLD の 1 行だけ許す）

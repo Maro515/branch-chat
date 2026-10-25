@@ -20,7 +20,7 @@ function figImgURL(id){if(typeof IS_DESKTOP!=='undefined'&&IS_DESKTOP)return '/a
 function figIsImage(j){return !!(j&&j.kind==='image');}
 // 画像を保存して {id,w,h,name} を返す。長辺 2000px まで縮小、PNG はそのまま、それ以外は JPEG
 function figImgStore(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const im=new Image();im.onload=async()=>{URL.revokeObjectURL(url);const r=Math.min(1,2000/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*r));c.height=Math.max(1,Math.round(im.height*r));const g=c.getContext('2d');g.drawImage(im,0,0,c.width,c.height);
-    const png=/png/i.test(file.type);const data=png?c.toDataURL('image/png'):c.toDataURL('image/jpeg',0.92);const id='im'+uid();const meta={w:c.width,h:c.height,name:String(file.name||'').replace(/\.[^.]+$/,'')};
+    const png=/png/i.test(file.type);const data=png?c.toDataURL('image/png'):c.toDataURL('image/jpeg',0.92);const id='im'+uid();const meta={w:c.width,h:c.height,name:String(file.name||'').replace(/\.[^.]+$/,''),ow:im.width,oh:im.height,ds:+(c.width/im.width).toFixed(6)};
     try{if(typeof IS_DESKTOP!=='undefined'&&IS_DESKTOP){const rr=await fetch('/api/img',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,data})});if(!rr.ok)throw new Error('保存に失敗しました');}else{await figImgPut(id,data);}}catch(e){rej(new Error('画像を保存できませんでした（'+e.message+'）'));return;}
     FIG_IMG_META[id]=meta;if(typeof conv!=='undefined'&&conv){conv.imgs=conv.imgs||{};conv.imgs[id]=meta;}res({id,...meta});};im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('画像を読めませんでした'));};im.src=url;});}
 // SVG 内の画像参照を data URL に置き換える（PNG 書き出し・添付用。<img> として読む SVG は外部参照を読めない）
@@ -47,7 +47,7 @@ function figImgAnnots(annots,cellOf,fs,idxOf){let s='';(annots||[]).forEach(a=>{
   else if(a.t==='text')s+=figImgTxt(px,py+fs*0.35,a.text||'',{size:fs*(+a.size||1),fill:col,stroke,anchor:a.anchor||'middle',extra:`data-annot="${ai}"`});
   else if(a.t==='roi'){const w=(+a.w||0.25)*c.w,h=(+a.h||0.25)*c.h;const dash=a.dash===false?'':` stroke-dasharray="${FIG_PT*3} ${FIG_PT*2}"`;s+=a.shape==='circle'?`<ellipse data-annot="${ai}" cx="${px}" cy="${py}" rx="${w/2}" ry="${h/2}" fill="none" stroke="${col}" stroke-width="${FIG_PT}"${dash}/>`:`<rect data-annot="${ai}" x="${px-w/2}" y="${py-h/2}" width="${w}" height="${h}" fill="none" stroke="${col}" stroke-width="${FIG_PT}"${dash}/>`;}});return s;}
 // スケールバー。sb: {umPerPx,len,unit,pos:'br'|'bl'|'tr'|'tl',color,thick,labelOn:'first'|'all'|'none'}
-function figScaleBar(sb,c,imgW,k,fs){if(!sb||!(+sb.len>0)||!(+sb.umPerPx>0)||!imgW)return '';const s=c.scalePx!=null?c.scalePx:c.w/imgW*(c.sliceScale||1);const len=+sb.len/+sb.umPerPx*s;if(!(len>0)||len>c.w*0.9)return '';const th=(+sb.thick||2)*FIG_PT;const col=sb.color==='black'?'#000':'#fff';const pad=fs*0.6;const pos=sb.pos||'br';
+function figScaleBar(sb,c,imgW,k,fs,ds){if(!sb||!(+sb.len>0)||!(+sb.umPerPx>0)||!imgW)return '';const s=c.scalePx!=null?c.scalePx:c.w/imgW*(c.sliceScale||1);const len=+sb.len*(+ds>0?+ds:1)/+sb.umPerPx*s;/* umPerPx は元の画像の 1 px あたり（ds＝保存した幅÷元の幅） */if(!(len>0)||len>c.w*0.9)return '';const th=(+sb.thick||2)*FIG_PT;const col=sb.color==='black'?'#000':'#fff';const pad=fs*0.6;const pos=sb.pos||'br';
   const x=/l/.test(pos)?c.x+pad:c.x+c.w-pad-len;const y=/t/.test(pos)?c.y+pad+(sb.labelOn!=='none'?fs*1.1:0):c.y+c.h-pad-th;let out=`<rect x="${x}" y="${y}" width="${len}" height="${th}" fill="${col}" data-scalebar="1"/>`;
   const on=sb.labelOn||'first';if(on==='all'||(on==='first'&&k===0))out+=figImgTxt(/l/.test(pos)?x:x+len,/t/.test(pos)?y-fs*0.3:y-fs*0.35,`${figFmt(+sb.len)} ${sb.unit||'µm'}`,{size:fs*0.9,fill:col,stroke:col==='#fff'?'#000':'#fff',anchor:/l/.test(pos)?'start':'end'});return out;}
 // 画像セルの表示: 疑似カラー（channel）・表示範囲（range 0–1）・ガンマ・LUT・合成（merge: screen）・切り抜き（crop 割合）・回転・反転
@@ -85,7 +85,7 @@ function figRenderImgGrid(spec){const imgs=(spec.images||[]).filter(Boolean);con
   let body='',labels='';imgs.forEach((im,k)=>{const r=Math.floor(k/cols),c=k%cols;const x=x0+c*(cellW+gap),y=y0+r*(cellH+gap);const meta=figImgMeta(im.img);const cell={x,y,w:cellW,h:cellH,sliceScale:meta?Math.max(cellW/meta.w,cellH/meta.h)/(cellW/meta.w):1};cells.push(cell);
     const cs=figImgCellSVG(im,x,y,cellW,cellH,k);if(cs){cell.view=cs.view;cell.scalePx=cs.scalePx;cell.cellSVG=cs;}body+=`<g data-cell="${k}"><rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" fill="${cs?'#000':'#e5e5e5'}"/>${cs?cs.svg:figImgTxt(x+cellW/2,y+cellH/2,'画像なし',{size:fs,fill:'#888',weight:'normal'})}`;
     if(im.label){const lw=figSchTW(im.label,fs);const lfs=lw>cellW*0.9?fs*cellW*0.9/lw:fs;const lc=im.labelColor||'#fff';body+=figImgTxt(x+fs*0.5,y+fs*0.3+lfs*0.9,im.label,{size:lfs,fill:lc,stroke:figDark(lc)?'#fff':'#000',anchor:'start'});}
-    if(spec.scale&&im.scaleBar!==false)body+=figScaleBar(spec.scale,cell,meta?meta.w:0,k,fs);
+    if(spec.scale&&im.scaleBar!==false)body+=figScaleBar(spec.scale,cell,meta?meta.w:0,k,fs,meta&&meta.ds);
     body+=`<rect data-cellbox="${k}" x="${x}" y="${y}" width="${cellW}" height="${cellH}" fill="none" pointer-events="all"/>`+figImgAnnots((spec.annots||[]).filter(a=>(a.cell||0)===k),()=>cell,fs,a=>(spec.annots||[]).indexOf(a))+`</g>`;});
   cl.forEach((s,c)=>{if(c>=cols)return;labels+=figImgTxt(x0+c*(cellW+gap)+cellW/2,titleH+fs*1.05,s,{size:fs,fill:(spec.colColors||[])[c]||'#000'});});
   rl.forEach((s,r)=>{if(r>=rows)return;const cy=y0+r*(cellH+gap)+cellH/2;labels+=spec.rowVert?figImgTxt(fs*1.0,cy,s,{size:fs,extra:`transform="rotate(-90 ${fs*1.0} ${cy})"`}):figImgTxt(rowLabW-fs*0.5,cy+fs*0.35,s,{size:fs,anchor:'end'});});
@@ -135,7 +135,7 @@ function figImgDragEnd(fb,ai,dx,dy){const nid=fb.dataset.fignode,idx=+fb.dataset
   n.content=n.content.slice(0,b.start)+'```figure\n'+JSON.stringify(j)+'\n```'+n.content.slice(b.end);persist();renderAll();}
 // 画像を取り込んで画像パネルの画面を開く（以前の＋メニュー「画像パネル作成」。0.7.33 から「Figure・パネルを作成」の画像パネル）: 画像を保存し、入力欄に ```figure を入れる（AI に見せるため縮小版も添付）
 async function figImportImages(files){const list=[...files].filter(f=>/^image\/(png|jpeg|jpg|webp|gif|bmp|tiff?)$/i.test(f.type)||/\.tiff?$/i.test(f.name)).slice(0,12);if(!list.length){toast('画像ファイルを選んでください');return;}const imgs=[];for(const f of list){try{imgs.push(...await figImgStoreAny(f));}catch(e){toast(f.name+': '+e.message);}}if(!imgs.length)return;
-  const spec={kind:'image',type:'grid',cols:Math.min(imgs.length,3),images:imgs.map(m=>({img:m.id,label:m.name})),scale:{umPerPx:0,len:20,unit:'µm',labelOn:'first'}};persist();
+  const spec={kind:'image',type:'grid',cols:3,images:[],scale:{umPerPx:0,len:20,unit:'µm',labelOn:'first'}};spec.images=figImgItemsFromMetas(imgs.map(m=>Object.assign({label:m.name},m)),spec);spec.cols=Math.min(spec.images.length,3);persist();
   const t=document.querySelector('#input');t.value=(t.value?t.value+'\n':'')+'```figure\n'+JSON.stringify(spec)+'\n```\n';if(typeof fitInput==='function')fitInput();t.focus();
   if(typeof addImages==='function'&&typeof pendingImgs!=='undefined'&&pendingImgs.length<4){try{await addImages(list.slice(0,4-pendingImgs.length));}catch(e){}}
   toast(`画像 ${imgs.length} 枚を保存し、画像パネルの指定を入力欄に入れました。並べ方やスケールバー（µm/px）の指示を添えて送信するか、そのまま送って下のツールで整えてください`);}
@@ -144,7 +144,7 @@ async function figImportImages(files){const list=[...files].filter(f=>/^image\/(
 async function figImageProfile(fb,k,p1,p2){const nid=fb.dataset.fignode,idx=+fb.dataset.figidx;const n=N(nid);if(!n)return;const b=figFindBlocks(n.content)[idx];if(!b)return;let j;try{j=JSON.parse(b.json);}catch(e){return;}if(!figIsImage(j))return;
   const r=figRenderSpec(j);const cell=r&&r.cells&&r.cells[k];if(!cell||!cell.view||!cell.cellSVG){toast('この画像ではプロファイルを取れません');return;}const L=cell.cellSVG.layers[0];const meta=cell.cellSVG.meta;const col=['#FFD500','#00E5FF','#FF4DD2','#7CFF4D'][((j.annots||[]).filter(a=>a.t==='line').length)%4];
   try{const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('画像を読めませんでした'));i.src=figImgURL(L.img);});const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(im,0,0);
-    const v=cell.view;const X=p=>v.x+p.x*v.w,Y=p=>v.y+p.y*v.h;const x1=X(p1),y1=Y(p1),x2=X(p2),y2=Y(p2);const Lpx=Math.hypot(x2-x1,y2-y1);const N=200;const um=j.scale&&+j.scale.umPerPx>0?+j.scale.umPerPx:0;const rows=[];
+    const v=cell.view;const X=p=>v.x+p.x*v.w,Y=p=>v.y+p.y*v.h;const x1=X(p1),y1=Y(p1),x2=X(p2),y2=Y(p2);const Lpx=Math.hypot(x2-x1,y2-y1);const N=200;const um=j.scale&&+j.scale.umPerPx>0?+j.scale.umPerPx/((meta&&+meta.ds>0)?+meta.ds:1):0;const rows=[];/* 保存時の縮小を戻して µm に */
     for(let i=0;i<=N;i++){const t=i/N;const px=Math.max(0,Math.min(im.width-1,Math.round(x1+(x2-x1)*t))),py=Math.max(0,Math.min(im.height-1,Math.round(y1+(y2-y1)*t)));const d=g.getImageData(px,py,1,1).data;const lum=0.299*d[0]+0.587*d[1]+0.114*d[2];rows.push([um?(Lpx*t*um).toFixed(2):Math.round(Lpx*t),lum.toFixed(1)]);}
     (j.annots=j.annots||[]).push({t:'line',cell:k,x:p1.x,y:p1.y,x2:p2.x,y2:p2.y,color:col});const name=(j.images&&j.images[k]&&j.images[k].label)||meta&&meta.name||'画像';
     const prof={title:`${name} の輝度プロファイル`,kind:'xy',type:'xy-line',xtitle:um?'Distance (µm)':'Distance (px)',ytitle:'Intensity (a.u.)',data:['Distance\tIntensity'].concat(rows.map(r=>r.join('\t'))).join('\n'),style:{series:[{color:col,symPt:0.1}],wIn:2.5,hIn:1.5}};
@@ -152,35 +152,106 @@ async function figImageProfile(fb,k,p1,p2){const nid=fb.dataset.fignode,idx=+fb.
   catch(e){toast(e.message||'プロファイルを取れませんでした');}}
 
 // TIFF の読み込み（非圧縮・LZW・PackBits、8/16 bit・float、グレー/RGB、複数ページ）。16 bit は 0.05–99.95 パーセンタイルで 8 bit に写像し、範囲を meta に残す
-function figTiffDecode(buf){const dv=new DataView(buf);const le=dv.getUint16(0)===0x4949;const u16=o=>dv.getUint16(o,le),u32=o=>dv.getUint32(o,le);if(u16(2)!==42)throw new Error('TIFF ではありません');const pages=[];let ifd=u32(4);let guard=0;
-  while(ifd&&guard++<64){const n=u16(ifd);const tags={};for(let i=0;i<n;i++){const o=ifd+2+i*12;const tag=u16(o),type=u16(o+2),cnt=u32(o+4);const sz={1:1,2:1,3:2,4:4,5:8,6:1,7:1,8:2,9:4,10:8,11:4,12:8}[type]||1;const off=cnt*sz<=4?o+8:u32(o+8);const vals=[];for(let k=0;k<Math.min(cnt,1<<20);k++){vals.push(type===3?u16(off+k*2):type===4?u32(off+k*4):type===1||type===7?dv.getUint8(off+k):type===11?dv.getFloat32(off+k*4,le):type===12?dv.getFloat64(off+k*8,le):u32(off+k*4));}tags[tag]=vals;}
-    pages.push(tags);ifd=u32(ifd+2+n*12);}
-  const out=[];for(const t of pages){const W=t[256]&&t[256][0],H=t[257]&&t[257][0];if(!W||!H)continue;const bps=(t[258]||[8])[0],spp=(t[277]||[1])[0],comp=(t[259]||[1])[0],photo=(t[262]||[1])[0],fmt=(t[339]||[1])[0],pred=(t[317]||[1])[0];if(t[324])throw new Error('タイル形式の TIFF には未対応です');if(![1,5,32773].includes(comp))throw new Error('この圧縮（'+comp+'）の TIFF には未対応です');
-    const offs=t[273]||[],cnts=t[279]||[];const rps=(t[278]||[H])[0];const bytesPerSample=bps/8;const rowBytes=W*spp*bytesPerSample;const total=new Uint8Array(H*rowBytes);let pos=0;
-    for(let s=0;s<offs.length;s++){let chunk=new Uint8Array(buf,offs[s],cnts[s]);if(comp===5)chunk=figLZW(chunk);else if(comp===32773)chunk=figPackBits(chunk);const need=Math.min(chunk.length,total.length-pos);total.set(chunk.subarray(0,need),pos);pos+=need;}
-    if(pred===2){for(let y=0;y<H;y++){const base=y*rowBytes;if(bps===8){for(let x=spp;x<rowBytes;x++)total[base+x]=(total[base+x]+total[base+x-spp])&255;}else if(bps===16){const v=new DataView(total.buffer);for(let x=spp;x<W*spp;x++){const o=base+x*2,p=base+(x-spp)*2;const val=(le?v.getUint16(o,true):v.getUint16(o,false))+(le?v.getUint16(p,true):v.getUint16(p,false));if(le)v.setUint16(o,val&65535,true);else v.setUint16(o,val&65535,false);}}}}
-    const npx=W*H;const lum=new Float32Array(npx*spp);const v=new DataView(total.buffer);for(let i=0;i<npx*spp;i++){lum[i]=bps===8?total[i]:bps===16?(fmt===2?v.getInt16(i*2,le):v.getUint16(i*2,le)):bps===32?(fmt===3?v.getFloat32(i*4,le):v.getUint32(i*4,le)):total[i];}
-    let lo=0,hi=255;if(bps!==8){const sample=[];const step=Math.max(1,Math.floor(lum.length/200000));for(let i=0;i<lum.length;i+=step)sample.push(lum[i]);sample.sort((a,b)=>a-b);lo=sample[Math.floor(sample.length*0.0005)];hi=sample[Math.min(sample.length-1,Math.floor(sample.length*0.9995))];if(!(hi>lo)){lo=sample[0];hi=sample[sample.length-1]||lo+1;}}
-    const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');const id=g.createImageData(W,H);const d=id.data;const map=x=>Math.max(0,Math.min(255,Math.round((x-lo)/(hi-lo)*255)));
-    for(let i=0;i<npx;i++){if(spp>=3){d[i*4]=map(lum[i*spp]);d[i*4+1]=map(lum[i*spp+1]);d[i*4+2]=map(lum[i*spp+2]);}else{let gv=map(lum[i*spp]);if(photo===0)gv=255-gv;d[i*4]=d[i*4+1]=d[i*4+2]=gv;}d[i*4+3]=255;}g.putImageData(id,0,0);
-    out.push({canvas:c,bits:bps,range:[lo,hi],spp,W,H});}
-  if(!out.length)throw new Error('画像ページがありません');return out;}
-function figLZW(src){const out=[];let dict=[],bitPos=0,codeLen=9;const read=()=>{let v=0;for(let i=0;i<codeLen;i++){const byte=src[bitPos>>3];const bit=byte===undefined?0:(byte>>(7-(bitPos&7)))&1;v=(v<<1)|bit;bitPos++;}return v;};const reset=()=>{dict=[];for(let i=0;i<256;i++)dict.push([i]);dict.push([]);dict.push([]);codeLen=9;};reset();let prev=null;
-  while(bitPos+codeLen<=src.length*8){const code=read();if(code===257)break;if(code===256){reset();prev=null;continue;}let entry;if(code<dict.length)entry=dict[code];else if(prev)entry=prev.concat([prev[0]]);else break;for(const b of entry)out.push(b);if(prev)dict.push(prev.concat([entry[0]]));prev=entry;if(dict.length+1>=(1<<codeLen)&&codeLen<12)codeLen++;}
-  return Uint8Array.from(out);}
+/* ---------- TIFF・OME-TIFF の読み込み（改善計画 2.4） ----------
+   対応: TIFF と BigTIFF、ストリップとタイル、非圧縮・LZW・Deflate（zlib）・PackBits、横差分予測、8/16/32 bit の整数と 32/64 bit の浮動小数、
+   1 面にチャネルがまとまった形（RGB など）と面ごとに分かれた形（PlanarConfiguration 2）、縮小版の面（NewSubfileType）は飛ばす。
+   OME-TIFF は ImageDescription の OME-XML から チャネル数・名前・色、Z/T、DimensionOrder、PhysicalSizeX（µm に換算）を読む */
+async function figTiffRead(buf){const dv=new DataView(buf);const bo=dv.getUint16(0);if(bo!==0x4949&&bo!==0x4D4D)throw new Error('TIFF ではありません');const le=bo===0x4949;const ver=dv.getUint16(2,le);const big=ver===43;if(ver!==42&&!big)throw new Error('TIFF ではありません');
+  const u16=o=>dv.getUint16(o,le),u32=o=>dv.getUint32(o,le),u64=o=>Number(dv.getBigUint64(o,le));const TS={1:1,2:1,3:2,4:4,5:8,6:1,7:1,8:2,9:4,10:8,11:4,12:8,13:4,16:8,17:8,18:8};
+  const readIFD=ifd=>{const n=big?u64(ifd):u16(ifd);const es=big?20:12;const base=ifd+(big?8:2);const tags={};
+    for(let i=0;i<n;i++){const o=base+i*es;const tag=u16(o),type=u16(o+2);const cnt=big?u64(o+4):u32(o+4);const sz=TS[type]||1;const inl=big?8:4;const off=cnt*sz<=inl?o+(big?12:8):(big?u64(o+12):u32(o+8));if(off+Math.min(cnt*sz,8)>buf.byteLength)continue;
+      if(type===2){tags[tag]=new TextDecoder().decode(new Uint8Array(buf,off,Math.min(cnt,buf.byteLength-off))).replace(/\0+$/,'');continue;}
+      const vals=[];const lim=Math.min(cnt,1<<22);for(let k=0;k<lim;k++){const q=off+k*sz;vals.push(type===3?u16(q):(type===4||type===13)?u32(q):(type===16||type===18)?u64(q):(type===1||type===7||type===6)?dv.getUint8(q):type===8?dv.getInt16(q,le):type===9?dv.getInt32(q,le):type===11?dv.getFloat32(q,le):type===12?dv.getFloat64(q,le):type===5?u32(q)/(u32(q+4)||1):u32(q));}tags[tag]=vals;}
+    return {tags,next:big?u64(base+n*es):u32(base+n*es)};};
+  let ifd=big?u64(8):u32(4);const ifds=[];const seen=new Set();while(ifd&&!seen.has(ifd)&&ifds.length<4096&&ifd<buf.byteLength){seen.add(ifd);const r=readIFD(ifd);ifds.push(r.tags);ifd=r.next;}
+  if(!ifds.length)throw new Error('画像の面がありません');const desc=typeof ifds[0][270]==='string'?ifds[0][270]:'';
+  return {ifds,le,big,ome:/<OME[\s>]/.test(desc)?figParseOme(desc):null};}
+function figParseOme(xml){try{const doc=new DOMParser().parseFromString(xml,'application/xml');const px=doc.getElementsByTagNameNS('*','Pixels')[0];if(!px)return null;const g=k=>px.getAttribute(k);
+  const UF={'µm':1,'μm':1,'um':1,'nm':1e-3,'mm':1e3,'cm':1e4,'m':1e6,'Å':1e-4,'pm':1e-6};const phys=(k,u)=>g(k)?+g(k)*(UF[g(u)||'µm']||1):0;
+  const chans=[...px.getElementsByTagNameNS('*','Channel')].map(c=>({name:c.getAttribute('Name')||'',color:c.getAttribute('Color'),spp:+(c.getAttribute('SamplesPerPixel')||1),em:+(c.getAttribute('EmissionWavelength')||0)}));
+  const td=[...px.getElementsByTagNameNS('*','TiffData')].map(t=>({ifd:+(t.getAttribute('IFD')||0),c:+(t.getAttribute('FirstC')||0),z:+(t.getAttribute('FirstZ')||0),t:+(t.getAttribute('FirstT')||0)}));
+  return {sizeC:+(g('SizeC')||1),sizeZ:+(g('SizeZ')||1),sizeT:+(g('SizeT')||1),order:g('DimensionOrder')||'XYCZT',physX:phys('PhysicalSizeX','PhysicalSizeXUnit'),physY:phys('PhysicalSizeY','PhysicalSizeYUnit'),type:g('Type')||'',channels:chans,tiffData:td};}catch(e){return null;}}
+async function figInflate(u8){const run=async fmt=>new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream(fmt))).arrayBuffer());try{return await run('deflate');}catch(e){return await run('deflate-raw');}}
+// LZW（TIFF 方式。符号長は 1 つ早めに伸ばす）を型付き配列で展開する
+function figLZW(src,expect){let out=new Uint8Array(Math.max(64,expect||src.length*3));let op=0;
+  const prefix=new Int32Array(4096),suffix=new Uint8Array(4096),len=new Uint16Array(4096),first=new Uint8Array(4096);for(let i=0;i<256;i++){prefix[i]=-1;suffix[i]=i;len[i]=1;first[i]=i;}
+  let next=258,codeLen=9,bit=0,old=-1;const total=src.length*8;
+  const grow=n=>{if(op+n>out.length){const nb=new Uint8Array(Math.max(out.length*2,op+n+1024));nb.set(out.subarray(0,op));out=nb;}};
+  const emit=c=>{const n=len[c];grow(n);let k=op+n-1,cc=c;while(cc>=0&&k>=op){out[k--]=suffix[cc];cc=prefix[cc];}op+=n;};
+  while(bit+codeLen<=total){let code=0;for(let i=0;i<codeLen;i++){code=(code<<1)|((src[bit>>3]>>(7-(bit&7)))&1);bit++;}
+    if(code===257)break;if(code===256){next=258;codeLen=9;old=-1;continue;}
+    if(old<0){if(code>255)break;emit(code);old=code;continue;}
+    if(code<next){emit(code);if(next<4096){prefix[next]=old;suffix[next]=first[code];len[next]=len[old]+1;first[next]=first[old];next++;}}
+    else{if(next>=4096)break;prefix[next]=old;suffix[next]=first[old];len[next]=len[old]+1;first[next]=first[old];next++;emit(next-1);}
+    old=code;if(next>=(1<<codeLen)-1&&codeLen<12)codeLen++;}
+  return out.subarray(0,op);}
+// 1 つの面（IFD）を読み、サンプルごとの Float32Array にする
+async function figTiffPlane(buf,t,le){const W=t[256]&&t[256][0],H=t[257]&&t[257][0];if(!W||!H)throw new Error('画像の大きさがありません');
+  const bps=(t[258]||[8])[0],spp=(t[277]||[1])[0],comp=(t[259]||[1])[0],fmt=(t[339]||[1])[0],pred=(t[317]||[1])[0],planar=(t[284]||[1])[0];
+  if(![1,5,8,32946,32773].includes(comp))throw new Error('この圧縮（'+comp+'）の TIFF には未対応です（非圧縮・LZW・Deflate・PackBits に対応）');if(![8,16,32,64].includes(bps))throw new Error(bps+' bit の TIFF には未対応です');
+  const B=bps/8,sppPer=planar===2?1:spp;const out=Array.from({length:spp},()=>new Float32Array(W*H));
+  const rd=(d,o)=>bps===8?d.getUint8(o):bps===16?(fmt===2?d.getInt16(o,le):d.getUint16(o,le)):bps===32?(fmt===3?d.getFloat32(o,le):fmt===2?d.getInt32(o,le):d.getUint32(o,le)):d.getFloat64(o,le);
+  const decomp=async(c,exp)=>comp===5?figLZW(c,exp):comp===32773?figPackBits(c):(comp===8||comp===32946)?await figInflate(c):c;
+  const unpred=(c,w,rows)=>{if(pred!==2)return;const rb=w*sppPer*B;if(bps===8){for(let y=0;y<rows;y++){const o=y*rb;for(let x=sppPer;x<w*sppPer;x++)c[o+x]=(c[o+x]+c[o+x-sppPer])&255;}}else if(bps===16){const d=new DataView(c.buffer,c.byteOffset,c.byteLength);for(let y=0;y<rows;y++){const o=y*rb;for(let x=sppPer;x<w*sppPer;x++){const a=o+x*2,p=o+(x-sppPer)*2;if(a+2>c.length)break;d.setUint16(a,(d.getUint16(a,le)+d.getUint16(p,le))&65535,le);}}}};
+  const put=(c,w,rows,x0,y0,plane)=>{const d=new DataView(c.buffer,c.byteOffset,c.byteLength);const rb=w*sppPer*B;for(let y=0;y<rows;y++){const Y=y0+y;if(Y>=H)break;const ro=y*rb;if(ro>=c.length)break;for(let x=0;x<w;x++){const X=x0+x;if(X>=W)continue;const po=ro+x*sppPer*B;if(po+sppPer*B>c.length)break;for(let s=0;s<sppPer;s++)out[plane+s][Y*W+X]=rd(d,po+s*B);}}};
+  if(t[322]&&t[324]){const tw=t[322][0],th=t[323][0],offs=t[324],cnts=t[325]||[];const ta=Math.ceil(W/tw),tdn=Math.ceil(H/th),per=ta*tdn;
+    for(let i=0;i<offs.length;i++){const plane=planar===2?Math.floor(i/per):0;const k=i%per;const c=await decomp(new Uint8Array(buf,offs[i],cnts[i]),tw*th*sppPer*B);unpred(c,tw,th);put(c,tw,th,(k%ta)*tw,Math.floor(k/ta)*th,plane);}}
+  else{const offs=t[273]||[],cnts=t[279]||[];const rps=Math.min(H,(t[278]||[H])[0]);const per=Math.ceil(H/rps);
+    for(let i=0;i<offs.length;i++){const plane=planar===2?Math.floor(i/per):0;const y0=(i%per)*rps;const rows=Math.min(rps,H-y0);const c=await decomp(new Uint8Array(buf,offs[i],cnts[i]),rows*W*sppPer*B);unpred(c,W,rows);put(c,W,rows,0,y0,plane);}}
+  return {W,H,bps,spp,samples:out,photo:(t[262]||[1])[0],fmt};}
+// 値の分布の分位点（間引いて数える）
+function figQuantiles(arr,qs){const step=Math.max(1,Math.floor(arr.length/250000));const s=[];for(let i=0;i<arr.length;i+=step){const v=arr[i];if(Number.isFinite(v))s.push(v);}s.sort((a,b)=>a-b);return qs.map(q=>s.length?s[Math.min(s.length-1,Math.max(0,Math.floor(s.length*q)))]:0);}
+// チャネル名・OME の色から疑似カラーを決める
+function figGuessChannel(name,omeColor,i){if(omeColor!=null&&omeColor!==''){const c=(+omeColor)>>>0;const r=(c>>>24)&255,g=(c>>>16)&255,b=(c>>>8)&255;if(!(r===g&&g===b)){const hx='#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');const named={'#0000ff':'blue','#00ff00':'green','#ff0000':'red','#00ffff':'cyan','#ff00ff':'magenta','#ffff00':'yellow'};return named[hx]||hx;}}
+  const n=String(name||'').toLowerCase();if(/dapi|hoechst|nuc|405|blue/.test(n))return 'blue';if(/gfp|fitc|alexa ?488|488|green|af488/.test(n))return 'green';if(/rfp|tritc|cy3|555|568|594|mcherry|red|texas/.test(n))return 'red';if(/cy5|647|far.?red|magenta/.test(n))return 'magenta';
+  return ['green','red','blue','magenta','cyan','yellow'][i%6];}
+// 旧名（呼び出し互換）: TIFF の各面を canvas にする（OME でない一般の TIFF 用）
+async function figTiffDecode(buf){const T=await figTiffRead(buf);const main=T.ifds.filter(t=>!((t[254]||[0])[0]&1)&&t[256]&&t[257]);const out=[];
+  for(const t of main.slice(0,8)){const pl=await figTiffPlane(buf,t,T.le);const n=pl.W*pl.H;let lo=0,hi=255;if(pl.bps!==8){const [a,b]=figQuantiles(pl.samples[0],[0.0005,0.9995]);lo=a;hi=b>a?b:a+1;}
+    const c=document.createElement('canvas');c.width=pl.W;c.height=pl.H;const g=c.getContext('2d');const id=g.createImageData(pl.W,pl.H);const d=id.data;const map=x=>Math.max(0,Math.min(255,Math.round((x-lo)/(hi-lo)*255)));
+    for(let i=0;i<n;i++){if(pl.spp>=3){d[i*4]=map(pl.samples[0][i]);d[i*4+1]=map(pl.samples[1][i]);d[i*4+2]=map(pl.samples[2][i]);}else{let v=map(pl.samples[0][i]);if(pl.photo===0)v=255-v;d[i*4]=d[i*4+1]=d[i*4+2]=v;}d[i*4+3]=255;}g.putImageData(id,0,0);out.push({canvas:c,bits:pl.bps,range:[lo,hi],spp:pl.spp,W:pl.W,H:pl.H});}
+  if(!out.length)throw new Error('画像の面がありません');return out;}
+// OME-TIFF（または複数チャネルの TIFF）をチャネルごとの灰色の画像にする。Z スタックは最初の面か最大値投影（settings.tiffZ='mip'）
+async function figOmeChannels(buf,T){const o=T.ome;const main=T.ifds.filter(t=>!((t[254]||[0])[0]&1)&&t[256]&&t[257]);if(!main.length)throw new Error('画像の面がありません');
+  const zMode=(typeof settings!=='undefined'&&settings&&settings.tiffZ)||'first';const dims=String(o.order||'XYCZT').replace(/^XY/,'').split('');const size={C:o.sizeC||1,Z:o.sizeZ||1,T:o.sizeT||1};const mul={};let m=1;for(const dd of dims){mul[dd]=m;m*=size[dd]||1;}
+  const ifd0=o.tiffData&&o.tiffData[0]?o.tiffData[0].ifd:0;const spp0=(main[0][277]||[1])[0];const chans=[];
+  if(spp0>=size.C&&size.C>1){const pl=await figTiffPlane(buf,main[0],T.le);for(let c=0;c<size.C;c++)chans.push({W:pl.W,H:pl.H,bps:pl.bps,data:pl.samples[c],c});}
+  else for(let c=0;c<size.C;c++){let acc=null;const zs=zMode==='mip'?size.Z:1;for(let z=0;z<zs;z++){const t=main[ifd0+c*(mul.C||1)+z*(mul.Z||0)];if(!t)continue;const pl=await figTiffPlane(buf,t,T.le);const s=pl.samples[0];if(!acc)acc={W:pl.W,H:pl.H,bps:pl.bps,data:Float32Array.from(s),c};else for(let i=0;i<s.length;i++)if(s[i]>acc.data[i])acc.data[i]=s[i];}if(acc)chans.push(acc);}
+  return chans;}
 function figPackBits(src){const out=[];let i=0;while(i<src.length){const n=(src[i++]<<24)>>24;if(n>=0){for(let k=0;k<=n;k++)out.push(src[i++]);}else if(n!==-128){const b=src[i++];for(let k=0;k<1-n;k++)out.push(b);}}return Uint8Array.from(out);}
 // canvas を保存（TIFF から）
 function figImgStoreCanvas(c,name,extra){return new Promise(async(res,rej)=>{const data=c.toDataURL('image/png');const id='im'+uid();const meta=Object.assign({w:c.width,h:c.height,name},extra||{});try{if(typeof IS_DESKTOP!=='undefined'&&IS_DESKTOP){const rr=await fetch('/api/img',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,data})});if(!rr.ok)throw new Error('保存に失敗しました');}else{await figImgPut(id,data);}}catch(e){rej(new Error('画像を保存できませんでした（'+e.message+'）'));return;}FIG_IMG_META[id]=meta;if(typeof conv!=='undefined'&&conv){conv.imgs=conv.imgs||{};conv.imgs[id]=meta;}res({id,...meta});});}
-async function figImgStoreAny(f){if(/tiff?$/i.test(f.name)||/tiff/i.test(f.type)){const buf=await f.arrayBuffer();const pages=figTiffDecode(buf);const base=String(f.name||'').replace(/\.[^.]+$/,'');const out=[];const big=Math.max(...pages.map(pg=>pg.W*pg.H));const keep=pages.filter(pg=>pg.W*pg.H>=big/8);for(let i=0;i<Math.min(keep.length,8);i++){const pg=keep[i];let c=pg.canvas;if(Math.max(c.width,c.height)>2000){const r=2000/Math.max(c.width,c.height);const c2=document.createElement('canvas');c2.width=Math.round(c.width*r);c2.height=Math.round(c.height*r);c2.getContext('2d').drawImage(c,0,0,c2.width,c2.height);c=c2;}out.push(await figImgStoreCanvas(c,keep.length>1?`${base}_p${i+1}`:base,{bits:pg.bits,srcRange:pg.range,pages:keep.length}));}return out;}return [await figImgStore(f)];}
+// 灰色の canvas を作る（lo..hi を 0..255 に写す）と、長辺 max px への縮小（縮小率 ds＝保存した幅÷元の幅 を返す）
+function figGrayCanvas(data,W,H,lo,hi){const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');const id=g.createImageData(W,H);const d=id.data;const k=255/((hi-lo)||1);for(let i=0;i<W*H;i++){const v=Math.max(0,Math.min(255,Math.round((data[i]-lo)*k)));d[i*4]=d[i*4+1]=d[i*4+2]=v;d[i*4+3]=255;}g.putImageData(id,0,0);return c;}
+function figDownscale(c,max){if(Math.max(c.width,c.height)<=max)return {canvas:c,ds:1};const r=max/Math.max(c.width,c.height);const c2=document.createElement('canvas');c2.width=Math.round(c.width*r);c2.height=Math.round(c.height*r);c2.getContext('2d').drawImage(c,0,0,c2.width,c2.height);return {canvas:c2,ds:c2.width/c.width};}
+// 画像ファイルを保存する。TIFF は各面、OME-TIFF（複数チャネル・Z）はチャネルごとの灰色の画像にし、疑似カラー・表示範囲・合成の組・画素の実寸を返す（改善計画 2.4）
+async function figImgStoreAny(f){if(!(/tiff?$/i.test(f.name)||/tiff/i.test(f.type)))return [await figImgStore(f)];
+  const buf=await f.arrayBuffer();const T=await figTiffRead(buf);const base=String(f.name||'').replace(/\.ome\.tiff?$/i,'').replace(/\.[^.]+$/,'');
+  if(T.ome&&(T.ome.sizeC>1||T.ome.sizeZ>1)){const chans=await figOmeChannels(buf,T);const group=chans.length>1?'g'+uid():'';const out=[];
+    for(const ch of chans){const info=T.ome.channels[ch.c]||{};const name=info.name||('C'+(ch.c+1));const [q1,q2]=figQuantiles(ch.data,[0.001,0.999]);let lo=0,hi=255,range=null;
+      if(ch.bps===8&&q2<=255){range=[+(q1/255).toFixed(3),+(Math.min(1,Math.max(q2,q1+1)/255)).toFixed(3)];}else{lo=q1;hi=q2>q1?q2:q1+1;} // 8 bit は値をそのまま保存して表示範囲で調整、16 bit 以上は 0.1–99.9 パーセンタイルで 8 bit に写す
+      const {canvas,ds}=figDownscale(figGrayCanvas(ch.data,ch.W,ch.H,lo,hi),2000);
+      const m=await figImgStoreCanvas(canvas,`${base}_${name}`,{bits:ch.bps,srcRange:[lo,hi],ow:ch.W,oh:ch.H,ds,channelName:name,omeZ:T.ome.sizeZ>1?((typeof settings!=='undefined'&&settings.tiffZ)==='mip'?'mip':'first'):''});
+      out.push(Object.assign(m,{label:name,channel:figGuessChannel(name,info.color,ch.c),range,mergeGroup:group,umPerPx:T.ome.physX||0}));}
+    return out;}
+  const pages=await figTiffDecode(buf);const out=[];const big=Math.max(...pages.map(pg=>pg.W*pg.H));const keep=pages.filter(pg=>pg.W*pg.H>=big/8);
+  for(let i=0;i<Math.min(keep.length,8);i++){const pg=keep[i];const {canvas,ds}=figDownscale(pg.canvas,2000);const m=await figImgStoreCanvas(canvas,keep.length>1?`${base}_p${i+1}`:base,{bits:pg.bits,srcRange:pg.range,pages:keep.length,ow:pg.W,oh:pg.H,ds});if(T.ome&&T.ome.physX)m.umPerPx=T.ome.physX;out.push(m);}
+  return out;}
+// 保存した画像の情報から、画像パネルの項目（疑似カラー・表示範囲・文字）と合成セルを作り、画素の実寸をスケールバーに入れる
+function figImgItemsFromMetas(metas,spec){const items=metas.map(m=>Object.assign({img:m.id},m.label?{label:m.label}:{},m.channel?{channel:m.channel}:{},m.range?{range:m.range}:{}));
+  const groups={};metas.forEach(m=>{if(m.mergeGroup)(groups[m.mergeGroup]=groups[m.mergeGroup]||[]).push(m);});
+  for(const g of Object.values(groups))if(g.length>1)items.push({merge:g.map(m=>Object.assign({img:m.id,channel:m.channel||'gray'},m.range?{range:m.range}:{})),label:'Merge'});
+  const um=(metas.find(m=>m.umPerPx>0)||{}).umPerPx;if(spec&&um){spec.scale=spec.scale||{len:20,unit:'µm',labelOn:'first'};if(!(+spec.scale.umPerPx>0)){spec.scale.umPerPx=+um.toPrecision(6);if(!(+spec.scale.len>0))spec.scale.len=20;}}
+  return items;}
 
 
 /* ---------- 画像パネルの画面（#figImgDlg。「Figure・パネルを作成」のうち画像パネル。グラフの画面 #figDlg と同じ構成: 左＝設定、右＝プレビュー） ---------- */
 let figImgState=null; // {spec, src:{nodeId,index}|null, tool, pts, profiles:[]}
 const figImgDefSpec=()=>({kind:'image',type:'grid',cols:3,images:[],scale:{umPerPx:0,len:20,unit:'µm',labelOn:'first'}});
 function figImgOpen(spec,src){const $=s=>document.querySelector(s);figImgState={spec:JSON.parse(JSON.stringify(spec||figImgDefSpec())),src:src||null,tool:null,pts:[],profiles:[]};figImgTool=null;
-  $('#figImgUpdate').style.display=src?'':'none';figImgFillForm();figImgSync();$('#figImgDlg').showModal();requestAnimationFrame(()=>{figImgFitPreview();setTimeout(figImgFitPreview,150);});}
+  $('#figImgUpdate').style.display=src?'':'none';{const tg=$('#figImgTag');if(tg)tg.value=figImgState.spec.figureTag||'';if(typeof figExpBarRefresh==='function')figExpBarRefresh();}figImgFillForm();figImgSync();$('#figImgDlg').showModal();requestAnimationFrame(()=>{figImgFitPreview();setTimeout(figImgFitPreview,150);});}
 async function figImgOpenWithFiles(files){const all=[...files].filter(f=>/^image\//i.test(f.type)||/\.tiff?$/i.test(f.name));const list=all.slice(0,60);if(!list.length){toast('画像ファイルを選んでください');return;}if(all.length>60)toast('一度に取り込めるのは 60 枚までです（残りは「＋ 画像を追加」で）');const imgs=[];for(const f of list){try{imgs.push(...await figImgStoreAny(f));}catch(e){toast(f.name+': '+e.message);}}if(!imgs.length)return;persist();
-  const spec=figImgDefSpec();spec.cols=Math.min(imgs.length,3);spec.images=imgs.map(m=>({img:m.id}));figImgOpen(spec,null);toast(`画像 ${imgs.length} 枚を取り込みました。左の一覧で並べ替え・文字・色を決めてください`);}
+  const spec=figImgDefSpec();spec.images=figImgItemsFromMetas(imgs,spec);spec.cols=Math.min(spec.images.length,spec.images.length===4?2:spec.images.length>4?4:3);figImgOpen(spec,null);toast(`画像 ${imgs.length} 枚を取り込みました。左の一覧で並べ替え・文字・色を決めてください`);}
 function figImgFillForm(){const $=s=>document.querySelector(s);const j=figImgState.spec;const sb=j.scale||{};$('#figImgType').value=j.type==='blot'?'blot':'grid';$('#figImgTitle').value=j.title||'';$('#figImgCols').value=String(j.cols||3);$('#figImgCell').value=String(j.cellIn||1.2);$('#figImgFit').value=j.fit||'cover';$('#figImgAspect').value=j.aspect?String(j.aspect):'';
   $('#figImgRows').value=(j.rowLabels||[]).join(', ');$('#figImgColsLab').value=(j.colLabels||[]).join(', ');figImgFillColColors();$('#figImgUm').value=sb.umPerPx||'';$('#figImgLen').value=sb.len||'';$('#figImgUnit').value=sb.unit||'µm';$('#figImgLabelOn').value=sb.labelOn||'first';$('#figImgSbPos').value=sb.pos||'br';
   $('#figImgWidth').value=String(j.widthIn||2.5);$('#figImgLaneRot').value=j.laneRot?'1':'0';$('#figImgNameSide').value=j.nameSide||'right';$('#figImgLanes').value=(j.lanes||[]).join(', ');$('#figImgConds').value=(j.conds||[]).map(c=>c.wedge?`${c.name}: wedge`:`${c.name}: ${(c.vals||[]).join(', ')}`).join('\n');$('#figImgGroups').value=(j.groups||[]).map(g=>`${g.name}: ${(+g.from||0)+1}-${(g.to==null?+g.from||0:+g.to)+1}`).join(', ');
@@ -238,9 +309,11 @@ function figImgFitPreview(){const box=document.querySelector('#figImgPreview');c
 window.addEventListener('resize',()=>{if(document.querySelector('#figImgDlg')&&document.querySelector('#figImgDlg').open)figImgFitPreview();});
 function figImgSpecOut(){figImgReadForm();const j=JSON.parse(JSON.stringify(figImgState.spec));return j;}
 // 画面のクリック（セル→注釈、ツール、画像リスト）
+// 画像パネルの書き出し情報（改善計画 2.1）
+function figImgExpMeta(){const j=figImgState.spec,src=figImgState.src;const tag=j.figureTag||'';return {tag,type:'panel-'+(j.type||'grid'),key:src?`${src.nodeId}:${src.index}${src.panel!=null?':'+src.panel:''}`:'dlg:'+(tag||'panel'),spec:j};}
 function figImgDlgInit(){const $=s=>document.querySelector(s);const dlg=$('#figImgDlg');if(!dlg)return;
-  $('#figImgClose').onclick=()=>dlg.close();$('#figImgAdd').onclick=()=>$('#figImgAddFile').click();
-  $('#figImgAddFile').onchange=async()=>{const list=[...$('#figImgAddFile').files];$('#figImgAddFile').value='';for(const f of list){try{for(const m of await figImgStoreAny(f)){figImgReadForm();const j=figImgState.spec;if(j.type==='blot')(j.bands=j.bands||[]).push({img:m.id});else (j.images=j.images||[]).push({img:m.id});}}catch(e){toast(f.name+': '+e.message);}}persist();figImgFillList();figImgSync();};
+  $('#figImgClose').onclick=()=>dlg.close();$('#figImgAdd').onclick=()=>$('#figImgAddFile').click();{const z=$('#figImgZ');if(z){z.value=(typeof settings!=='undefined'&&settings.tiffZ)||'first';z.onchange=()=>{settings.tiffZ=z.value;if(typeof saveSettings==='function')saveSettings();};}}
+  $('#figImgAddFile').onchange=async()=>{const list=[...$('#figImgAddFile').files];$('#figImgAddFile').value='';for(const f of list){try{const ms=await figImgStoreAny(f);figImgReadForm();const j=figImgState.spec;if(j.type==='blot')for(const m of ms)(j.bands=j.bands||[]).push({img:m.id});else{(j.images=j.images||[]).push(...figImgItemsFromMetas(ms,j));figImgFillForm();}if(ms.some(m=>m.mergeGroup))toast(`「${f.name}」を ${ms.length} チャネルに分けて取り込み、合成セルを足しました${ms[0].umPerPx?'（1 px = '+ms[0].umPerPx+' µm を自動で入れました）':''}`);}catch(e){toast(f.name+': '+e.message);}}persist();figImgFillList();figImgSync();};
   ['#figImgType','#figImgTitle','#figImgCols','#figImgCell','#figImgFit','#figImgAspect','#figImgRows','#figImgColsLab','#figImgUm','#figImgLen','#figImgUnit','#figImgLabelOn','#figImgSbPos','#figImgWidth','#figImgLaneRot','#figImgNameSide','#figImgLanes','#figImgConds','#figImgGroups'].forEach(sl=>{const el=$(sl);const h=()=>{figImgReadForm();if(sl==='#figImgType')figImgFillList();if(sl==='#figImgColsLab')figImgFillColColors();figImgSync();};el.addEventListener('change',h);el.addEventListener('input',h);});
   $('#figImgList').addEventListener('change',e=>{const el=e.target.closest('[data-ik]');if(!el)return;const k=el.dataset.ik,i=+el.dataset.i;const j=figImgState.spec;const items=j.type==='blot'?j.bands:j.images;const im=items&&items[i];if(!im||k==='chk')return;
     const setRange=(o,idx,v)=>{o.range=o.range||[0,1];o.range[idx]=v===''?(idx?1:0):+v;if(o.range[0]===0&&o.range[1]===1)delete o.range;};
@@ -269,8 +342,9 @@ function figImgDlgInit(){const $=s=>document.querySelector(s);const dlg=$('#figI
     const a={t,cell:k,x,y};const ac=figImgState.annotColor;if(ac&&ac.toLowerCase()!=='#ffffff')a.color=ac;if(t==='roi'){a.w=0.25;a.h=0.25;}if(t==='inset'){a.w=0.25;a.h=0.25;a.size=0.42;a.at=(y<0.5?'b':'t')+(x<0.5?'r':'l');}figImgState.tool=null;const fin=()=>{(j.annots=j.annots||[]).push(a);figImgState.annotSel=j.annots.length-1;figImgSync();};if(t==='text'){figPrompt('書く文字','').then(s=>{if(!s){figImgSync();return;}a.text=s;fin();});figImgSync();return;}fin();});
   $('#figImgJson').onclick=async()=>{const j=figImgSpecOut();const txt=await figPrompt('図の指定（JSON）。直して OK で反映',JSON.stringify(j,null,1),{multiline:true});if(txt==null)return;try{const jj=JSON.parse(txt);if(!figIsImage(jj))throw new Error('kind が image ではありません');figImgState.spec=jj;figImgFillForm();figImgSync();}catch(e){toast('JSON の誤り: '+e.message);}};
   const png=async()=>{const r=figImgState.r;if(!r||!r.svg)return null;return figToPng(r.svg,r.w,r.h,300);};
-  $('#figImgPng').onclick=async()=>{const c=await png();if(!c)return;const a=document.createElement('a');a.href=figPngDataURL(c,300);a.download=`panel_${Date.now()}.png`;a.click();toast('PNG（300 dpi）を保存しました');};
-  $('#figImgSvg').onclick=async()=>{const r=figImgState.r;if(!r)return;saveTextFile(`panel_${Date.now()}.svg`,await figInlineImages(r.svg));};
+  $('#figImgPng').onclick=async()=>{const c=await png();if(!c)return;await figExportPng(figImgExpMeta(),c,300);};
+  $('#figImgSvg').onclick=async()=>{const r=figImgState.r;if(!r)return;await figExport(figImgExpMeta(),{ext:'svg',text:await figInlineImages(r.svg)});};
+  {const acts=$('#figImgDlg .figActs');if(acts&&!$('#figImgTag')){acts.insertAdjacentHTML('afterbegin',figExpBarHTML('figImg'));$('#figImgTag').addEventListener('input',e=>{const v=e.target.value.trim();if(v)figImgState.spec.figureTag=v;else delete figImgState.spec.figureTag;});}}
   $('#figImgCopy').onclick=async()=>{const c=await png();if(!c)return;try{const blob=await new Promise(r=>c.toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);toast('画像をコピーしました');}catch(e){toast('コピーできませんでした');}};
   $('#figImgAttach').onclick=async()=>{const j=figImgSpecOut();const r=figImgState.r;if(!r||!r.svg){toast('画像がありません');return;}const blocks=['```figure\n'+JSON.stringify(j)+'\n```'].concat(figImgState.profiles.map(p=>'```figure\n'+JSON.stringify(p)+'\n```'));
     try{if(imagesSupported&&pendingImgs.length<4){const c=await figToPng(r.svg,r.w,r.h,150);const full=c.toDataURL('image/jpeg',.9);const tc=document.createElement('canvas');const sc=256/Math.max(c.width,c.height);tc.width=Math.round(c.width*sc);tc.height=Math.round(c.height*sc);tc.getContext('2d').drawImage(c,0,0,tc.width,tc.height);pendingImgs.push({full:{media_type:'image/jpeg',data:full.split(',')[1]},thumb:tc.toDataURL('image/jpeg',.8)});renderPlus();}}catch(e){}

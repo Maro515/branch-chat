@@ -24,7 +24,7 @@ const FIG_DEF_P3={estCI:true,estText:true,estErr:'SD',qqLine:true,qqText:true,ba
   spSubject:true,spErr:'SD',spSmall:true,spColor:'group',
   swSort:'duration',swEvents:true,swArrow:true,swUnit:'',
   sdLines:true,sdEnd:true,sdColor:'group',pieLabels:'percent',pieStart:0,pieSort:false,
-  volFC:1,volP:0.05,volQ:false,volLabels:10,volLines:true,volCounts:true,
+  volFC:1,volP:0.05,volQ:false,volSig:'auto',volGenes:'',volItalic:true,volNote:true,volLabels:10,volLines:true,volCounts:true,
   cmNorm:'none',cmScheme:'wb',cmValues:true,impN:'',impSort:'desc',impErr:true};
 Object.assign(FIG_DEF,FIG_DEF_P3);FIG_STYLE_KEYS.push(...Object.keys(FIG_DEF_P3));
 Object.assign(FIG_TOOLS_MORE,{
@@ -44,8 +44,8 @@ Object.assign(FIG_TOOLS_MORE,{
   pie:[{k:'pieLabels',t:'select',l:'区分の文字',o:[['percent','%'],['value','値'],['both','値と %'],['none','なし']]},{k:'pieSort',t:'check',l:'大きい順に並べる'}],
   donut:[{k:'pieLabels',t:'select',l:'区分の文字',o:[['percent','%'],['value','値'],['both','値と %'],['none','なし']]},{k:'pieSort',t:'check',l:'大きい順に並べる'}],
   confusion:[{k:'cmNorm',t:'select',l:'セルの値',o:[['none','件数'],['row','件数と行の %（再現率）'],['col','件数と列の %（精度）']]},{k:'cmScheme',t:'select',l:'色',o:[['wb','白–青'],['wr','白–赤'],['gray','白–黒'],['viridis','Viridis']]},{k:'cmValues',t:'check',l:'セルに値を書く'}],
-  volcano:[{k:'volFC',t:'select',l:'|log2FC| のしきい値',o:[['0.585','0.585（1.5 倍）'],['1','1（2 倍）'],['2','2（4 倍）'],['0','なし']]},{k:'volP',t:'select',l:'P のしきい値',o:[['0.05','0.05'],['0.01','0.01'],['0.001','0.001']]},{k:'volQ',t:'check',l:'BH 補正した q を使う'},{k:'volLabels',t:'select',l:'名前を書く上位 n',o:[['0','なし'],['5','5'],['10','10'],['20','20']]},{k:'volLines',t:'check',l:'しきい値の線'},{k:'volCounts',t:'check',l:'上昇・下降の数を書く'}],
-  ma:[{k:'volFC',t:'select',l:'|log2FC| のしきい値',o:[['0.585','0.585'],['1','1'],['2','2'],['0','なし']]},{k:'volP',t:'select',l:'P のしきい値',o:[['0.05','0.05'],['0.01','0.01'],['0.001','0.001']]},{k:'volQ',t:'check',l:'BH 補正した q を使う'},{k:'volLabels',t:'select',l:'名前を書く上位 n',o:[['0','なし'],['5','5'],['10','10'],['20','20']]}],
+  volcano:[{k:'volFC',t:'select',l:'|log2FC| のしきい値',o:[['0.585','0.585（1.5 倍）'],['1','1（2 倍）'],['2','2（4 倍）'],['0','なし']]},{k:'volP',t:'select',l:'P のしきい値',o:[['0.05','0.05'],['0.01','0.01'],['0.001','0.001']]},{k:'volSig',t:'select',l:'判定に使う値',o:[['auto','自動（q・FDR の列があればそれ、無ければ P）'],['p','P 値'],['q','表の q（FDR）の列'],['bh','P から BH 法で計算し直す']]},{k:'volLabels',t:'select',l:'名前を書く上位 n',o:[['0','なし'],['5','5'],['10','10'],['20','20']]},{k:'volGenes',t:'text',l:'ラベルする名前（カンマ区切り。例: MS4A1, SPIB, SPI1）'},{k:'volItalic',t:'check',l:'名前を斜体に（遺伝子名の慣例）'},{k:'volLines',t:'check',l:'しきい値の線'},{k:'volCounts',t:'check',l:'上昇・下降の数を書く'},{k:'volNote',t:'check',l:'P = 0 を丸めた件数を図に書く'}],
+  ma:[{k:'volFC',t:'select',l:'|log2FC| のしきい値',o:[['0.585','0.585'],['1','1'],['2','2'],['0','なし']]},{k:'volP',t:'select',l:'P のしきい値',o:[['0.05','0.05'],['0.01','0.01'],['0.001','0.001']]},{k:'volSig',t:'select',l:'判定に使う値',o:[['auto','自動（q・FDR の列があればそれ、無ければ P）'],['p','P 値'],['q','表の q（FDR）の列'],['bh','P から BH 法で計算し直す']]},{k:'volLabels',t:'select',l:'名前を書く上位 n',o:[['0','なし'],['5','5'],['10','10'],['20','20']]},{k:'volGenes',t:'text',l:'ラベルする名前（カンマ区切り。例: MS4A1, SPIB, SPI1）'},{k:'volItalic',t:'check',l:'名前を斜体に（遺伝子名の慣例）'}],
   importance:[{k:'impN',t:'text',l:'上位 n 件（空で全部）'},{k:'impSort',t:'select',l:'並べ方',o:[['desc','大きい順'],['input','入力順']]},{k:'impErr',t:'check',l:'誤差棒（Error 列）'}]});
 
 FIG_PROMPT+=`
@@ -54,7 +54,7 @@ kind "multi"（行＝個体、列＝変数、Group 列は文字）: type bubble�
 kind "nested": 列 Group, Subject（個体）, Value。type superplot。
 kind "swimmer": 列 Patient, Duration（または Start と End）, Response/Group（任意）, Ongoing（1/0、任意）、ほかの数値列はイベントの時刻（列名がイベント名）。
 kind "spider": 列 Patient, Time, Change（%）, Group（任意）。
-kind "feature": 列 Gene, log2FC, P（または padj）, baseMean（任意）。type volcano か ma。
+kind "feature": 列 Gene, log2FC, P（または padj）, baseMean（任意）。type volcano か ma。特定の遺伝子に名前を付けるときは最上位に "labelGenes":["MS4A1","SPIB"]（円で囲み、引き出し線つきで重ならないように置く）。判定に使う値は style の volSig: auto（q・FDR 列があればそれ）/ p / q / bh（P から BH で計算し直す）。
 kind "importance": 列 Feature, Value, Error（任意）。
 kind "heatmap" の type confusion: 行＝実際、列＝予測の件数行列。`;
 
@@ -126,8 +126,10 @@ function figBuildSpider(parsed){const cols=parsed.cols;const lc=figLC;
 function figBuildFeature(parsed){const cols=parsed.cols;const lc=figLC;const fc=cols.find(c=>/log2?\s*fc|fold|log2foldchange|効果量|logfc/.test(lc(c))&&!figTextCol(c));if(!fc)return null;
   const padj=cols.find(c=>/padj|p_adj|adj\.?p|fdr|^q|qvalue|q_value|q\.value/.test(lc(c))&&!figTextCol(c))||null;const p=cols.find(c=>c!==padj&&/^(p|pvalue|p\.?val(ue)?|p_value|pval)$/.test(lc(c))&&!figTextCol(c))||padj;if(!p)return null;
   const base=cols.find(c=>/basemean|mean|avg|expr|logcpm|aveexpr|平均/.test(lc(c))&&!figTextCol(c)&&c!==fc&&c!==p)||null;const nameC=cols.find(c=>figTextCol(c))||null;
-  const items=fc.vals.map((v,i)=>{const pv=p.vals[i];if(v===null||pv===null||!(pv>0))return null;return {name:nameC?nameC.raw[i]:String(i+1),fc:v,p:pv,q:padj?padj.vals[i]:null,base:base?base.vals[i]:null};}).filter(Boolean);if(!items.length)return null;
-  if(!padj){const qs=bhFDR(items.map(it=>it.p));items.forEach((it,i)=>{it.q=qs[i];});}return {kind:'feature',items,pname:p.name,qname:padj?padj.name:'BH q',fcname:fc.name,bname:base?base.name:'',groups:[]};}
+  const PMIN=1e-300;const onlyQ=!!padj&&padj===p;const hasQ=!!padj; // 補正済みの列しか無いとき（onlyQ）は、その列を q として扱い BH をかけ直さない // P が 0 や表示できないほど小さいときは 1e-300 に丸め、件数を数えて図注に書く（改善計画 3.4）
+  const items=fc.vals.map((v,i)=>{const pv=p.vals[i];if(v===null||pv===null||!(pv>=0))return null;const qv=hasQ?padj.vals[i]:null;return {name:nameC?nameC.raw[i]:String(i+1),fc:v,p:Math.max(pv,PMIN),p0:pv<PMIN,qOrig:qv==null||!(qv>=0)?null:Math.max(qv,PMIN),q0:qv!=null&&qv>=0&&qv<PMIN,base:base?base.vals[i]:null};}).filter(Boolean);if(!items.length)return null;
+  const qs=onlyQ?items.map(it=>it.qOrig!=null?it.qOrig:it.p):bhFDR(items.map(it=>it.p));items.forEach((it,i)=>{it.qBH=Math.max(qs[i],PMIN);it.q=hasQ&&it.qOrig!=null?it.qOrig:it.qBH;});
+  return {kind:'feature',items,onlyQ,pname:p.name,qname:hasQ?padj.name:'BH q',qcol:hasQ?padj.name:'',fcname:fc.name,bname:base?base.name:'',groups:[],p0:items.filter(it=>it.p0).length};}
 function figBuildImportance(parsed){const cols=parsed.cols;const num=cols.filter(c=>c.vals.some(v=>v!==null)&&!figTextCol(c));const vC=num.find(c=>/importance|重要度|gain|shap|value|score|coef/.test(figLC(c)))||num[0];if(!vC)return null;const eC=num.find(c=>c!==vC&&/err|sd|se|std|誤差/.test(figLC(c)))||null;
   const items=vC.vals.map((v,i)=>v===null?null:({name:parsed.firstColText?parsed.rowLabels[i]:String(i+1),v,e:eC?eC.vals[i]:null})).filter(Boolean);if(!items.length)return null;return {kind:'importance',items,vname:vC.name,groups:[]};}
 
@@ -293,16 +295,49 @@ function figRenderConfusion(spec){const d=spec.data;const o=Object.assign({},FIG
   return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/><g data-sel="series:0">${cells}</g><g data-sel="text">${texts}</g><g data-sel="axes">${labels}</g>${title}</svg>`,w:W,h:H,res:{stats}};}
 
 // ボルケーノ／MA（feature）
+// 判定に使う値（改善計画 3.4）: auto＝q・FDR の列があればそれ、無ければ P ／ p ／ q＝表の q 列（無ければ BH）／ bh＝P から BH で計算し直す。
+// 以前の style.volQ（true/false）は q/p として読む
+function figVolSig(spec,d){const raw=(spec&&spec.opts)||{};let m=raw.volSig||(raw.volQ===true?'q':raw.volQ===false?'p':'auto');if(m==='auto')m=d.qcol?'q':'p';if(m==='q'&&!d.qcol)m='bh';return m;}
+function figVolValue(it,m){return m==='p'?it.p:m==='q'?(it.qOrig!=null?it.qOrig:it.qBH):it.qBH;}
+// ラベルする名前（最上位の labelGenes 配列、または style.volGenes の文字）
+function figVolGenes(spec){const o=(spec&&spec.opts)||{};let g=o.x&&Array.isArray(o.x.labelGenes)?o.x.labelGenes:null;if(!g&&o.volGenes)g=String(o.volGenes).split(/[,、\s]+/);return (g||[]).map(x=>String(x).trim()).filter(Boolean);}
+// ラベルの置き場所: 点ごとに 8 方向・4 段の距離を試し、プロットの外にもほかのラベルにもかからない最初の位置（改善計画 2.2）
+function figPlaceLabels(pts,F,fs,italic){const placed=[],out=[];const pad=fs*0.12;const lh=fs*0.7;
+  const box=(x,y,w,anc)=>{const x0=anc==='end'?x-w:anc==='middle'?x-w/2:x;return {x0,y0:y-lh*1.26,x1:x0+w,y1:y+lh*0.5};}; // 文字の外枠（実測: 幅は見積もりの約 1.13 倍、上は基線から 1.25 字、下は 0.5 字）
+  const inside=b=>b.x0>=F.x0+pad&&b.x1<=F.x0+F.plotW-pad&&b.y0>=F.padT+pad&&b.y1<=F.y0-pad;
+  const hit=b=>placed.some(q=>!(b.x1+pad<q.x0||b.x0-pad>q.x1||b.y1+pad<q.y0||b.y0-pad>q.y1));
+  for(const p of pts){const w=figTW(p.name,lh)*(italic?1.18:1.15);let best=null;
+    for(const k of [1.2,2.2,3.4,4.8,6.5,8.5,11]){const d=fs*k;const cs=[[d*0.8,-d*0.55,'start'],[-d*0.8,-d*0.55,'end'],[d*0.8,d*0.75,'start'],[-d*0.8,d*0.75,'end'],[0,-d,'middle'],[0,d+lh*0.6,'middle'],[d*1.1,lh*0.3,'start'],[-d*1.1,lh*0.3,'end']];
+      for(const [dx,dy,anc] of cs){const lx=p.x+dx,ly=p.y+dy;const bx=box(lx,ly,w,anc);if(inside(bx)&&!hit(bx)){best={lx,ly,anc,b:bx};break;}}if(best)break;}
+    if(!best&&!p.ring)continue; // 上位 n のラベルは、置ける場所が無ければ描かない（指定した名前は必ず描く）
+    if(!best){const anc=p.x>F.x0+F.plotW/2?'end':'start';const lx=p.x+(anc==='end'?-fs:fs),ly=Math.max(F.padT+lh,p.y-fs);best={lx,ly,anc,b:box(lx,ly,w,anc),forced:true};}
+    placed.push(best.b);out.push(Object.assign({},p,best));}
+  return out;}
 function figRenderVolcano(spec){const d=spec.data;const o=Object.assign({},FIG_DEF,spec.opts||{});const ma=spec.type==='ma';const items=d.items.filter(it=>!ma||it.base!==null);if(!items.length)return {svg:'',w:0,h:0};
-  const fcT=+o.volFC||0,pT=+o.volP||0.05;const useQ=!!o.volQ;const pv=it=>useQ&&it.q!=null?it.q:it.p;const cls=it=>(pv(it)<pT&&Math.abs(it.fc)>=fcT)?(it.fc>0?'up':'down'):'ns';const col={up:'#D62728',down:'#1F77B4',ns:'#BBBBBB'};
+  const fcT=+o.volFC||0,pT=+o.volP||0.05;const sig=figVolSig(spec,d);const pv=it=>figVolValue(it,sig);const cls=it=>(pv(it)<pT&&Math.abs(it.fc)>=fcT)?(it.fc>0?'up':'down'):'ns';const col={up:'#D62728',down:'#1F77B4',ns:'#BBBBBB'};
+  const sigName=sig==='p'?(d.pname||'P'):sig==='q'?(d.qcol||'q'):'BH q';
   const X=items.map(it=>ma?Math.log2(Math.max(it.base,1e-9)):it.fc),Y=items.map(it=>ma?it.fc:-Math.log10(Math.max(pv(it),1e-300)));
-  let xs,ys;if(ma){xs=figAxisLin(Math.min(...X),Math.max(...X),6);const yr=Math.max(...Y.map(Math.abs))*1.08||1;ys=figAxisLin(-yr,yr,5);}else{const xr=Math.max(...X.map(Math.abs),fcT)*1.08||1;xs=figAxisLin(-xr,xr,6);const [ylo,yhi]=figYRange(o,0,Math.max(...Y,-Math.log10(pT))*1.08||1);ys=figAxisLin(ylo,yhi,5);}
-  const legend=[{name:`Up (${items.filter(it=>cls(it)==='up').length})`,kind:'sym',i:0,color:col.up,fill:'solid'},{name:`Down (${items.filter(it=>cls(it)==='down').length})`,kind:'sym',i:0,color:col.down,fill:'solid'},{name:'NS',kind:'sym',i:0,color:col.ns,fill:'solid'}];
-  const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle||(ma?`log2 ${d.bname||'mean expression'}`:(d.fcname||'log2 fold change')),yTitle:o.yTitle||(ma?(d.fcname||'log2 fold change'):`−log10 ${useQ?d.qname:(d.pname||'P')}`),legend:o.volCounts?legend:[],legendW:6.5,xAxisAt:ma?null:undefined});const {xOf,yOf,a,fs,h,txt,dash,x0,plotW,padT,y0}=F;
+  // 値が 0（下限未満）の点は 1e-300 にすると縦軸が 300 まで伸びてほかの点がつぶれるので、縦軸の上端に ▲ で描く（計算には 1e-300 を使う）
+  const zero=it=>(sig==='q'&&it.qOrig!=null)?it.q0:it.p0;let capY=null;if(!ma&&items.some(zero)){const nz=items.map((it,i)=>zero(it)?null:Y[i]).filter(v=>v!=null);capY=(nz.length?Math.max(...nz):1)*1.1+0.3;items.forEach((it,i)=>{if(zero(it))Y[i]=capY;});}
+  let xs,ys;if(ma){xs=figAxisLin(Math.min(...X),Math.max(...X),6);const yr=Math.max(...Y.map(Math.abs))*1.08||1;ys=figAxisLin(-yr,yr,5);}else{const xr=Math.max(...X.map(Math.abs),fcT)*1.08||1;xs=figAxisLin(-xr,xr,6);const [ylo,yhi]=figYRange(o,0,Math.max(...Y,-Math.log10(pT))*1.12||1);ys=figAxisLin(ylo,yhi,5);}
+  const nUp=items.filter(it=>cls(it)==='up').length,nDown=items.filter(it=>cls(it)==='down').length;
+  const legend=[{name:`Up (${nUp})`,kind:'sym',i:0,color:col.up,fill:'solid'},{name:`Down (${nDown})`,kind:'sym',i:0,color:col.down,fill:'solid'},{name:'NS',kind:'sym',i:0,color:col.ns,fill:'solid'}];
+  const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle||(ma?`log2 ${d.bname||'mean expression'}`:(d.fcname||'log2 fold change')),yTitle:o.yTitle||(ma?(d.fcname||'log2 fold change'):`−log10 ${sigName}`),legend:o.volCounts?legend:[],legendW:6.5,xAxisAt:ma?null:undefined});const {xOf,yOf,a,fs,txt,dash,x0,plotW,padT,y0}=F;
   let lines='';if(o.volLines){if(!ma){if(fcT>0)for(const v of [-fcT,fcT])lines+=`<line x1="${xOf(v)}" y1="${padT}" x2="${xOf(v)}" y2="${y0}" stroke="#666" stroke-width="${a*0.6}" stroke-dasharray="${dash}"/>`;const yp=-Math.log10(pT);if(yp>ys.lo&&yp<ys.hi)lines+=`<line x1="${x0}" y1="${yOf(yp)}" x2="${x0+plotW}" y2="${yOf(yp)}" stroke="#666" stroke-width="${a*0.6}" stroke-dasharray="${dash}"/>`;}else{for(const v of (fcT>0?[-fcT,0,fcT]:[0]))lines+=`<line x1="${x0}" y1="${yOf(v)}" x2="${x0+plotW}" y2="${yOf(v)}" stroke="#666" stroke-width="${a*0.6}" stroke-dasharray="${v?dash:'none'}"/>`;}}
-  const r0=Math.max(1.2,Math.min(3,FIG_PT*3*Math.sqrt(300/Math.max(items.length,30))));let ns='',sig='';items.forEach((it,i)=>{const c=cls(it);const s=`<circle cx="${xOf(X[i])}" cy="${yOf(Y[i])}" r="${r0}" fill="${col[c]}" fill-opacity="${c==='ns'?0.6:0.85}"/>`;if(c==='ns')ns+=s;else sig+=s;});
-  let labels='';const nl=+o.volLabels||0;if(nl>0){const cand=items.map((it,i)=>({it,i})).filter(x=>cls(x.it)!=='ns').sort((p,q)=>pv(p.it)-pv(q.it)).slice(0,nl);const placed=[];cand.forEach(({it,i})=>{let x=xOf(X[i])+fs*0.4,y=yOf(Y[i])-fs*0.2;let anchor=X[i]>=0||ma?'start':'end';if(anchor==='end')x=xOf(X[i])-fs*0.4;const tw=figTW(it.name,fs*0.7);if(anchor==='end'&&x-tw<F.x0+fs*0.2){anchor='start';x=xOf(X[i])+fs*0.4;}if(anchor==='start'&&x+tw>F.x0+F.plotW-fs*0.2){anchor='end';x=xOf(X[i])-fs*0.4;}if(y<F.padT+fs*0.8)y=F.padT+fs*0.8;for(let k=0;k<12&&placed.some(p=>Math.abs(p.y-y)<fs*0.9&&Math.abs(p.x-x)<fs*4);k++)y+=fs*0.9;placed.push({x,y});labels+=txt(x,y,it.name,anchor,null,null,fs*0.7);});}
-  const r=F.wrap(lines+`<g data-sel="series:0">${ns}${sig}</g>`+(labels?`<g data-sel="text">${labels}</g>`:''));r.res={n:items.length,up:items.filter(it=>cls(it)==='up').length,down:items.filter(it=>cls(it)==='down').length,fcT,pT,useQ,top:items.slice().sort((p,q)=>pv(p)-pv(q)).slice(0,10)};return r;}
+  const r0=Math.max(1.2,Math.min(3,FIG_PT*3*Math.sqrt(300/Math.max(items.length,30))));let ns='',sg='';items.forEach((it,i)=>{const c=cls(it);const cx=xOf(X[i]),cy=yOf(Y[i]);const s=capY!=null&&zero(it)?`<path d="M${cx.toFixed(2)},${(cy-r0*1.7).toFixed(2)}L${(cx+r0*1.5).toFixed(2)},${(cy+r0).toFixed(2)}L${(cx-r0*1.5).toFixed(2)},${(cy+r0).toFixed(2)}Z" fill="${col[c]}" fill-opacity=".95"/>`:`<circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r0}" fill="${col[c]}" fill-opacity="${c==='ns'?0.6:0.85}"/>`;if(c==='ns')ns+=s;else sg+=s;});
+  // ラベル: 指定した名前（円で囲む）を先に、上位 n を後から。全部まとめて重ならないように置く
+  const want=figVolGenes(spec);const wantSet=new Set(want.map(g=>g.toLowerCase()));const pts=[];const used=new Set();const missing=[];
+  want.forEach(g=>{const i=items.findIndex(it=>String(it.name).toLowerCase()===g.toLowerCase());if(i<0){missing.push(g);return;}if(used.has(i))return;used.add(i);pts.push({i,name:items[i].name,x:xOf(X[i]),y:yOf(Y[i]),ring:true});});
+  const nl=+o.volLabels||0;if(nl>0)items.map((it,i)=>({it,i})).filter(x=>cls(x.it)!=='ns'&&!used.has(x.i)).sort((p,q)=>pv(p.it)-pv(q.it)).slice(0,nl).forEach(({it,i})=>{used.add(i);pts.push({i,name:it.name,x:xOf(X[i]),y:yOf(Y[i]),ring:false});});
+  const italic=o.volItalic!==false;const lf=fs*0.7;const lab=figPlaceLabels(pts,F,fs,italic);let rings='',leads='',texts='';
+  lab.forEach(L=>{if(L.ring)rings+=`<circle cx="${L.x.toFixed(2)}" cy="${L.y.toFixed(2)}" r="${(r0*1.9+1).toFixed(2)}" fill="none" stroke="#000" stroke-width="${a*0.8}"/>`;
+    const ex=Math.min(Math.max(L.x,L.b.x0),L.b.x1),ey=Math.min(Math.max(L.y,L.b.y0),L.b.y1);const dd=Math.hypot(ex-L.x,ey-L.y);if(dd>r0*2.6){const rr=L.ring?r0*1.9+1:r0;const sx=L.x+(ex-L.x)/dd*rr,sy=L.y+(ey-L.y)/dd*rr;leads+=`<line x1="${sx.toFixed(2)}" y1="${sy.toFixed(2)}" x2="${ex.toFixed(2)}" y2="${ey.toFixed(2)}" stroke="#333" stroke-width="${a*0.5}"/>`;}
+    texts+=txt(L.lx,L.ly,L.name,L.anc,null,null,lf);});
+  let note='';const n0=items.filter(zero).length;if(n0&&o.volNote!==false&&!ma)note=txt(x0+fs*0.3,y0-fs*0.35,`▲ ${sig==='p'?'P':sigName} = 0: ${n0} (at top)`,'start','fill="#555"',null,fs*0.55);
+  const r=F.wrap(lines+`<g data-sel="series:0">${ns}${sg}</g>`+(lab.length?`<g data-sel="text">${rings}${leads}<g${italic?' font-style="italic"':''}>${texts}</g></g>`:'')+note);
+  // BH で計算し直したときは、表の q 列による判定との違いを数える
+  let diff=null;if(sig==='bh'&&d.qcol&&!d.onlyQ){const c2=it=>((it.qOrig!=null?it.qOrig:1)<pT&&Math.abs(it.fc)>=fcT)?(it.fc>0?'up':'down'):'ns';let upAdd=0,upDel=0,dnAdd=0,dnDel=0,n=0;items.forEach(it=>{const a1=c2(it),b1=cls(it);if(a1===b1)return;n++;if(b1==='up')upAdd++;if(a1==='up')upDel++;if(b1==='down')dnAdd++;if(a1==='down')dnDel++;});diff={n,upAdd,upDel,dnAdd,dnDel};}
+  r.res={n:items.length,up:nUp,down:nDown,ns:items.length-nUp-nDown,fcT,pT,sig,sigName,n0,diff,genes:want,missing,top:items.slice().sort((p,q)=>pv(p)-pv(q)).slice(0,10).map(it=>Object.assign({},it,{v:pv(it)}))};return r;}
 
 // 特徴量重要度（importance: 横棒を大きい順）
 function figRenderImportance(spec){const d=spec.data;const o=Object.assign({},FIG_DEF,spec.opts||{});let items=d.items.slice();if(o.impSort!=='input')items.sort((p,q)=>q.v-p.v);const nTop=o.impN!==''&&+o.impN>0?+o.impN:items.length;items=items.slice(0,nTop);const n=items.length;if(!n)return {svg:'',w:0,h:0};
@@ -320,7 +355,13 @@ function figStatsP3(data,st){if(!data)return null;if(typeof figStatsP4==='functi
     if(c&&c.pairs.length)s+='<table><tr><th>比較</th><th>P 値</th></tr>'+c.pairs.map(p=>`<tr><td>${esc(data.groups[p.a].name)} vs ${esc(data.groups[p.b].name)}</td><td>${P(p.p)}</td></tr>`).join('')+'</table>';return s;}
   if(data.kind==='swimmer'){return `<div class="hint">n = ${res.n} ／ 期間の中央値 ${f3(res.median)} ／ 継続中 ${res.ongoing}${res.groups&&res.groups.length?' ／ '+res.groups.map(g=>esc(g.name)+' '+g.n).join('、'):''}${data.eventNames.length?' ／ イベント: '+data.eventNames.map(esc).join('、'):''}</div>`;}
   if(data.kind==='spider'){const c=res.cnt||{};return `<div class="hint">n = ${res.n} ／ 最良変化で分類: PR（≤ −30%）${c.PR||0}、SD ${c.SD||0}、PD（≥ +20%）${c.PD||0}。確定効果ではなく腫瘍径の変化だけの分類です。</div>`;}
-  if(data.kind==='feature'){let s=`<div class="hint">n = ${res.n} ／ しきい値 |log2FC| ≥ ${res.fcT}、${res.useQ?esc(data.qname):esc(data.pname)} < ${res.pT} ／ 上昇 ${res.up}、下降 ${res.down}${data.qname==='BH q'?' ／ q は P から BH 法で算出':''}</div>`;if(res.top&&res.top.length)s+='<table><tr><th>上位</th><th>log2FC</th><th>P</th><th>q</th></tr>'+res.top.map(it=>`<tr><td>${esc(it.name)}</td><td>${it.fc.toFixed(3)}</td><td>${figSci(it.p)}</td><td>${it.q!=null?figSci(it.q):'–'}</td></tr>`).join('')+'</table>';return s;}
+  if(data.kind==='feature'){const sigTxt={p:'P 値（'+esc(data.pname)+'）',q:'表の q・FDR 列（'+esc(data.qcol)+'）',bh:'P から BH 法で計算し直した q'}[res.sig]||esc(res.sigName);
+    const cond=`判定: ${res.sig==='p'?data.pname:res.sig==='q'?data.qcol:'BH q (from '+data.pname+')'} < ${res.pT}, |${data.fcname}| >= ${res.fcT}; up ${res.up}, down ${res.down}, NS ${res.ns}; n = ${res.n}`+(res.n0?`; ${res.n0} with value 0 shown at the top (1e-300 used)`:'');
+    let s=`<div class="hint">判定に使った値: <b>${sigTxt}</b> ／ しきい値: ${esc(res.sigName)} &lt; ${res.pT}、|log2FC| ≥ ${res.fcT} ／ 件数: 上昇 ${res.up}、下降 ${res.down}、有意でない ${res.ns}（計 ${res.n}）${data.onlyQ?' ／ 表には補正済みの列だけがあるため、それを q として使っています':''}${res.n0?` ／ 値が 0（表示の下限未満）の ${res.n0} 件は、縦軸の上端に ▲ で描き（計算には 1e-300 を使用）、図に注記しました`:''}</div>`;
+    if(res.diff)s+=`<div class="hint" style="color:#b45309">元の q 列（${esc(data.qcol)}）と ${res.diff.n} 件で判定が異なります（上昇 +${res.diff.upAdd}／−${res.diff.upDel}、下降 +${res.diff.dnAdd}／−${res.diff.dnDel}）。</div>`;
+    if(res.genes&&res.genes.length)s+=`<div class="hint">ラベルした名前: ${res.genes.map(esc).join(', ')}${res.missing&&res.missing.length?` ／ <span style="color:#b45309">表に見つからない名前: ${res.missing.map(esc).join(', ')}</span>`:''}</div>`;
+    s+=`<button class="small" type="button" data-copytext="${esc(cond)}" aria-label="判定の条件をコピー">⧉ 判定の条件をコピー</button>`;
+    if(res.top&&res.top.length)s+='<table><tr><th>上位</th><th>log2FC</th><th>P</th><th>q（表）</th><th>q（BH）</th></tr>'+res.top.map(it=>`<tr><td>${esc(it.name)}</td><td>${it.fc.toFixed(3)}</td><td>${it.p0?'0（→1e-300）':figSci(it.p)}</td><td>${it.qOrig!=null?figSci(it.qOrig):'–'}</td><td>${figSci(it.qBH)}</td></tr>`).join('')+'</table>';return s;}
   if(data.kind==='importance'){return `<div class="hint">${res.n} / ${res.total} 件を表示（${st.opts.impSort==='input'?'入力順':'大きい順'}）</div>`;}
   if(data.kind==='heatmap'&&t==='confusion'){const s0=res.stats;if(!s0)return null;let s=`<div class="hint">N = ${s0.N} ／ 正確度 ${(s0.acc*100).toFixed(1)}% ／ Cohen の κ = ${isFinite(s0.kappa)?s0.kappa.toFixed(3):'–'}</div><table><tr><th>クラス</th><th>再現率（感度）</th><th>精度（PPV）</th><th>特異度</th><th>F1</th></tr>`+data.rows.map((r,i)=>{const p=s0.per[i];const pc=v=>isFinite(v)?(v*100).toFixed(1)+'%':'–';return `<tr><td>${esc(r)}</td><td>${pc(p.recall)}</td><td>${pc(p.precision)}</td><td>${pc(p.spec)}</td><td>${isFinite(p.f1)?p.f1.toFixed(3):'–'}</td></tr>`;}).join('')+'</table>';return s;}
   if(t==='estimation'){const ds=res.diffs||[];const gs=data.groups;let s=`<div class="hint">右軸＝対照（${esc(gs[res.ctrl]?gs[res.ctrl].name:'')}）との平均差。Welch の t 検定の 95% CI。右軸の 0 は対照の平均の高さ。</div><table><tr><th>比較</th><th>平均差</th><th>95% CI</th><th>t</th><th>df</th><th>P</th></tr>`;ds.forEach((r,i)=>{if(!r)return;s+=`<tr><td>${esc(gs[i].name)} − ${esc(gs[res.ctrl].name)}</td><td>${f3(r.diff)}</td><td>${f3(r.ciLo)} – ${f3(r.ciHi)}</td><td>${r.t.toFixed(3)}</td><td>${r.df.toFixed(1)}</td><td>${P(r.p)}</td></tr>`;});return s+'</table>';}

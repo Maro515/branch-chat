@@ -116,7 +116,14 @@ function figArrangeDots(vals,yOf,r,maxW){
 }
 
 function figSeriesOpt(o,i){const ov=(o.series&&o.series[i])||{};const colors=o.colors||FIG_DEF.colors,symbols=o.symbols||FIG_DEF.symbols;return {name:ov.name||'',color:ov.color||colors[i%colors.length],symbol:ov.symbol||symbols[i%symbols.length],symPt:+(ov.symPt!=null&&ov.symPt!==''?ov.symPt:(o.symPt!=null&&o.symPt!==''?o.symPt:FIG_DEF.symPt)),fill:ov.fill||'solid',lineW:+(ov.lineW||o.linePt||1)};}
-function figRender(spec){
+// 図全体の幅・高さ（style.figW/figH、インチ）が指定されていれば、描画部分の大きさを詰めてそれに合わせる（改善計画 2.3・3.5）。
+// 合わない図種（全体が描画部分に比例しないもの）は最後に全体を縮尺して合わせる
+function figRender(spec){const o=(spec&&spec.opts)||{};const tw=+o.figW>0?+o.figW*FIG_IN:0,th=+o.figH>0?+o.figH*FIG_IN:0;let r=figRenderBase(spec);if(!r||!r.svg||(!tw&&!th))return r;
+  let w=+o.wIn||FIG_DEF.wIn||3,h=+o.hIn||FIG_DEF.hIn||2;
+  for(let i=0;i<5;i++){const dw=tw?tw-r.w:0,dh=th?th-r.h:0;if(Math.abs(dw)<0.6&&Math.abs(dh)<0.6)break;w=Math.max(0.4,w+dw/FIG_IN);h=Math.max(0.3,h+dh/FIG_IN);const r2=figRenderBase(Object.assign({},spec,{opts:Object.assign({},o,{wIn:+w.toFixed(4),hIn:+h.toFixed(4)})}));if(!r2||!r2.svg)break;r=r2;}
+  if((tw&&Math.abs(tw-r.w)>1.5)||(th&&Math.abs(th-r.h)>1.5)){const W=tw||r.w*(th/r.h),H=th||r.h*(tw/r.w);const svg=r.svg.replace(/^<svg([^>]*?) width="[^"]*" height="[^"]*"/,(m,a)=>`<svg${a} width="${W.toFixed(2)}" height="${H.toFixed(2)}"`);r=Object.assign({},r,{svg,w:W,h:H,scaled:true});}
+  return r;}
+function figRenderBase(spec){
   const d=spec.data;if(!d)return {svg:'',w:0,h:0};
   if(typeof figRenderMore==='function'){const r=figRenderMore(spec);if(r)return r;} // figure-more.js の図種
   const o=Object.assign({},FIG_DEF,spec.opts||{});if(FIG_FONTS[o.fontFamily])o.font=FIG_FONTS[o.fontFamily];const fs=(+o.fontPt||12)*FIG_PT,h=fs*0.72,a=(+o.axisPt||1)*FIG_PT,tick=h*(+o.tickLen||0.7)*(o.tickDir==='in'?-1:1);
@@ -221,9 +228,61 @@ function figRender(spec){
 // PNG に解像度（pHYs チャンク、dpi）を書き込む。canvas.toDataURL は解像度を持たないため
 const figCrcTable=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
 function figCrc32(bytes){let c=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)c=figCrcTable[(c^bytes[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
-function figPngDataURL(canvas,dpi){const url=canvas.toDataURL('image/png');try{const b64=url.split(',')[1];const bin=atob(b64);const src=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)src[i]=bin.charCodeAt(i);
-  const ppm=Math.round((dpi||300)/0.0254);const chunk=new Uint8Array(4+4+9+4);const dv=new DataView(chunk.buffer);dv.setUint32(0,9);chunk.set([0x70,0x48,0x59,0x73],4);dv.setUint32(8,ppm);dv.setUint32(12,ppm);chunk[16]=1;dv.setUint32(17,figCrc32(chunk.subarray(4,17)));
+function figPngDataURL(canvas,dpi,specText){const url=canvas.toDataURL('image/png');try{const b64=url.split(',')[1];const bin=atob(b64);const src=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)src[i]=bin.charCodeAt(i);
+  const ppm=Math.round((dpi||300)/0.0254);let chunk=new Uint8Array(4+4+9+4);const dv=new DataView(chunk.buffer);dv.setUint32(0,9);chunk.set([0x70,0x48,0x59,0x73],4);dv.setUint32(8,ppm);dv.setUint32(12,ppm);chunk[16]=1;dv.setUint32(17,figCrc32(chunk.subarray(4,17)));
+  if(specText)chunk=figConcatBytes(chunk,figPngTextChunk('branchat:spec',specText)); // 来歴: 図の指定（JSON）を iTXt に埋め込む（改善計画 3.3）
   const ihdrEnd=8+4+4+13+4;const out=new Uint8Array(src.length+chunk.length);out.set(src.subarray(0,ihdrEnd),0);out.set(chunk,ihdrEnd);out.set(src.subarray(ihdrEnd),ihdrEnd+chunk.length);let s='';for(let i=0;i<out.length;i+=0x8000)s+=String.fromCharCode.apply(null,out.subarray(i,i+0x8000));return 'data:image/png;base64,'+btoa(s);}catch(e){return url;}}
+function figConcatBytes(a,b){const o=new Uint8Array(a.length+b.length);o.set(a,0);o.set(b,a.length);return o;}
+// PNG の iTXt チャンク（キーワード＋UTF-8 の文字）
+function figPngTextChunk(key,text){const enc=new TextEncoder();const k=enc.encode(key),t=enc.encode(text);const body=new Uint8Array(k.length+5+t.length);body.set(k,0);/* 0,圧縮なし,方式0,言語なし,訳語なし */body.set(t,k.length+5);
+  const c=new Uint8Array(4+4+body.length+4);const dv=new DataView(c.buffer);dv.setUint32(0,body.length);c.set([0x69,0x54,0x58,0x74],4);c.set(body,8);dv.setUint32(8+body.length,figCrc32(c.subarray(4,8+body.length)));return c;}
+// PNG（バイト列）から iTXt/tEXt のキーワードの文字を読む
+function figPngReadText(bytes,key){if(!bytes||bytes.length<8)return null;const dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);let p=8;const dec=new TextDecoder();
+  while(p+8<=bytes.length){const len=dv.getUint32(p);const type=String.fromCharCode(bytes[p+4],bytes[p+5],bytes[p+6],bytes[p+7]);const d=bytes.subarray(p+8,p+8+len);
+    if(type==='iTXt'||type==='tEXt'){const z=d.indexOf(0);const k=dec.decode(d.subarray(0,z));if(k===key){if(type==='tEXt')return dec.decode(d.subarray(z+1));let q=z+3;q=d.indexOf(0,q)+1;q=d.indexOf(0,q)+1;return dec.decode(d.subarray(q));}}
+    if(type==='IEND')break;p+=12+len;}return null;}
+// SVG に図の指定を <metadata> として入れる／取り出す
+function figSvgWithSpec(svg,specText){if(!specText||!svg)return svg;const safe=String(specText).replace(/\]\]>/g,']]]]><![CDATA[>');return svg.replace(/(<svg\b[^>]*>)/,`$1<metadata id="branchat-spec"><![CDATA[${safe}]]></metadata>`);}
+function figSvgReadSpec(svg){const m=/<metadata id="branchat-spec"><!\[CDATA\[([\s\S]*?)\]\]><\/metadata>/.exec(String(svg||''));return m?m[1].replace(/\]\]\]\]><!\[CDATA\[>/g,']]>'):null;}
+
+/* ---------- 書き出し: 保存先の固定・自動命名・来歴（改善計画 2.1・3.3） ----------
+   settings.exp={folder,direct,template,embed,sidecar}、会話ごとの上書きは conv.exportSettings={folder}。
+   デスクトップ版で保存先があり direct が真なら、保存の小窓を出さずに /api/save-file で書く（同名は _v2…）。それ以外は従来どおり小窓で保存 */
+const FIG_EXP_TPL='{conversation}_{tag}_{type}_{dpi}dpi';
+function figExpCfg(){const s=(typeof settings!=='undefined'&&settings&&settings.exp)||{};const c=(typeof conv!=='undefined'&&conv&&conv.exportSettings)||{};const folder=c.folder||s.folder||'';return {folder,convFolder:c.folder||'',direct:!!folder&&s.direct!==false,template:s.template||FIG_EXP_TPL,embed:s.embed!==false,sidecar:!!s.sidecar};}
+function figExpClean(s){return String(s==null?'':s).replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').replace(/\s+/g,'_');}
+function figExpName(meta){meta=meta||{};const d=new Date(),pad=n=>String(n).padStart(2,'0');
+  const map={conversation:figExpClean((typeof conv!=='undefined'&&conv&&conv.title)||'BranCHAT').slice(0,40),tag:figExpClean(meta.tag||''),type:figExpClean(meta.type||'figure'),dpi:meta.dpi?String(meta.dpi):'',date:`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`,time:`${pad(d.getHours())}${pad(d.getMinutes())}`};
+  let s=figExpCfg().template.replace(/\{dpi\}dpi/g,map.dpi?map.dpi+'dpi':'').replace(/\{(\w+)\}/g,(m,k)=>k in map?map[k]:'');
+  s=s.replace(/_+/g,'_').replace(/^[_.\-]+|[_.\-]+$/g,'');return s||('figure_'+map.date+map.time);}
+// 書き出しの記録（図版一覧・チャットの図カードで使う）。key は "発言id:番号" か "dlg:タグ"
+function figExpRecord(meta,fp){if(typeof conv==='undefined'||!conv)return;const key=meta.key||('dlg:'+(meta.tag||meta.type||'figure'));conv.figExports=conv.figExports||{};const prev=conv.figExports[key]||{};
+  conv.figExports[key]=Object.assign(prev,{tag:meta.tag||prev.tag||'',type:meta.type||prev.type||'',at:Date.now(),path:fp||prev.path||'',ext:meta.ext||'',dpi:meta.dpi||''});if(typeof persist==='function')persist();}
+function figReveal(fp){if(!fp)return;fetch('/api/open',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:fp,reveal:true})}).then(r=>r.json()).then(j=>{if(!j.ok)toast('ファイルが見つかりませんでした');}).catch(()=>{});}
+function figToastSaved(fp){if(typeof toastAct==='function')toastAct('保存しました: '+fp,'Finder で表示',()=>figReveal(fp));else toast('保存しました: '+fp);}
+// meta={tag,type,dpi,key,spec}、p={ext:'png',dataURL} | {ext:'svg'|'json'|'txt',text}
+async function figExport(meta,p){meta=Object.assign({},meta,{ext:p.ext});const cfg=figExpCfg();const name=meta.name||figExpName(meta);
+  const specText=meta.spec&&cfg.embed?JSON.stringify(meta.spec):'';
+  if(p.ext==='svg'&&specText)p=Object.assign({},p,{text:figSvgWithSpec(p.text,specText)});
+  if(typeof IS_DESKTOP!=='undefined'&&IS_DESKTOP&&cfg.direct){
+    const body={folder:cfg.folder,name,ext:p.ext};if(p.dataURL)body.b64=p.dataURL.split(',')[1];else body.text=p.text;
+    try{const r=await (await fetch('/api/save-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+      if(r.ok){figExpRecord(meta,r.path);
+        if(cfg.sidecar&&meta.spec&&p.ext!=='json'){const base=r.path.split('/').pop().replace(/\.[^.]+$/,'');await fetch('/api/save-file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({folder:cfg.folder,name:base+'.branchat',ext:'json',overwrite:true,text:JSON.stringify(meta.spec,null,1)})}).catch(()=>{});}
+        figToastSaved(r.path);return r.path;}
+      toast('保存できませんでした: '+(r.error||''));return null;}catch(e){toast('保存できませんでした');return null;}}
+  const a=document.createElement('a');a.href=p.dataURL||URL.createObjectURL(new Blob([p.text],{type:p.ext==='svg'?'image/svg+xml':p.ext==='json'?'application/json':'text/plain'}));a.download=name+'.'+p.ext;a.click();if(!p.dataURL)setTimeout(()=>URL.revokeObjectURL(a.href),4000);figExpRecord(meta,null);return null;}
+// PNG（canvas）を書き出す。spec があれば来歴として埋め込む
+async function figExportPng(meta,canvas,dpi){const cfg=figExpCfg();const specText=meta.spec&&cfg.embed?JSON.stringify(meta.spec):'';return figExport(Object.assign({},meta,{dpi}),{ext:'png',dataURL:figPngDataURL(canvas,dpi,specText)});}
+// 会話ごとの書き出し先を選ぶ（デスクトップ版）
+async function figPickExportFolder(scope){if(typeof IS_DESKTOP==='undefined'||!IS_DESKTOP){toast('書き出し先のフォルダはデスクトップ版で選べます');return null;}
+  const cfg=figExpCfg();try{const r=await (await fetch('/api/pick-folder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({defaultPath:cfg.folder})})).json();if(!r.ok)return null;
+    if(scope==='global'){settings.exp=Object.assign({},settings.exp||{},{folder:r.path});saveSettings();}else{conv.exportSettings=Object.assign({},conv.exportSettings||{},{folder:r.path});persist();}
+    if(typeof figExpBarRefresh==='function')figExpBarRefresh();return r.path;}catch(e){toast('フォルダを選べませんでした');return null;}}
+// 作成画面の「図のタグ・書き出し先」の行（グラフ・画像パネル・グラフィックス共通）
+function figExpBarHTML(pfx){return `<span class="figExpBar"><label class="hint">図のタグ <input type="text" id="${pfx}Tag" class="figTagIn" placeholder="例: Fig1A" maxlength="24" aria-label="図のタグ" data-testid="${pfx}-tag"></label><button type="button" class="small figExpDir" data-expdir="${pfx}" aria-label="書き出し先のフォルダを選ぶ" data-testid="${pfx}-export-folder" data-tip="書き出し先のフォルダ（この会話）を選ぶ">📁 <span class="figExpDirName"></span></button></span>`;}
+function figExpBarRefresh(){const cfg=figExpCfg();const nm=cfg.folder?cfg.folder.split('/').filter(Boolean).slice(-2).join('/'):'保存先を選ぶ';document.querySelectorAll('.figExpDir').forEach(b=>{const s=b.querySelector('.figExpDirName');if(s)s.textContent=cfg.folder?(cfg.direct?'…/'+nm:'…/'+nm+'（小窓で保存）'):nm;b.title=cfg.folder?('書き出し先: '+cfg.folder+(cfg.convFolder?'（この会話）':'（全体の既定）')):'書き出し先が未設定です。押して選ぶと、保存の小窓を出さずにそこへ保存します';});}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-expdir]');if(!b)return;e.preventDefault();figPickExportFolder('conv');});
 async function figToPng(svg,w,h,dpi){if(typeof figInlineImages==='function'&&svg.includes('/api/img/'))svg=await figInlineImages(svg); // 画像パネルの画像を埋め込む
   return new Promise((res,rej)=>{const scale=(dpi||300)/96;const c=document.createElement('canvas');c.width=Math.round(w*scale);c.height=Math.round(h*scale);const g=c.getContext('2d');const im=new Image();im.onload=()=>{g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);res(c);};im.onerror=e=>rej(new Error('描画に失敗しました'));im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);});}
 
@@ -246,9 +305,28 @@ async function figReadXlsx(buf){const z=await figUnzip(buf);const parse=x=>new D
     const w=Math.max(0,...rows.map(r=>r.length));const tsv=rows.filter(r=>r.some(v=>v!=='')).map(r=>{while(r.length<w)r.push('');return r.map(v=>String(v).replace(/[\t\n]/g,' ')).join('\t');}).join('\n');if(tsv.trim())out.push({name:sh.name,tsv});}
   if(!out.length)throw new Error('シートに表がありません');return out;}
 // Figure 作成画面に表ファイルを読み込む（複数シートなら選ばせる）
-async function figLoadTableFiles(files){const f=[...files].find(x=>/\.(xlsx|csv|tsv|txt)$/i.test(x.name)||/csv|tab|excel|spreadsheet|text\/plain/.test(x.type));if(!f){toast('CSV / TSV / XLSX のファイルを選んでください');return;}
+/* ---------- 図の来歴（改善計画 3.3）: 元データのファイルの場所・大きさ・SHA-256・読み込み日時を図の指定（provenance）に残す ---------- */
+async function figSha256(buf){try{const h=await crypto.subtle.digest('SHA-256',buf);return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('');}catch(e){return '';}}
+async function figFileProvenance(f){const buf=await f.arrayBuffer();const p=(typeof window!=='undefined'&&window.branchatNative&&window.branchatNative.pathForFile)?window.branchatNative.pathForFile(f):'';
+  return {name:f.name,path:p||'',bytes:f.size,sha256:await figSha256(buf),modifiedAt:f.lastModified?new Date(f.lastModified).toISOString():'',loadedAt:new Date().toISOString()};}
+let figAppVersion='';if(typeof fetch!=='undefined'&&typeof location!=='undefined'&&location.protocol==='app:')fetch('/api/about').then(r=>r.json()).then(j=>{figAppVersion=j.version||'';}).catch(()=>{});
+// 書き出す指定に「作ったアプリ・人か AI か」を足す（元データの来歴は読み込み時に st.opts.x.provenance へ入っている）
+function figWithProvenance(spec,aiAssisted){if(!spec||typeof spec!=='object')return spec;const pv=Object.assign({},spec.provenance||{});pv.createdWith='BranCHAT'+(figAppVersion?' '+figAppVersion:'');if(!pv.operator)pv.operator=aiAssisted?'ai-assisted':'human';pv.exportedAt=new Date().toISOString();return Object.assign({},spec,{provenance:pv});}
+// PNG・SVG・JSON から図を開く（来歴として埋め込んだ指定、または .branchat.json）
+async function figOpenFigureFile(f){let txt=null;const nm=String(f.name||'').toLowerCase();
+  try{if(/\.png$/.test(nm)||f.type==='image/png')txt=figPngReadText(new Uint8Array(await f.arrayBuffer()),'branchat:spec');else if(/\.svg$/.test(nm)||f.type==='image/svg+xml')txt=figSvgReadSpec(await f.text());else txt=await f.text();}catch(e){txt=null;}
+  let j=null;try{j=txt?JSON.parse(txt):null;}catch(e){j=null;}
+  if(!j||typeof j!=='object'){toast('この画像には BranCHAT の図の指定が入っていません（書き出しの設定で「図の指定を埋め込む」をオンにして保存した画像だけ開けます）');return false;}
+  const dlgs=['#figDlg','#figImgDlg','#figGaDlg'];dlgs.forEach(s=>{const d=document.querySelector(s);if(d&&d.open)d.close();});
+  if(typeof figIsGA==='function'&&figIsGA(j)){figGaOpen(j);}
+  else if(typeof figIsImage==='function'&&figIsImage(j)){figImgOpen(j);}
+  else if((typeof figIsLayout==='function'&&figIsLayout(j))||(typeof figIsSchematic==='function'&&figIsSchematic(j))){const inp=document.querySelector('#input');if(inp){inp.value=(inp.value?inp.value+'\n':'')+'```figure\n'+JSON.stringify(j)+'\n```';inp.dispatchEvent(new Event('input',{bubbles:true}));}toast('複数パネル・模式図の指定を入力欄に入れました。送るか「書き留める」で図になります');return true;}
+  else{figOpen(figStateFromSpec(j));}
+  toast('「'+f.name+'」から図を開きました');return true;}
+async function figLoadTableFiles(files){const fig=[...files].find(x=>/\.(png|svg|json)$/i.test(x.name)||/image\/(png|svg)|json/.test(x.type));if(fig&&!/\.(xlsx|csv|tsv|txt)$/i.test(fig.name)){await figOpenFigureFile(fig);return;}
+  const f=[...files].find(x=>/\.(xlsx|csv|tsv|txt)$/i.test(x.name)||/csv|tab|excel|spreadsheet|text\/plain/.test(x.type));if(!f){toast('CSV / TSV / XLSX のファイル（または書き出した図の PNG・SVG・JSON）を選んでください');return;}
   try{const sheets=await figReadTableFile(f);let sh=sheets[0];if(sheets.length>1){const pick=await figPrompt('シートを選んでください（番号）','1',{hint:sheets.map((x,i)=>`${i+1}. ${x.name}`).join('\n')});if(pick==null)return;const k=+pick-1;if(!(k>=0&&k<sheets.length))return;sh=sheets[k];}
-    const ta=document.querySelector('#figData');ta.value=sh.tsv;figState.text=sh.tsv;figSync();figPushUndo();toast(`「${sh.name}」を読み込みました（${sh.tsv.split('\n').length} 行）。表の型とグラフを選んでください`);}catch(e){toast('読み込めませんでした: '+e.message);}}
+    const ta=document.querySelector('#figData');ta.value=sh.tsv;figState.text=sh.tsv;try{const pv=await figFileProvenance(f);if(sheets.length>1)pv.sheet=sh.name;figState.opts.x=figState.opts.x||{};figState.opts.x.provenance=Object.assign({},figState.opts.x.provenance||{},{sources:[pv]});}catch(e){}figSync();figPushUndo();toast(`「${sh.name}」を読み込みました（${sh.tsv.split('\n').length} 行）。表の型とグラフを選んでください`);}catch(e){toast('読み込めませんでした: '+e.message);}}
 // チャットのブロックで文字をダブルクリック → 編集（空にすると削除）
 async function figNoteEditBlock(fb,k){const nid=fb.dataset.fignode,idx=+fb.dataset.figidx;const nd=N(nid);if(!nd)return;const b=figFindBlocks(nd.content)[idx];if(!b)return;let j;try{j=JSON.parse(b.json);}catch(e){return;}let target=j;const svg=fb.querySelector(':scope > svg');const el=svg&&svg.querySelector(`[data-note="${k}"]`);const panelEl=el&&el.closest('svg[data-panel]');if(panelEl&&j.panels)target=j.panels[+panelEl.getAttribute('data-panel')];const n=target&&target.style&&target.style.notes&&target.style.notes[k];if(!n)return;
   const v=await figPrompt('書き込んだ文字を編集（空にして OK で削除）',n.text||'');if(v==null)return;if(!v.trim())target.style.notes.splice(k,1);else n.text=v;nd.content=nd.content.slice(0,b.start)+'```figure\n'+JSON.stringify(j)+'\n```'+nd.content.slice(b.end);persist();renderAll();}
@@ -265,7 +343,7 @@ function figNoteDragEnd(fb,k,dx,dy){if(fb.id==='figPreview'){const st=figState;c
 /* ---------- 仕様（チャットとの受け渡し） ---------- */
 // ```figure の中の JSON: {title, kind, type, err, compare, ctrl, ytitle, xtitle, ymin, ymax, data(TSV), style:{...}}
 function figSpecFromState(st){return Object.assign({},st.opts.x||{},{title:st.title||'',kind:st.kind,type:st.type,err:st.opts.errType,compare:st.cmp||'none',ctrl:st.ctrl||0,ytitle:st.opts.yTitle||'',xtitle:st.opts.xTitle||'',ymin:st.opts.ymin||'',ymax:st.opts.ymax||'',data:st.text,style:figStyleOf(st.opts)});}
-const FIG_STYLE_KEYS=['notes','fontPt','bold','axisPt','tickLen','wIn','hIn','symPt','linePt','barFill','bracketShape','pStyle','showNs','legend','scheme','series','barDots','legendPos','frame','grid','tickDir','ylog','xRot','barEdge','fontFamily','refLine','errDir','fillAlpha','capW','axisColor'];
+const FIG_STYLE_KEYS=['figW','figH','notes','fontPt','bold','axisPt','tickLen','wIn','hIn','symPt','linePt','barFill','bracketShape','pStyle','showNs','legend','scheme','series','barDots','legendPos','frame','grid','tickDir','ylog','xRot','barEdge','fontFamily','refLine','errDir','fillAlpha','capW','axisColor'];
 function figStyleOf(o){const st={};for(const k of FIG_STYLE_KEYS)if(o[k]!==undefined&&o[k]!==''&&o[k]!==null)st[k]=o[k];return st;}
 function figStateFromSpec(j){j=j||{};const opts=Object.assign({errType:j.err||'SD',pThr:0.05,pStyle:'star',showNs:false,yTitle:j.ytitle||'',xTitle:j.xtitle||'',ymin:j.ymin==null?'':j.ymin,ymax:j.ymax==null?'':j.ymax,barFill:'solid',bracketShape:'long'},j.style||{});
   const known=new Set(['title','kind','type','err','compare','ctrl','ytitle','xtitle','ymin','ymax','data','style']);const x={};for(const k of Object.keys(j))if(!known.has(k))x[k]=j[k];if(Object.keys(x).length)opts.x=x; // 図種固有の追加項目（GSEA の nes/pval/fdr など）は opts.x に保ち、書き戻しで元に戻す
@@ -342,11 +420,20 @@ const FIG_TOOLS=[
  ]},
  {id:'size',l:'大きさ',items:[
    {k:'__preset',t:'select',l:'形',o:[['wide','横長 3×2 in（既定）'],['square','正方形 2.5×2.5 in'],['tall','縦長 2×3 in'],['small','小 2×1.4 in']]},
-   {k:'wIn',t:'num',l:'幅 (in)',min:1,max:8,step:0.25},
-   {k:'hIn',t:'num',l:'高さ (in)',min:1,max:8,step:0.25},
+   {k:'figW',t:'len',l:'図全体の幅（空なら自動）',min:0.8,max:12},
+   {k:'figH',t:'len',l:'図全体の高さ（空なら自動）',min:0.6,max:12},
+   {k:'wIn',t:'len',l:'描画部分の幅',min:0.5,max:8},
+   {k:'hIn',t:'len',l:'描画部分の高さ',min:0.5,max:8},
+   {k:'__unit',t:'select',l:'単位',o:[['in','in（インチ）'],['cm','cm'],['mm','mm']]},
+   {t:'hint',l:'「図全体の幅」を入れると、軸の文字や凡例を含めた図の大きさがその幅になります（PNG の大きさもこれに合います）。'},
  ]},
 ];
 const FIG_PRESETS={wide:[3,2],square:[2.5,2.5],tall:[2,3],small:[2,1.4]};
+// 長さの単位（中身はインチのまま持ち、表示と入力だけを換算する。設定の「図の大きさの単位」settings.figUnit）
+const FIG_UNITS={in:[1,0.25,2],cm:[2.54,0.5,2],mm:[25.4,5,1]};
+function figUnit(){const u=(typeof settings!=='undefined'&&settings&&settings.figUnit)||'in';return FIG_UNITS[u]?u:'in';}
+function figLenShow(inch){if(inch===''||inch==null||!isFinite(+inch))return '';const [f,,d]=FIG_UNITS[figUnit()];return +(+inch*f).toFixed(d);}
+function figLenParse(v){if(v===''||v==null)return '';const n=parseFloat(String(v).replace(',','.'));if(!isFinite(n)||n<=0)return '';return +(n/FIG_UNITS[figUnit()][0]).toFixed(4);}
 let figUndo=[],figRedo=[],figUndoTimer=null;
 function figSnap(){const st=figState;return JSON.stringify({text:st.text,kind:st.kind,type:st.type,opts:st.opts,title:st.title,cmp:st.cmp,ctrl:st.ctrl});}
 function figPushUndo(){const snap=figSnap();if(figUndo[figUndo.length-1]===snap)return;figUndo.push(snap);if(figUndo.length>60)figUndo.shift();figRedo=[];figUndoBtns();}
@@ -363,11 +450,11 @@ function figApplicable(){const st=figState;if(!st)return {};const shape=st.data&
   const render=(opts,title,cmp)=>{try{const r=figRenderSpec(figSpecFromState(Object.assign({},st,{opts,title,cmp})));return norm(r&&r.svg);}catch(e){return 'ERR';}};
   const base=render(st.opts,st.title,st.cmp);if(!base||base==='ERR'){figApplCache={key,map};return map;}
   for(const g of FIG_TOOLS)for(const it of g.items){const k=it.k;if(!k||it.t==='series'||it.t==='btn'||it.t==='hint'||(k.startsWith('__')&&k!=='__cmp'&&k!=='__title'&&k!=='__preset'))continue;
-    if(k==='__preset'){map[k]=map.wIn!==false;continue;}
+    if(k==='__preset'){map[k]=map.wIn!==false;continue;}if(k==='volGenes'){map[k]=true;continue;}
     const cur=k==='__cmp'?st.cmp:k==='__title'?st.title:(st.opts[k]===undefined?FIG_DEF[k]:st.opts[k]);let alt;
     if(it.t==='select'){const opts=typeof it.o==='function'?it.o():it.o;const other=(opts||[]).find(([a])=>String(a)!==String(cur));if(!other)continue;alt=other[0];}
     else if(it.t==='check')alt=!(cur&&cur!=='0');
-    else if(it.t==='num'){const c=+cur||0,step=(it.step||1)*2;alt=c+step<=(it.max==null?1e9:it.max)?c+step:Math.max(it.min==null?-1e9:it.min,c-step);if(alt===c)continue;}
+    else if(it.t==='num'||it.t==='len'){const c=+cur||(it.t==='len'?(k==='figW'?3.5:k==='figH'?2.5:0):0),step=(it.step||0.25)*2;alt=c+step<=(it.max==null?1e9:it.max)?c+step:Math.max(it.min==null?-1e9:it.min,c-step);if(alt===c)continue;}
     else if(it.t==='color')alt=String(cur||'').toLowerCase()==='#ff00ff'?'#00ff00':'#ff00ff';
     else alt=(cur===''||cur==null)?(k==='ymin'?'-98765':k==='ymax'?'98765':k==='refLine'?'0.123':'probe'):'';
     let o2=Object.assign({},st.opts,{[k]:alt});if(k==='scheme'){o2.colors=FIG_SCHEMES[alt];delete o2.series;}
@@ -376,12 +463,13 @@ function figApplicable(){const st=figState;if(!st)return {};const shape=st.data&
   figApplCache={key,map};return map;}
 const FIG_NA_LABEL='この図では使いません';
 function figToolPanel(g){
-  const st=figState,o=st.opts;const val=k=>k==='__type'?st.type:k==='__title'?st.title:k==='__cmp'?st.cmp:k==='__noteSize'?(st.noteSize||'0.85'):k==='__noteColor'?(st.noteColor||'#000000'):k==='__preset'?(Object.entries(FIG_PRESETS).find(([n,v])=>v[0]==+(o.wIn||3)&&v[1]==+(o.hIn||2))||['custom'])[0]:(o[k]===undefined?(FIG_DEF[k]===undefined?'':FIG_DEF[k]):o[k]);
+  const st=figState,o=st.opts;const val=k=>k==='__type'?st.type:k==='__title'?st.title:k==='__cmp'?st.cmp:k==='__noteSize'?(st.noteSize||'0.85'):k==='__noteColor'?(st.noteColor||'#000000'):k==='volGenes'?((o.x&&Array.isArray(o.x.labelGenes))?o.x.labelGenes.join(', '):(o.volGenes||'')):k==='__unit'?figUnit():k==='__preset'?(Object.entries(FIG_PRESETS).find(([n,v])=>v[0]==+(o.wIn||3)&&v[1]==+(o.hIn||2))||['custom'])[0]:(o[k]===undefined?(FIG_DEF[k]===undefined?'':FIG_DEF[k]):o[k]);
   if(!g.items.length)return '<div class="hint">この図種に固有の設定はありません</div>';const app=figApplicable();
   return g.items.map(it=>{if(it.t==='series'){const gs=(st.data&&st.data.groups)||[];return gs.map((gr,i)=>{const so=figSeriesOpt(o,i);return `<div class="irow"><label>${figEsc(gr.name)}</label><span class="srow"><input type="color" data-tk="series.${i}.color" value="${so.color}"><select data-tk="series.${i}.symbol">${FIG_SYMBOLS.map(([a,b])=>`<option value="${a}"${a===so.symbol?' selected':''}>${b}</option>`).join('')}</select><select data-tk="series.${i}.fill"><option value="solid"${so.fill==='solid'?' selected':''}>塗り</option><option value="open"${so.fill==='open'?' selected':''}>白抜き</option></select></span></div>`;}).join('')||'<div class="hint">データを入れると系列ごとの色が出ます</div>';}
     const v=val(it.k);const opts=typeof it.o==='function'?it.o():it.o;const na=app[it.k]===false;const dis=na?' disabled':'';const cls=na?' na':'';const lab=na?`${it.l} <span class="hint">（${FIG_NA_LABEL}）</span>`:it.l;
     if(it.t==='select')return `<div class="irow${cls}"><label>${lab}</label><select data-tk="${it.k}"${dis}>${(opts||[]).map(([a,b])=>`<option value="${a}"${String(a)===String(v)?' selected':''}>${b}</option>`).join('')}</select></div>`;
     if(it.t==='num')return `<div class="irow${cls}"><label>${lab}</label><input type="number" data-tk="${it.k}" value="${v===''?'':v}" min="${it.min}" max="${it.max}" step="${it.step}"${dis}></div>`;
+    if(it.t==='len'){const u=figUnit();return `<div class="irow${cls}"><label>${lab} (${u})</label><input type="number" data-tk="${it.k}" data-len="1" value="${figLenShow(v)}" min="${figLenShow(it.min)}" max="${figLenShow(it.max)}" step="${FIG_UNITS[u][1]}" aria-label="${figEsc(it.l)} (${u})"${dis}></div>`;}
     if(it.t==='check')return `<label class="irow chk${cls}"><input type="checkbox" data-tk="${it.k}"${v&&v!=='0'?' checked':''}${dis}> ${lab}</label>`;
     if(it.t==='color')return `<div class="irow${cls}"><label>${lab}</label><input type="color" data-tk="${it.k}" value="${v||'#000000'}"${dis}></div>`;
     if(it.t==='btn')return `<div class="irow"><button type="button" class="small" data-tbtn="${it.k}">${typeof it.l==='function'?it.l():it.l}</button></div>`;
@@ -394,6 +482,8 @@ function figApplyTool(k,v){
   if(k==='__noteSize'){st.noteSize=v;return;}if(k==='__noteColor'){st.noteColor=v;return;}
   if(k==='__noteAdd'){st.noteTool=!st.noteTool;document.querySelectorAll('#figToolbar .ftm.open').forEach(x=>x.classList.remove('open'));toast(st.noteTool?'右のプレビュー（グラフ）の、文字を書きたい場所をクリックしてください':'文字の書き込みをやめました');return;}
   if(k==='__noteDel'){if(o.notes&&o.notes.length){o.notes.pop();figSync();figPushUndo();}else toast('消す文字がありません');return;}
+  if(k==='__unit'){settings.figUnit=v;if(typeof saveSettings==='function')saveSettings();const p=document.querySelector('#figToolbar .ftm.open .ftp');if(p){const g=FIG_TOOLS.find(x=>x.id===p.closest('.ftm').dataset.ftm);if(g){p.innerHTML=figToolPanel(g);figBindTools(p);}}figInspector();return;}
+  if(k==='volGenes'){const arr=String(v||'').split(/[,、\s]+/).map(x=>x.trim()).filter(Boolean);st.opts.x=st.opts.x||{};if(arr.length)st.opts.x.labelGenes=arr;else delete st.opts.x.labelGenes;delete o.volGenes;figSync(false);return;}
   if(k==='__type'){st.type=v;$('#figType').value=v;}
   else if(k==='__title'){st.title=v;$('#figTitle').value=v;}
   else if(k==='__cmp'){st.cmp=v;$('#figCmp').value=v;}
@@ -412,8 +502,11 @@ function figToolsInit(){
   bar.querySelectorAll('[data-fact]').forEach(b=>b.onclick=()=>{const act=b.dataset.fact;if(act==='gallery')figGalleryOpen();else if(act==='copy')document.querySelector('#figCopy').click();else if(act==='svg')document.querySelector('#figSvg').click();else figSavePng(act==='png600'?600:300);});
   document.addEventListener('keydown',e=>{if(!document.querySelector('#figDlg').open)return;const mod=e.metaKey||e.ctrlKey;if(mod&&e.key==='z'&&!e.shiftKey){e.preventDefault();figDoUndo();}else if(mod&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){e.preventDefault();figDoRedo();}});
 }
-function figBindTools(panel){panel.querySelectorAll('[data-tbtn]').forEach(b=>{b.addEventListener('click',()=>figApplyTool(b.dataset.tbtn,true));});panel.querySelectorAll('[data-tk]').forEach(el=>{el.addEventListener(el.type==='checkbox'||el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.tk;let v=el.type==='checkbox'?el.checked:el.value;if(k==='bold'||k==='showNs'||k==='ylog'||k==='barDots')v=!!v;figApplyTool(k,v);const g=FIG_TOOLS.find(x=>x.id===panel.id.replace('ftp-',''));if(g&&g.id==='graph'&&k==='__type'){panel.innerHTML=figToolPanel(g);figBindTools(panel);}});});}
-async function figSavePng(dpi){if(!figState.svg)return;const c=await figToPng(figState.svg,figState.w,figState.h,dpi);const a=document.createElement('a');a.href=figPngDataURL(c,dpi);a.download=`figure_${Date.now()}_${dpi}dpi.png`;a.click();toast(`PNG（${dpi} dpi）を保存しました`);}
+function figBindTools(panel){panel.querySelectorAll('[data-tbtn]').forEach(b=>{b.addEventListener('click',()=>figApplyTool(b.dataset.tbtn,true));});panel.querySelectorAll('[data-tk]').forEach(el=>{el.addEventListener(el.type==='checkbox'||el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.tk;let v=el.type==='checkbox'?el.checked:el.dataset.len?figLenParse(el.value):el.value;if(k==='bold'||k==='showNs'||k==='ylog'||k==='barDots')v=!!v;figApplyTool(k,v);const g=FIG_TOOLS.find(x=>x.id===panel.id.replace('ftp-',''));if(g&&g.id==='graph'&&k==='__type'){panel.innerHTML=figToolPanel(g);figBindTools(panel);}});});}
+// 作成画面の図の書き出し情報（タグ・種類・記録のキー・来歴として埋め込む指定）
+function figDlgMeta(){const st=figState;const tag=(st.opts.x&&st.opts.x.figureTag)||'';return {tag,type:st.type||st.kind||'figure',key:st.src?`${st.src.nodeId}:${st.src.index}${st.src.panel!=null?':'+st.src.panel:''}`:'dlg:'+(tag||'figure'),spec:figWithProvenance(figSpecFromState(st),!!st.src)};}
+function figBlockMeta(el){const nid=el.dataset.fignode,idx=+el.dataset.figidx;let j=null;try{const n=N(nid);const b=n&&figFindBlocks(n.content)[idx];j=b?JSON.parse(b.json):null;}catch(e){j=null;}return {tag:(j&&j.figureTag)||'',type:j?(j.type||j.kind||'figure'):'figure',key:nid+':'+idx,spec:figWithProvenance(j,true)};}
+async function figSavePng(dpi){if(!figState.svg)return;const c=await figToPng(figState.svg,figState.w,figState.h,dpi);await figExportPng(figDlgMeta(),c,dpi);}
 
 /* ---------- 画面 ---------- */
 const FIG_TYPES={column:[['scatter','散布ドット＋平均±誤差'],['bar','棒＋誤差'],['box','箱ひげ'],['violin','バイオリン']],grouped:[['grouped-bar','集合棒＋誤差'],['grouped-scatter','集合散布']],xy:[['xy-line','折れ線＋記号＋誤差'],['xy-points','散布（全点）']]};
@@ -425,7 +518,7 @@ function figOpen(init){
   if(!figState.text)figState.text='Control\tTreated\n12.1\t15.4\n11.8\t16.0\n12.6\t14.9\n13.0\t15.8\n12.3\t16.3';
   $('#figData').value=figState.text;$('#figTitle').value=figState.title||'';$('#figKind').value=figState.kind||'column';$('#figCmp').value=figState.cmp||'none';
   document.querySelectorAll('#figDlg [data-fopt]').forEach(el=>{const v=figState.opts[el.dataset.fopt];if(el.type==='checkbox')el.checked=!!v;else el.value=v==null?'':v;});
-  $('#figUpdate').style.display=figState.src?'':'none';
+  $('#figUpdate').style.display=figState.src?'':'none';{const tg=$('#figTag');if(tg)tg.value=(figState.opts.x&&figState.opts.x.figureTag)||'';figExpBarRefresh();}
   figUndo=[];figRedo=[];
   figSync(true);figPushUndo();$('#figDlg').showModal();
 }
@@ -480,10 +573,10 @@ function figInspector(){
   else if(sel==='title'){title='題名';h+=row('文字',`<input type="text" data-ik="title" value="${figEsc(st.title)}">`);}
   else if(sel==='brackets'){title='有意差のブラケット';h+=row('形',selx('bracketShape',o.bracketShape||'long',[['long','長脚'],['short','短脚']]))+row('P の表示',selx('pStyle',o.pStyle||'star',[['star','アスタリスク'],['num','数値']]))+row('ns も表示',selx('showNs',o.showNs?'1':'0',[['0','表示しない'],['1','表示する']]));}
   else if(sel==='legend'){title='凡例';h+=row('表示',selx('legend',o.legend||'right',[['right','右に表示'],['none','表示しない']]));const gs=(st.data&&st.data.groups)||[];if(gs.length)h+='<div class="hint">凡例の文字（系列の表示名）。空なら列名のまま</div>'+gs.map((g,i)=>row(figEsc(g.name),`<input type="text" data-ik="sname.${i}" value="${figEsc(figSeriesOpt(o,i).name||'')}" placeholder="${figEsc(g.name)}">`)).join('');}
-  else{h+=row('配色',selx('scheme',o.scheme||'classic',[['classic','既定（青・赤・緑…）'],['colorblind','色覚多様性に配慮'],['nature','誌面風（赤・水色・緑…）'],['gray','グレースケール']]))+row('文字の大きさ (pt)',num('fontPt',o.fontPt||12,1,6,24))+row('記号の大きさ (pt)',num('symPt',o.symPt||5.5,0.5,2,20))+row('軸の太さ (pt)',num('axisPt',o.axisPt||1,0.25,0.25,4))+row('幅 (in)',num('wIn',o.wIn||3,0.25,1,8))+row('高さ (in)',num('hIn',o.hIn||2,0.25,1,8))+row('棒の塗り',selx('barFill',o.barFill||'solid',[['solid','塗り'],['open','白抜き']]))+`<div class="hint">プレビューの点・棒・軸・題名・ブラケット・凡例をクリックすると、その要素の設定に切り替わります。</div>`;}
+  else{h+=row('配色',selx('scheme',o.scheme||'classic',[['classic','既定（青・赤・緑…）'],['colorblind','色覚多様性に配慮'],['nature','誌面風（赤・水色・緑…）'],['gray','グレースケール']]))+row('文字の大きさ (pt)',num('fontPt',o.fontPt||12,1,6,24))+row('記号の大きさ (pt)',num('symPt',o.symPt||5.5,0.5,2,20))+row('軸の太さ (pt)',num('axisPt',o.axisPt||1,0.25,0.25,4))+(()=>{const u=figUnit(),stp=FIG_UNITS[u][1],L=(k,v,ph,lab)=>row(`${lab} (${u})`,`<input type="number" data-ik="${k}" data-len="1" value="${figLenShow(v)}" step="${stp}" min="0" placeholder="${ph}" aria-label="${lab} (${u})">`);return L('figW',o.figW,'自動','図全体の幅')+L('figH',o.figH,'自動','図全体の高さ')+L('wIn',o.wIn||3,'','描画部分の幅')+L('hIn',o.hIn||2,'','描画部分の高さ');})()+row('棒の塗り',selx('barFill',o.barFill||'solid',[['solid','塗り'],['open','白抜き']]))+`<div class="hint">プレビューの点・棒・軸・題名・ブラケット・凡例をクリックすると、その要素の設定に切り替わります。</div>`;}
   box.innerHTML=`<h4>${title}${sel?' <button class="small" data-iact="unsel">全体の設定へ</button>':''}</h4>${h}`;
   if(!sel||sel==='axes'){const app=figApplicable();box.querySelectorAll('[data-ik]').forEach(el=>{const k=el.dataset.ik==='title'?'__title':el.dataset.ik;if(app[k]===false){el.disabled=true;const r=el.closest('.irow');if(r){r.classList.add('na');const lb=r.querySelector('label');if(lb&&!lb.querySelector('.hint'))lb.insertAdjacentHTML('beforeend',` <span class="hint">（${FIG_NA_LABEL}）</span>`);}}});}
-  box.querySelectorAll('[data-ik]').forEach(el=>{el.addEventListener(el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.ik;let v=el.value;
+  box.querySelectorAll('[data-ik]').forEach(el=>{el.addEventListener(el.type==='color'||el.tagName==='SELECT'?'change':'input',()=>{const k=el.dataset.ik;let v=el.dataset.len?figLenParse(el.value):el.value;
     if(k.startsWith('sname.')){const i=+k.slice(6);o.series=o.series||{};o.series[i]=o.series[i]||{};if(v)o.series[i].name=v;else delete o.series[i].name;}
     else if(k.startsWith('note.')){const i=+st.sel.split(':')[1];const n=(o.notes||[])[i];if(n){const kk=k.slice(5);if(kk==='bold')n.bold=v==='1';else if(kk==='size')n.size=+v;else n[kk]=v;}}
     else if(k.startsWith('cut.')){const i=+st.sel.split(':')[1];o.series=o.series||{};o.series[i]=o.series[i]||{};if(v)o.series[i][k.slice(4)]=v;else delete o.series[i][k.slice(4)];}
@@ -502,14 +595,15 @@ function figInit(){
   $('#figCmp').onchange=e=>{figState.cmp=e.target.value;figSync(false);};
   $('#figCtrl').onchange=e=>{figState.ctrl=+e.target.value;figSync(false);};
   document.querySelectorAll('#figDlg [data-fopt]').forEach(el=>{el.addEventListener(el.type==='checkbox'?'change':'input',()=>{figState.opts[el.dataset.fopt]=el.type==='checkbox'?el.checked:el.value;figSync(false);});});
-  $('#figFileBtn').onclick=()=>$('#figFile').click();$('#figFile').onchange=async()=>{await figLoadTableFiles($('#figFile').files);$('#figFile').value='';};$('#figData').addEventListener('drop',e=>{const fs=[...e.dataTransfer.files];if(fs.length){e.preventDefault();figLoadTableFiles(fs);}});
+  $('#figFileBtn').onclick=()=>$('#figFile').click();$('#figFile').onchange=async()=>{await figLoadTableFiles($('#figFile').files);$('#figFile').value='';};$('#figData').addEventListener('drop',e=>{const fs=[...e.dataTransfer.files];if(fs.length){e.preventDefault();figLoadTableFiles(fs);}});{const pv=$('#figPreview');pv.addEventListener('dragover',e=>{if([...e.dataTransfer.types].includes('Files'))e.preventDefault();});pv.addEventListener('drop',e=>{const fs=[...e.dataTransfer.files];if(fs.length){e.preventDefault();figLoadTableFiles(fs);}});} // 書き出した図（PNG・SVG・JSON）をプレビューに落とすと開き直す（改善計画 3.3）
   $('#figPreview').addEventListener('click',e=>{if(figState&&figState.noteTool){const svg=e.target.closest('svg')||$('#figPreview svg');const plot=figState.plot;if(!svg||!plot){toast('この図には文字を置けません');figState.noteTool=false;return;}const rect=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const sc=vb&&vb.width?vb.width/rect.width:1;const px=(e.clientX-rect.left)*sc,py=(e.clientY-rect.top)*sc;figState.noteTool=false;figPrompt('グラフに書き込む文字（改行は \\n）','').then(text=>{if(!text)return;const o=figState.opts;(o.notes=o.notes||[]).push({x:+((px-plot.x0)/plot.w).toFixed(3),y:+((py-plot.y0)/plot.h).toFixed(3),text:text.replace(/\\n/g,'\n'),size:+(figState.noteSize||0.85),color:figState.noteColor||'#000000'});figSync();figPushUndo();});return;}
     const nt=e.target.closest&&e.target.closest('[data-note]');if(nt){figState.sel='note:'+nt.dataset.note;figMarkSel();figInspector();return;}
     const ct=e.target.closest&&e.target.closest('[data-cut]');if(ct){figState.sel='cut:'+ct.dataset.cut;figMarkSel();figInspector();return;}
     const t=e.target.closest&&e.target.closest('[data-sel]');figState.sel=t?t.dataset.sel:null;figMarkSel();figInspector();});
   $('#figClose').onclick=()=>$('#figDlg').close();
-  $('#figSvg').onclick=()=>{if(!figState.svg)return;saveTextFile(`figure_${Date.now()}.svg`,figState.svg);};
-  $('#figPng').onclick=async()=>{if(!figState.svg)return;const c=await figToPng(figState.svg,figState.w,figState.h,300);const a=document.createElement('a');a.href=figPngDataURL(c,300);a.download=`figure_${Date.now()}.png`;a.click();toast('PNG（300 dpi）を保存しました');};
+  $('#figSvg').onclick=()=>{if(!figState.svg)return;figExport(figDlgMeta(),{ext:'svg',text:figState.svg});};
+  $('#figPng').onclick=()=>figSavePng(300);
+  {const acts=$('#figDlg .figActs');if(acts&&!$('#figTag')){acts.insertAdjacentHTML('afterbegin',figExpBarHTML('fig'));$('#figTag').addEventListener('input',e=>{const st=figState;st.opts.x=st.opts.x||{};const v=e.target.value.trim();if(v)st.opts.x.figureTag=v;else delete st.opts.x.figureTag;});}}
   $('#figCopy').onclick=async()=>{if(!figState.svg)return;try{const c=await figToPng(figState.svg,figState.w,figState.h,300);const blob=await new Promise(r=>c.toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);toast('画像をコピーしました');}catch(e){toast('コピーできませんでした');}};
   $('#figAttach').onclick=()=>figAttach().catch(e=>toast('添付できませんでした: '+(e.message||e)));
   $('#figUpdate').onclick=()=>figUpdateSource();
@@ -539,8 +633,8 @@ function figOpenFromBlock(el,panel){const nid=el.dataset.fignode,idx=+el.dataset
   const st=figStateFromSpec(j);st.src=src;figOpen(st);}
 async function figBlockAction(el,act){const svgEl=el.querySelector('svg');if(!svgEl)return;const svg=svgEl.outerHTML;const w=+svgEl.getAttribute('width'),h=+svgEl.getAttribute('height');
   if(act==='svg'){let out=svg;const mm=+svgEl.getAttribute('data-mm');if(mm>0){const hmm=mm*h/w;out=out.replace(/^<svg([^>]*?) width="[^"]*" height="[^"]*"/,`<svg$1 width="${mm}mm" height="${hmm.toFixed(3)}mm"`);} // 誌面幅の指定があれば物理単位で
-    if(typeof figInlineImages==='function')out=await figInlineImages(out);saveTextFile(`figure_${Date.now()}.svg`,out);return;}
-  const c=await figToPng(svg,w,h,300);if(act==='png'){const a=document.createElement('a');a.href=figPngDataURL(c,300);a.download=`figure_${Date.now()}.png`;a.click();toast('PNG（300 dpi）を保存しました');}
+    if(typeof figInlineImages==='function')out=await figInlineImages(out);await figExport(figBlockMeta(el),{ext:'svg',text:out});return;}
+  const c=await figToPng(svg,w,h,300);if(act==='png'){await figExportPng(figBlockMeta(el),c,300);}
   else{try{const blob=await new Promise(r=>c.toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);toast('画像をコピーしました');}catch(e){toast('コピーできませんでした');}}}
 function figFromTable(tableEl){const rows=[...tableEl.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(c=>c.textContent.trim()).join('\t'));figOpen({text:rows.join('\n')});}
 document.addEventListener('DOMContentLoaded',()=>{figInit();figToolsInit();});

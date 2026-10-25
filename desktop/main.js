@@ -37,6 +37,54 @@ async function handle(request) {
     if (b.reveal) shell.showItemInFolder(fp); else await shell.openPath(fp);
     return Response.json({ ok: true });
   }
+  if (url.pathname === '/api/save-file') { // 図の書き出し（以前に廃止した DOCX 書き出しの /api/export とは別物）: 利用者が選んだフォルダへ保存の小窓なしで書く（改善計画 2.1）。同名があれば _v2, _v3… を付けて上書きしない
+    if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
+    let b = {}; try { b = await request.json(); } catch (e) { return Response.json({ ok: false, error: '内容を読めませんでした' }); }
+    const folder = String(b.folder || '');
+    const ext = String(b.ext || '').toLowerCase();
+    if (!folder || !path.isAbsolute(folder)) return Response.json({ ok: false, error: '保存先のフォルダが指定されていません' });
+    if (!['png', 'svg', 'json', 'txt', 'md', 'csv', 'pdf'].includes(ext)) return Response.json({ ok: false, error: 'この種類のファイルは書き出せません' });
+    let name = String(b.name || 'figure').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').replace(/^\.+/, '').slice(0, 150).trim() || 'figure';
+    try {
+      fs.mkdirSync(folder, { recursive: true });
+      let fp = path.join(folder, name + '.' + ext);
+      for (let v = 2; !b.overwrite && fs.existsSync(fp) && v < 1000; v++) fp = path.join(folder, name + '_v' + v + '.' + ext);
+      const data = b.b64 != null ? Buffer.from(String(b.b64), 'base64') : Buffer.from(String(b.text || ''), 'utf8');
+      fs.writeFileSync(fp, data);
+      return Response.json({ ok: true, path: fp, bytes: data.length });
+    } catch (e) { return Response.json({ ok: false, error: String(e.message || e) }); }
+  }
+  if (url.pathname === '/api/pick-folder') { // 書き出し先のフォルダを選ぶ小窓
+    if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
+    let b = {}; try { b = await request.json(); } catch (e) { /* 空でよい */ }
+    const w = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+    const r = await dialog.showOpenDialog(w, { title: '図の書き出し先のフォルダを選ぶ', defaultPath: b.defaultPath && fs.existsSync(String(b.defaultPath)) ? String(b.defaultPath) : app.getPath('documents'), properties: ['openDirectory', 'createDirectory'] });
+    return Response.json({ ok: !r.canceled && !!r.filePaths[0], path: r.filePaths[0] || '' });
+  }
+  if (url.pathname === '/api/filehash') { // 図の元データの来歴: ファイルの大きさ・更新日時・SHA-256（改善計画 3.3・4.3。中身は返さない）
+    if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
+    let b = {}; try { b = await request.json(); } catch (e) { /* 空でよい */ }
+    const fp = String(b.path || '');
+    try {
+      if (!fp || !path.isAbsolute(fp) || !fs.existsSync(fp) || !fs.statSync(fp).isFile()) return Response.json({ ok: true, exists: false });
+      const st = fs.statSync(fp);
+      const h = require('node:crypto').createHash('sha256').update(fs.readFileSync(fp)).digest('hex');
+      return Response.json({ ok: true, exists: true, bytes: st.size, mtime: st.mtime.toISOString(), sha256: h });
+    } catch (e) { return Response.json({ ok: false, error: String(e.message || e) }); }
+  }
+  if (url.pathname === '/api/sop') { // AI 向け SOP を決まった場所（userData/SOP/）に書き、どの AI でもファイルとして読めるようにする（改善計画 3.6）
+    const dir = path.join(app.getPath('userData'), 'SOP');
+    if (request.method === 'POST') {
+      let b = {}; try { b = await request.json(); } catch (e) { /* 空でよい */ }
+      fs.mkdirSync(dir, { recursive: true });
+      const files = {};
+      for (const [k, fn] of [['cu', 'BranCHAT_SOP_for_ChatGPT_ComputerUse.txt'], ['dom', 'BranCHAT_SOP_for_AI.txt']]) {
+        if (typeof b[k] === 'string' && b[k].length > 100) { const fp = path.join(dir, fn); fs.writeFileSync(fp, b[k]); files[k] = fp; }
+      }
+      return Response.json({ ok: true, dir, files });
+    }
+    return Response.json({ ok: true, dir });
+  }
   if (url.pathname === '/api/about') return Response.json({ version: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node }); // 「このアプリについて」用
   if (url.pathname === '/api/licenses/chromium') { // Electron に含まれる Chromium・Node.js などのライセンス一覧（同梱の HTML）を別窓で開く
     if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
@@ -157,7 +205,7 @@ async function handle(request) {
 function createWindow() {
   const win = new BrowserWindow({
     width: 1240, height: 860, minWidth: 420, minHeight: 520, title: 'BranCHAT', backgroundColor: '#040a17', show: !SMOKE,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, preload: path.join(__dirname, 'preload.js') },
   });
   // 外部リンクは既定のブラウザで開き、アプリ内では app:// 以外へ移動させない
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
@@ -181,6 +229,7 @@ function openAbout() { const w = BrowserWindow.getAllWindows().find((x) => !x.is
 
 async function runSmoke(win) {
   // 自動確認: 画面が出るか、エンジン検出、ダミー送信、（SMOKE_LIVE=1 のとき）実モデルへ最小の1回
+  if (process.env.SMOKE_P0 === '1') fs.rmSync(path.join(require('node:os').tmpdir(), 'branchat-smoke-export'), { recursive: true, force: true });
   const out = { ok: false };
   try {
     await new Promise((r) => win.webContents.once('did-finish-load', r));
@@ -573,6 +622,28 @@ async function runSmoke(win) {
         r.fig12={render:{},auto:{}};const cells=[];for(const [k,t] of types){try{const sp=figSample(k,t);const x=figRenderSpec(sp);const ok=!!(x&&x.svg&&x.svg.length>400&&!(x.res&&x.res.error));r.fig12.render[k+'/'+t]=ok?true:(x&&x.res&&x.res.error)||'fail';if(ok){const c=await figToPng(x.svg,x.w,x.h,110);cells.push({c,name:k+'/'+t});}r.fig12.auto[k+'/'+t]=figAutoKind(figParseTable(sp.data));}catch(e){r.fig12.render[k+'/'+t]='ERR '+e.message;}}
         const cw=460,ch=340,cols=4;const sheet=document.createElement('canvas');sheet.width=cw*cols;sheet.height=ch*Math.ceil(cells.length/cols);const g=sheet.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,sheet.width,sheet.height);cells.forEach((cell,i)=>{const x=(i%cols)*cw,y=Math.floor(i/cols)*ch;const sc=Math.min((cw-16)/cell.c.width,(ch-30)/cell.c.height);g.drawImage(cell.c,x+8,y+24,cell.c.width*sc,cell.c.height*sc);g.fillStyle='#000';g.font='bold 14px sans-serif';g.fillText(cell.name,x+8,y+16);g.strokeStyle='#ccc';g.strokeRect(x,y,cw,ch);});r.fig12.png=sheet.toDataURL('image/png');
       }
+      if(${process.env.SMOKE_P0 === '1'}){ // 改善計画 P0: 保存先への直接保存・自動命名・重複回避・来歴、図全体の幅、値の取りこぼし対策、任意の遺伝子ラベル、OME-TIFF
+        const $=s=>document.querySelector(s);const NL=String.fromCharCode(10);settings.provider='dummy';const dir=${JSON.stringify(require('node:path').join(require('node:os').tmpdir(),'branchat-smoke-export'))};
+        settings.exp={folder:dir,direct:true,template:'{conversation}_{tag}_{type}_{dpi}dpi',embed:true,sidecar:true};settings.figUnit='cm';saveSettings();r.p0={};
+        figOpen({text:'A,B'+NL+'1,4'+NL+'2,5'+NL+'3,6'});await new Promise(x=>setTimeout(x,300));$('#figTag').value='Fig1A';$('#figTag').dispatchEvent(new Event('input',{bubbles:true}));
+        const paths=[];for(let i=0;i<3;i++){paths.push(await (async()=>{const c=await figToPng(figState.svg,figState.w,figState.h,300);return figExportPng(figDlgMeta(),c,300);})());}
+        r.p0.saved=paths.map(x=>String(x||'').split('/').pop());const hs=await Promise.all(paths.map(x=>fetch('/api/filehash',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:x})}).then(q=>q.json())));
+        r.p0.threeFiles=hs.every(h=>h.exists)&&new Set(paths).size===3&&/_Fig1A_scatter_300dpi_v3[.]png$/.test(paths[2]||'');
+        const side=await (await fetch('/api/filehash',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:dir+'/'+String(paths[0]).split('/').pop().replace(/[.]png$/,'')+'.branchat.json'})})).json();r.p0.sidecar=!!side.exists;
+        const pngURL=figPngDataURL(await figToPng(figState.svg,figState.w,figState.h,300),300,JSON.stringify(figDlgMeta().spec));const bin=atob(pngURL.split(',')[1]);const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);const back=JSON.parse(figPngReadText(u8,'branchat:spec')||'{}');r.p0.embed=back.figureTag==='Fig1A'&&!!(back.provenance&&back.provenance.createdWith);
+        r.p0.recorded=Object.values(conv.figExports||{}).some(e=>e.tag==='Fig1A'&&/v3/.test(e.path));
+        const fw=$('#figInspect [data-ik="figW"]');fw.value='8.5';await new Promise(x=>setTimeout(x,900));const c85=await figToPng(figState.svg,figState.w,figState.h,300);r.p0.figW=c85.width;r.p0.figWok=Math.abs(c85.width-1004)<=2;
+        const wi=$('#figInspect [data-ik="wIn"]');wi.value='10';await new Promise(x=>setTimeout(x,900));r.p0.silentInput=Math.abs(+figState.opts.wIn-10/2.54)<0.01;$('#figDlg').close();
+        const rows=['Gene,log2FC,pvalue,padj'];for(let i=0;i<500;i++){const g=['MS4A1','SPIB','SPI1'][i]||('G'+i);const fc=((i*37)%60-30)/10;const p=i===7?0:Math.pow(10,-Math.abs(fc)*((i*13)%10+1)/2);rows.push(g+','+fc+','+p+','+Math.min(1,p*3));}
+        const vr=figRenderSpec({kind:'feature',type:'volcano',data:rows.join(NL),labelGenes:['MS4A1','SPIB','SPI1'],style:{volLabels:0}});const hold=document.createElement('div');hold.innerHTML=vr.svg;document.body.appendChild(hold);const ts=[...hold.querySelectorAll('g[data-sel="text"] text')].map(t=>t.getBBox());let ov=0;for(let i=0;i<ts.length;i++)for(let k=i+1;k<ts.length;k++){const a=ts[i],b=ts[k];if(a.x<b.x+b.width&&b.x<a.x+a.width&&a.y<b.y+b.height&&b.y<a.y+a.height)ov++;}
+        r.p0.genes=hold.querySelectorAll('g[data-sel="text"] circle').length===3&&ts.length===3&&ov===0;r.p0.zeroNote=/at top/.test(hold.textContent);r.p0.sigAuto=vr.res.sig==='q';hold.remove();
+        const W=4,H=4;const desc='<?xml version="1.0"?><OME xmlns="http://www.openmicroscopy.org/Schemas/OME/2016-06"><Image ID="Image:0"><Pixels ID="Pixels:0" DimensionOrder="XYCZT" Type="uint8" SizeX="4" SizeY="4" SizeC="2" SizeZ="1" SizeT="1" PhysicalSizeX="0.3" PhysicalSizeXUnit="µm"><Channel ID="Channel:0:0" Name="DAPI" SamplesPerPixel="1"/><Channel ID="Channel:0:1" Name="CD20" SamplesPerPixel="1"/><TiffData IFD="0" PlaneCount="2"/></Pixels></Image></OME>';
+        const dbytes=new TextEncoder().encode(desc+String.fromCharCode(0));const ifdSize=2+11*12+4;const buf=new ArrayBuffer(8+2*ifdSize+dbytes.length+2*W*H);const dv=new DataView(buf);const u8b=new Uint8Array(buf);dv.setUint16(0,0x4949,true);dv.setUint16(2,42,true);dv.setUint32(4,8,true);
+        const descOff=8+2*ifdSize,pix0=descOff+dbytes.length;u8b.set(dbytes,descOff);for(let i=0;i<W*H;i++){u8b[pix0+i]=10+i;u8b[pix0+W*H+i]=200-i;}
+        for(let k=0;k<2;k++){const o=8+k*ifdSize;const ent=[[256,3,1,W],[257,3,1,H],[258,3,1,8],[259,3,1,1],[262,3,1,1],[270,2,dbytes.length,descOff],[273,4,1,pix0+k*W*H],[277,3,1,1],[278,3,1,H],[279,4,1,W*H],[284,3,1,1]];dv.setUint16(o,ent.length,true);ent.forEach((e,i)=>{const q=o+2+i*12;dv.setUint16(q,e[0],true);dv.setUint16(q+2,e[1],true);dv.setUint32(q+4,e[2],true);if(e[1]===3&&e[2]===1)dv.setUint16(q+8,e[3],true);else dv.setUint32(q+8,e[3],true);});dv.setUint32(o+2+ent.length*12,k===0?8+ifdSize:0,true);}
+        const T=await figTiffRead(buf);const ch=await figOmeChannels(buf,T);r.p0.ome=T.ome&&T.ome.sizeC===2&&Math.abs(T.ome.physX-0.3)<1e-9&&ch.length===2&&ch[0].data[0]===10&&ch[1].data[0]===200&&T.ome.channels[1].name==='CD20';
+        const ms=await figImgStoreAny(new File([buf],'mini.ome.tif',{type:'image/tiff'}));const sp=figImgDefSpec();const items=figImgItemsFromMetas(ms,sp);r.p0.omeImport=items.length===3&&!!items[2].merge&&sp.scale.umPerPx===0.3&&items[0].channel==='blue';
+        settings.exp={};settings.figUnit='in';saveSettings();}
       if(${process.env.SMOKE_FIG13 === '1'}){ // グラフィカルアブストラクト: 5 つの絵柄の描画（CSS 変数を残さない）、作成画面の操作、チャットのブロックで絵柄を切り替えて書き戻し、PNG
         const $=s=>document.querySelector(s);const NL2=String.fromCharCode(10),F=String.fromCharCode(96).repeat(3);settings.provider='dummy';
         const spec={kind:'graphics',theme:'soft',w:960,h:540,title:'ROS-generating nanoparticles boost tumor immunity (fictional)',items:[{t:'box',x:20,y:56,w:260,h:464,title:'Dosing'},{t:'motif',m:'mouse',x:55,y:110,s:170},{t:'motif',m:'syringe',x:60,y:300,s:90},{t:'motif',m:'nanoparticle',x:150,y:310,s:80,key:true},{t:'text',x:150,y:470,text:'IV injection',size:15},{t:'arrow',x1:290,y1:288,x2:340,y2:288},{t:'box',x:350,y:56,w:280,h:464,title:'Inside cancer cells'},{t:'motif',m:'cancer_cell',x:380,y:120,s:150},{t:'motif',m:'mitochondria',x:520,y:150,s:90},{t:'motif',m:'ros',x:530,y:260,s:80,key:true},{t:'arrow',x1:470,y1:300,x2:520,y2:300,kind:'inhibit'},{t:'text',x:490,y:470,text:'ROS up',size:15},{t:'arrow',x1:640,y1:288,x2:690,y2:288,kind:'curved'},{t:'box',x:700,y:56,w:240,h:464,title:'Immune attack'},{t:'motif',m:'t_cell',x:720,y:110,s:110,key:true},{t:'motif',m:'tumor_mass',x:800,y:250,s:110},{t:'motif',m:'antibody',x:730,y:330,s:70},{t:'text',x:820,y:470,text:'T cells up, tumor down',size:15,bold:true}]};

@@ -121,6 +121,8 @@ dialog label{display:block;margin:8px 0 2px;font-size:12px;color:var(--muted)}
 dialog input[type=text],dialog input[type=password],dialog input[type=number],dialog select{width:100%;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:rgba(16,40,24,.7);color:var(--ink)}
 dialog .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 .hint{font-size:11px;color:var(--muted)}
+#sExpBox .sExpRow{display:flex;gap:6px;align-items:center}#sExpBox .sExpRow input{flex:1;min-width:0}#sExpBox .sChk{display:flex;gap:6px;align-items:flex-start;font-weight:400;font-size:12px;margin:4px 0}
+.figExpBar{display:inline-flex;align-items:center;gap:6px;margin-right:auto}.figExpBar .figTagIn{width:7em;padding:3px 6px}.figExpDir{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(8,20,45,.95);border:1px solid var(--glow);color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;display:none;z-index:9;box-shadow:0 0 20px rgba(181,232,107,.5)}
 @media (max-width:760px){#cards{width:100%;position:absolute;bottom:0;max-height:45%;border-left:0;border-top:1px solid var(--line)} #overview{position:relative}}
 
@@ -766,6 +768,15 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   <div id="sStoreBox"><label>会話の記録</label>
     <div class="hint">すべての会話は、この端末の中にファイルとして自動で保存されます（会話ごとに JSON と、そのまま読める Markdown）。<span class="var" id="sStoreDir"></span></div>
     <button class="small" id="sStoreOpen" type="button">保存フォルダを開く</button></div>
+  <div id="sExpBox"><label>図の書き出し（PNG・SVG の保存）</label>
+    <div class="sExpRow"><input type="text" id="sExpFolder" readonly placeholder="未設定（保存のたびに小窓で場所を選ぶ）" aria-label="既定の書き出しフォルダ"><button class="small" id="sExpPick" type="button" aria-label="既定の書き出しフォルダを選ぶ">フォルダを選ぶ</button><button class="small" id="sExpClear" type="button" aria-label="既定の書き出しフォルダを解除">解除</button></div>
+    <label class="sChk"><input type="checkbox" id="sExpDirect"> 保存の小窓を出さずに、このフォルダへ保存する（同じ名前があれば _v2 などを付けて、上書きしない）</label>
+    <label>ファイル名の決まり（{conversation} 会話名、{tag} 図のタグ、{type} 図の種類、{dpi} 解像度、{date} 日付、{time} 時刻）</label>
+    <input type="text" id="sExpTpl" placeholder="{conversation}_{tag}_{type}_{dpi}dpi" aria-label="ファイル名の決まり">
+    <label class="sChk"><input type="checkbox" id="sExpEmbed"> 図の指定（JSON）を PNG・SVG の中に埋め込む（来歴。あとでその画像から図を開き直せる）</label>
+    <label class="sChk"><input type="checkbox" id="sExpSidecar"> 同じ名前の .branchat.json も一緒に保存する</label>
+    <label>図の大きさの単位</label><select id="sUnit" aria-label="図の大きさの単位"><option value="in">in（インチ）</option><option value="cm">cm</option><option value="mm">mm</option></select>
+    <div class="hint">会話ごとの書き出し先は、作成画面の下の 📁 ボタンで選べます（その会話では、ここの既定より優先します）。</div></div>
   <label>トークン予算（概算・超過時は古い往復を省略）</label>
   <input type="number" id="sBudget" value="60000" min="4000" step="1000">
   <label>アシスタントの追加指示（任意）</label>
@@ -801,7 +812,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   <div class="figTools" id="figImgTools"></div>
   <div class="figBody">
     <div class="figLeft">
-      <div class="figRow"><button id="figImgAdd" class="small">＋ 画像を追加（PNG/JPEG/TIFF）</button><input type="file" id="figImgAddFile" accept="image/*,.tif,.tiff" multiple hidden></div>
+      <div class="figRow"><button id="figImgAdd" class="small">＋ 画像を追加（PNG/JPEG/TIFF）</button><input type="file" id="figImgAddFile" accept="image/*,.tif,.tiff,.ome.tif,.ome.tiff" multiple hidden><select id="figImgZ" class="small" aria-label="Z スタックの扱い" data-tip="OME-TIFF の Z スタック（複数の焦点面）を取り込むときの扱い"><option value="first">Z スタック: 最初の面</option><option value="mip">Z スタック: 最大値投影</option></select></div>
       <div class="figRow"><label>型</label><select id="figImgType"><option value="grid">グリッド（顕微鏡・IHC・写真）</option><option value="blot">ブロット（ゲル・ウェスタン）</option></select></div>
       <div class="figRow"><label>題名</label><input id="figImgTitle" type="text" placeholder="任意"></div>
       <div id="figImgGridOpts">
@@ -837,7 +848,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
   <div id="figToolbar"></div>
   <div class="figBody">
     <div class="figLeft">
-      <div class="figRow"><label>データ（タブ・カンマ区切り、または Markdown の表を貼り付け）</label><button id="figFileBtn" class="small" data-tip="CSV / TSV / Excel（.xlsx）を読み込む">📂 ファイルから読む</button><input type="file" id="figFile" accept=".csv,.tsv,.txt,.xlsx" hidden></div>
+      <div class="figRow"><label>データ（タブ・カンマ区切り、または Markdown の表を貼り付け）</label><button id="figFileBtn" class="small" data-tip="CSV / TSV / Excel（.xlsx）を読み込む。書き出した図（PNG・SVG・.branchat.json）を開き直すこともできます" aria-label="ファイルから読む" data-testid="fig-open-file">📂 ファイルから読む</button><input type="file" id="figFile" accept=".csv,.tsv,.txt,.xlsx,.png,.svg,.json" hidden></div>
       <textarea id="figData" spellcheck="false"></textarea>
       <div class="figRow"><label>表の型</label><select id="figKind"><option value="column">Column（列＝群、行＝反復）</option><option value="grouped">Grouped（行＝カテゴリ、列＝群）</option><option value="xy">XY（1列目＝X、以降＝Y）</option></select></div>
       <div class="figRow"><label>グラフ</label><select id="figType" hidden></select><button id="figGalBtn" class="small" data-tip="見本の一覧からグラフの種類を選ぶ" style="max-width:none;flex:1;text-align:left"><span id="figTypeName">（未選択）</span> <span style="float:right">▦</span></button></div>
@@ -927,6 +938,19 @@ function askPrompt(title,def='',ok='保存'){return new Promise(res=>{const d=$(
   const done=v=>{d.close();i.onkeydown=null;res(v);};$('#qOk').onclick=()=>done(i.value);$('#qCancel').onclick=()=>done(null);d.oncancel=e=>{e.preventDefault();done(null);};
   i.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();done(i.value);}};d.showModal();i.focus();i.select();});}
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2500);}
+// 値の取りこぼし対策（改善計画 2.3）: 開いている小窓の入力欄が、合図（input/change）なしに書き換わったら合図を出し直す。
+// AI のコンピュータ操作（アクセシビリティ経由の値の設定）や、欄によっては貼り付け・自動入力でも図に反映させるため。Enter と欄を離れたときも確定する
+(function(){const SEL='dialog[open] input:not([type=file]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]),dialog[open] textarea,dialog[open] select';
+  const mark=e=>{const t=e.target;if(t&&typeof t.value==='string')t._lastV=t.value;};
+  document.addEventListener('input',mark,true);document.addEventListener('change',mark,true);document.addEventListener('focusin',e=>{const t=e.target;if(t&&typeof t.value==='string'&&t._lastV===undefined)t._lastV=t.value;},true);
+  const fire=el=>{el._lastV=el.value;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));};
+  document.addEventListener('keydown',e=>{const t=e.target;if(e.key==='Enter'&&t&&t.tagName==='INPUT'&&t.closest('dialog')&&t._lastV!==undefined&&t.value!==t._lastV)fire(t);},true);
+  document.addEventListener('focusout',e=>{const t=e.target;if(t&&typeof t.value==='string'&&t.closest&&t.closest('dialog[open]')&&t._lastV!==undefined&&t.value!==t._lastV)fire(t);},true);
+  setInterval(()=>{if(!document.querySelector('dialog[open]'))return;document.querySelectorAll(SEL).forEach(el=>{if(el._lastV===undefined){el._lastV=el.value;return;}if(el.value!==el._lastV)fire(el);});},350);})();
+// data-copytext のボタンは、その文字をコピーする（結果表の「判定の条件をコピー」など）
+document.addEventListener('click',e=>{const b=e.target.closest('[data-copytext]');if(!b)return;navigator.clipboard.writeText(b.dataset.copytext).then(()=>toast('コピーしました')).catch(()=>toast('コピーできませんでした'));});
+// 押せるボタン付きの知らせ（例: 保存した場所を Finder で表示）。少し長めに出す
+function toastAct(m,label,fn){const t=$('#toast');t.textContent='';const sp=document.createElement('span');sp.textContent=m;t.appendChild(sp);const b=document.createElement('button');b.type='button';b.className='small';b.textContent=label;b.style.marginLeft='10px';b.setAttribute('aria-label',label);b.onclick=()=>{try{fn();}finally{t.style.display='none';}};t.appendChild(b);t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',7000);}
 function mdInline(s){ // 行内の装飾（入力は生テキスト）
   s=esc(s);
   s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
@@ -2109,6 +2133,12 @@ function fillModelSelects(){const h=MODEL_OPTS.map(o=>`<option value="${esc(o.v)
 $('#settingsBtn').onclick=async()=>{await probeBridge();$('#sProvider').value=settings.provider;$('#sProvider').onchange=e=>{const keep=settings.provider;settings.provider=e.target.value;refreshModelCatalog();fillModelSelects();settings.provider=keep;};$('#sKey').value=settings.apiKey;fillModelSelects();$('#sModel').value=validModel(settings.model)||MODEL_OPTS[0].v;$('#sSumModel').value=validModel(settings.sumModel)||(MODEL_OPTS.find(o=>o.v==='claude-haiku-5-5')||MODEL_OPTS[0]).v;$('#sBudget').value=settings.budget;$('#sExtra').value=settings.extra;$('#settings').showModal();};
 function syncJevFields(){const jo=$('#sJudge').querySelector('option[value="jev"]');if(jo)jo.hidden=jo.disabled=!IS_DESKTOP;const j=IS_DESKTOP&&$('#sJudge').value==='jev',cf=$('#sJevVia').value==='cloudflare';$('#sJevBox').style.display=j?'':'none';$('#sJevKey').style.display=cf?'none':'';$('#sJevCfAcc').style.display=cf?'':'none';$('#sJevCfTok').style.display=cf?'':'none';}
 $('#settingsBtn').addEventListener('click',()=>{$('#sJudge').value=judgeMode();$('#sJevVia').value=settings.jevVia==='cloudflare'?'cloudflare':'typesafe';$('#sJevKey').value=settings.jevKey||'';$('#sJevCfAcc').value=settings.jevCfAccount||'';$('#sJevCfTok').value=settings.jevCfToken||'';syncJevFields();});
+// 図の書き出しの設定（改善計画 2.1・2.3）
+function fillExpSettings(){const e=settings.exp||{};$('#sExpFolder').value=e.folder||'';$('#sExpDirect').checked=e.direct!==false;$('#sExpTpl').value=e.template||'';$('#sExpEmbed').checked=e.embed!==false;$('#sExpSidecar').checked=!!e.sidecar;$('#sUnit').value=settings.figUnit||'in';$('#sExpPick').disabled=!IS_DESKTOP;$('#sExpDirect').disabled=!IS_DESKTOP;}
+$('#settingsBtn').addEventListener('click',fillExpSettings);
+$('#sExpPick').onclick=async()=>{await figPickExportFolder('global');fillExpSettings();};
+$('#sExpClear').onclick=()=>{settings.exp=Object.assign({},settings.exp||{},{folder:''});saveSettings();fillExpSettings();if(typeof figExpBarRefresh==='function')figExpBarRefresh();};
+$('#sSave').addEventListener('click',()=>{settings.exp=Object.assign({},settings.exp||{},{direct:$('#sExpDirect').checked,template:$('#sExpTpl').value.trim(),embed:$('#sExpEmbed').checked,sidecar:$('#sExpSidecar').checked});settings.figUnit=$('#sUnit').value;saveSettings();if(typeof figExpBarRefresh==='function')figExpBarRefresh();});
 $('#settingsBtn').addEventListener('click',()=>{$('#sStoreBox').style.display=IS_DESKTOP?'':'none';$('#sStoreDir').textContent=storeDir?' 保存先: '+storeDir:'';});
 $('#sStoreOpen').onclick=()=>fetch('/api/store/open',{method:'POST'}).catch(()=>{});
 $('#sJudge').onchange=syncJevFields;$('#sJevVia').onchange=syncJevFields;
