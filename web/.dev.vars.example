@@ -1,0 +1,2 @@
+# 手元の確認用（wrangler dev）。.dev.vars にコピーして使う。本番には入れない（ACCESS_* が設定されていればこの値は使われない）
+DEV_USER_EMAIL=dev@example.com

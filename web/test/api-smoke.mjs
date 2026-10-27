@@ -1,0 +1,30 @@
+// Web 版の /api の確認（手元の wrangler dev に対して実行。npm run dev のあとで node test/api-smoke.mjs）
+// ログイン（DEV_USER_EMAIL）・同意・会話の保存と取得・古い端末からの上書きで版が残る・画像・設定・他サイトからの書き換えの拒否・アカウントの削除
+const base = process.argv[2] || 'http://localhost:8995';
+const H = { 'X-BranCHAT': '1' };
+const j = async (path, opt = {}) => { const r = await fetch(base + '/api/' + path, { ...opt, headers: { ...H, ...(opt.headers || {}) } }); const t = await r.text(); let b = null; try { b = JSON.parse(t); } catch (e) { b = t; } return { s: r.status, b, r }; };
+const put = (path, o) => j(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
+const res = {}; const ok = (k, v) => { res[k] = !!v; };
+const me = await j('me'); ok('me', me.s === 200 && me.b.email);
+ok('consent', (await j('consent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ver: 1 }) })).s === 200 && (await j('me')).b.termsVer === 1);
+const conv = { id: 'smoketest1', title: 'smoke', order: ['n1'], nodes: { n1: { id: 'n1', role: 'user', content: 'hello', ts: 1 } }, branches: {} };
+ok('putConv', (await put('convs/smoketest1', { updatedAt: 2000, conv })).s === 200);
+const got = await j('convs/smoketest1'); ok('getConv', got.s === 200 && got.b.title === 'smoke');
+ok('list', (await j('convs')).b.convs.some((c) => c.id === 'smoketest1' && c.updatedAt === 2000));
+ok('staleKeepsRev', (await put('convs/smoketest1', { updatedAt: 1000, conv: { ...conv, title: 'stale' } })).s === 200 && (await j('convs/smoketest1/revs')).b.revs.length >= 1);
+const rev = (await j('convs/smoketest1/revs')).b.revs[0]; ok('getRev', (await j('convs/smoketest1/revs/' + rev.rev)).b.title === 'smoke');
+ok('badId', (await j('convs/..%2Fx')).s === 400);
+ok('idMismatch', (await put('convs/smoketest2', { updatedAt: 1, conv })).s === 400);
+const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex');
+ok('putImg', (await j('img/smokeimg', { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: png })).s === 200);
+const gi = await fetch(base + '/api/img/smokeimg'); ok('getImg', gi.status === 200 && gi.headers.get('content-type') === 'image/png');
+ok('imgType', (await j('img/smokeimg2', { method: 'PUT', headers: { 'Content-Type': 'text/html' }, body: '<b>x</b>' })).s === 400);
+ok('kv', (await put('kv/settings', { data: { model: 'x' } })).s === 200 && (await j('kv/settings')).b.data.model === 'x');
+ok('kvName', (await j('kv/apikey')).s === 404);
+ok('csrf', (await fetch(base + '/api/convs/smoketest1', { method: 'DELETE' })).status === 403);
+ok('csrfOrigin', (await fetch(base + '/api/convs/smoketest1', { method: 'DELETE', headers: { ...H, Origin: 'https://evil.example' } })).status === 403);
+ok('delete', (await j('convs/smoketest1', { method: 'DELETE' })).s === 200 && (await j('convs')).b.convs.find((c) => c.id === 'smoketest1').deleted === true);
+const page = await fetch(base + '/'); ok('csp', (page.headers.get('content-security-policy') || '').includes("connect-src 'self' https://api.anthropic.com"));
+ok('account', (await j('account', { method: 'DELETE' })).s === 200 && (await j('me')).b.usage.bytes === 0);
+const bad = Object.entries(res).filter(([, v]) => !v).map(([k]) => k);
+console.log(JSON.stringify(res)); console.log(bad.length ? 'FAIL ' + bad.join(', ') : 'OK すべて合格'); process.exit(bad.length ? 1 : 0);

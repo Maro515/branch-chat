@@ -31,6 +31,16 @@ branch-chat/
 
 `artifact.html`（claude.ai Artifact 版）は削除した。**開発はデスクトップ版のみ。** `index.html` は1ファイルで、`check.sh` の「2ファイルの関数一致」チェックも廃止。コード中の `IS_ARTIFACT` は常に `false` の定数として残してあり、分岐は無害（順次整理してよいが必須ではない）。公開済みの Artifact（https://claude.ai/artifact/HKiAkcZ2stzQDns8J32QpE、Version 46 で停止）は更新しない。`bridge.py`＋ブラウザは開発時のプレビュー用としてのみ残す。
 
+### Web 版（`web/`、Cloudflare。2026-10-27、利用者の指示）
+
+利用者の方針: 同僚にも使ってもらう限定公開。共有機能は不要（各自の履歴はログインした人だけのもの）。AI 会話は**各自が自分の API キー**を入れたときだけ（キーが無ければノート）。**患者情報などの秘匿情報は扱わない前提で、データの責任は各個人**（最初の「利用上の注意」に同意してもらう。暗号化はしておらず運営者がアクセスできる立場にあることも明記）。
+- **作り**: `web/build.mjs` が親の `index.html`・`figure*.js` に `<meta name="branchat-mode" content="cloud">` と `cloud.js` を足して `web/dist/` に写す（フォントは desktop/vendor/fonts を同梱）。画面の正本は親の index.html のまま、違いは `IS_CLOUD` で切り替える（デスクトップ版・手元のプレビューには cloud.js を読み込まない）。サーバーは `web/src/worker.js`（Workers の静的アセット＋/api/*）、索引は D1（`web/schema.sql`）、中身は R2（`<uid>/c/<会話id>.json`、版 `<uid>/r/<id>/<rev>.json`、画像 `<uid>/i/<id>`、設定と線 `<uid>/k/<name>.json`。uid はメールアドレスの SHA-256 の先頭 32 桁）。
+- **ログイン**: Cloudflare Access（許可したメールアドレスだけ）。Worker は `Cf-Access-Jwt-Assertion` を `ACCESS_TEAM_DOMAIN` の公開鍵と `ACCESS_AUD` で検証する。**本番で ACCESS_* が空なら誰も入れない**（手元の wrangler dev だけ `.dev.vars` の DEV_USER_EMAIL を使う）。任意で `ALLOWED_EMAILS`。書き換えの要求は `X-BranCHAT: 1` ヘッダーと Origin を確かめる（他サイトからの書き換えを拒否）。画面には CSP（通信先は自分と Anthropic・決まった LLM の API だけ）。
+- **同期（cloud.js）**: 正本は端末（localStorage・IndexedDB）。`scheduleStore` → `cloudMarkDirty`（updatedAt を付けて 1.5 秒後に PUT）、起動時と画面に戻ったときに `cloudPull`（会話ごとに updatedAt の新しい方）。サーバーは上書きの前の版を残す（10 分に 1 版、食い違い・削除のときは必ず、1 会話 30 版まで）。画像は `figImgPut` を包んでアップロード、無い画像は取りに行く。設定は `CLOUD_SETTING_KEYS` だけ（API キー・Jev は送らない）。同じブラウザを別の人が使ったら前の人のデータとキーを消す（`bc.cloudOwner`）。
+- **index.html 側のフック**: `IS_CLOUD`、`aiReady()`（キーが無ければ send はノート、要約・一言要約・補足の要約・関連度の判定は止める／簡易判定）、`persist` の容量あふれ、`scheduleStore`/`syncStoreAtStart`/会話の削除・読み込み、`probeBridge`/MCP/チュートリアルの接続確認を Web 版では呼ばない、チュートリアルの「AIへの接続」「データの扱い」の Web 版の文、チュートリアルは同意のあとに開く。
+- **確認**: `cd web && npm run dev`（ローカルの D1・R2 で http://localhost:8995、クラウドには何も作らない。ルートの launch.json の "branchat-web"）→ 別の端末から `node test/api-smoke.mjs`（/api の 19 項目）。画面は同意・ノート・端末のデータを消して再読み込みで復元・画像の復元・版の履歴・別の人の切り替え・削除を確かめた。
+- **本番へ出す手順（利用者の確認を取ってから）**: ① `wrangler d1 create branchat-web` → wrangler.toml の database_id、`wrangler d1 execute branchat-web --remote --file=schema.sql` ② `wrangler r2 bucket create branchat-web` ③ Zero Trust で Access のアプリ（branchat-web.<アカウント>.workers.dev、許可は同僚のメールアドレス）→ チーム名と AUD を wrangler.toml の vars ④ `CLOUDFLARE_ACCOUNT_ID=… npm run deploy`。account_id は公開リポジトリに書かない。GitHub Pages は使わない。
+
 ### デスクトップ版（`desktop/`）
 
 - 画面は `index.html` をそのまま使う。**デスクトップ専用のUI分岐は `IS_DESKTOP`（`location.protocol==='app:'`）で最小限に。** 別のHTMLを作らない。

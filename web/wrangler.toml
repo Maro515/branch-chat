@@ -1,0 +1,27 @@
+# BranCHAT Web 版（Cloudflare Workers ＋ 静的アセット ＋ D1 ＋ R2）。手元の確認は npm run dev（wrangler dev --local。クラウドには何も作らない）
+# 本番へ出すときは、D1 と R2 を作って database_id を入れ、Cloudflare Access の値（ACCESS_TEAM_DOMAIN・ACCESS_AUD）を設定してから npm run deploy。
+# account_id はこのファイルに書かない（公開リポジトリのため。デプロイ時に CLOUDFLARE_ACCOUNT_ID で渡す）
+name = "branchat-web"
+main = "src/worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "branchat-web"
+database_id = "00000000-0000-0000-0000-000000000000"  # 本番では wrangler d1 create の結果に置き換える
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "branchat-web"
+
+[vars]
+QUOTA_MB = "1024"          # 1 人あたりの容量（MB）
+ACCESS_TEAM_DOMAIN = ""    # 例: yourteam.cloudflareaccess.com（本番で必須。空のままだと誰もログインできない）
+ACCESS_AUD = ""            # Access のアプリの Application Audience (AUD) タグ（本番で必須）
+ALLOWED_EMAILS = ""        # 任意: カンマ区切り。Access の許可リストに加えた二重の確認

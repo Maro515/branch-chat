@@ -28,7 +28,7 @@ m=re.search(r'/\*SOP-START\*/(.*?)/\*SOP-END\*/',s,re.S)
 if not m: print('FAIL AI_SOP が無い'); sys.exit(1)
 import glob
 ids=set(re.findall(r'id="([A-Za-z0-9_-]+)"',s))
-for f in glob.glob('figure*.js'): ids|=set(re.findall(r'id=\\?["\']([A-Za-z0-9_-]+)\\?["\']',open(f).read()))
+for f in glob.glob('figure*.js')+['cloud.js']: ids|=set(re.findall(r'id=\\?["\']([A-Za-z0-9_-]+)\\?["\']',open(f).read()))
 missing=sorted({x for x in re.findall(r'#([A-Za-z][A-Za-z0-9_-]*)',m.group(1)) if x not in ids and x not in ('id','ftp-')})
 if missing: print('FAIL AI_SOP が参照する id が index.html に無い: '+', '.join(missing)); sys.exit(1)
 print('OK   AI_SOP の参照 id が存在する')
@@ -42,7 +42,7 @@ body=m.group(1)
 src=s.replace(body,'')
 d=re.search(r'/\*SOP-START\*/(.*?)/\*SOP-END\*/',src,re.S)
 if d: src=src.replace(d.group(1),'')
-src+=''.join(open(f,encoding='utf-8').read() for f in glob.glob('figure*.js') if 'art' not in f)
+src+=''.join(open(f,encoding='utf-8').read() for f in glob.glob('figure*.js')+['cloud.js'] if 'art' not in f)
 labels=sorted({l for l in re.findall('\u3010([^\u3011]+)\u3011',body) if l.strip()})
 missing=[l for l in labels if l not in src]
 if missing: print('FAIL AI_SOP_CU の【】の文字が画面に無い: '+', '.join(missing)); sys.exit(1)
@@ -59,7 +59,7 @@ if d: print('FAIL 同じ名前の関数が 2 回定義されている（後の�
 print('OK   関数名の重複なし（%d 個）'%len(c))
 PY
 python3 -c "import ast,sys;ast.parse(open('bridge.py').read());print('OK   bridge.py 構文')" || fail=1
-for f in desktop/main.js desktop/preload.js desktop/engines.js figure.js figure-stats.js figure-more.js figure-more2.js figure-layout.js figure-image.js figure-schematic.js figure-omics.js figure-more3.js figure-gallery.js figure-ga-art.js figure-ga.js figure-list.js; do
+for f in desktop/main.js desktop/preload.js desktop/engines.js figure.js figure-stats.js figure-more.js figure-more2.js figure-layout.js figure-image.js figure-schematic.js figure-omics.js figure-more3.js figure-gallery.js figure-ga-art.js figure-ga.js figure-list.js cloud.js web/src/worker.js web/build.mjs; do
   if node --check "$f" 2>/dev/null; then echo "OK   $f 構文"; else echo "FAIL $f 構文"; fail=1; fi
 done
 # 他社の製品名（商標）を画面・AI への指示文・コード・文書に書いていないか（旧名の読み替え表 FIG_SCHEME_OLD の 1 行だけ許す）

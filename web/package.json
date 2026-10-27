@@ -1,0 +1,14 @@
+{
+  "name": "branchat-web",
+  "private": true,
+  "description": "BranCHAT Web 版（Cloudflare Workers）",
+  "scripts": {
+    "build": "node build.mjs",
+    "db:local": "wrangler d1 execute branchat-web --local --file=schema.sql",
+    "dev": "node build.mjs && wrangler d1 execute branchat-web --local --file=schema.sql && wrangler dev --local --port 8995",
+    "deploy": "node build.mjs && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.141.0"
+  }
+}

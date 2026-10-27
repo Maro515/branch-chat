@@ -482,6 +482,10 @@ body.agendaOff #agenda,#focus.off ~ #agenda{display:none}
 #figDlg .figColTypes{display:flex;flex-wrap:wrap;gap:3px;margin:3px 0 6px;font-size:11px}#figDlg .figColTypes .ct{border:1px solid var(--line);border-radius:4px;padding:0 4px;white-space:nowrap}#figDlg .figColTypes .ct.t{background:#fff3d6;color:#7a5200}#figDlg .figColTypes button{font-size:11px;padding:0 5px}
 .figmetaRow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px;font-size:12px}.figmetaRow .figTagChip{font-weight:bold;border:1px solid var(--line);border-radius:4px;padding:0 6px}.figmetaRow .hint{max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #figImgDlg .figBlotDens{border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin:4px 0;font-size:12px}#figImgDlg .figBlotDens table{border-collapse:collapse;font-size:11px;margin:4px 0}#figImgDlg .figBlotDens td,#figImgDlg .figBlotDens th{border:1px solid var(--line);padding:1px 5px;text-align:right}
+/* Web 版（cloud.js） */
+.cloudBadge{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap;opacity:.85}.cloudBadge[data-state=error]{color:#b42318;border-color:#f3b2ab}.cloudBadge[data-state=offline]{color:#8a6100}
+#sCloudBox{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:4px 0 10px}#sCloudBox .sCloudRow{margin:2px 0 6px;font-size:13px}#sCloudBox .sCloudBtns{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}button.danger{color:#b42318}
+#cloudTermsDlg,#cloudRevsDlg{max-width:min(640px,94vw)}.cloudTerms{font-size:13px;line-height:1.7;padding-left:1.2em}.cloudRevs{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto;margin:8px 0}.cloudRev{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px}.cloudRev .hint{flex:1}
 #figListDlg{width:min(1180px,96vw);max-width:96vw;max-height:92vh}#figListDlg .flHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#figListDlg .flHead h2{margin:0;font-size:16px}#figListDlg .spacer{flex:1}
 #figListDlg .flBar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px}#figListDlg .flBar label{display:inline-flex;align-items:center;gap:4px}
 #figListDlg .flGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}#figListDlg .flCard{border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;background:var(--panel,#fff)}#figListDlg .flCard.sel{outline:2px solid var(--accent,#2b6);outline-offset:-1px}
@@ -1039,13 +1043,18 @@ function renderStream(body,text){
 const SET_KEY='bc.settings.v1';
 const IS_ARTIFACT=false;
 const IS_DESKTOP=location.protocol==='app:'; // Electron 版は app://branchat/ で配信される
-let settings=Object.assign({provider:IS_DESKTOP?'bridge':'dummy',apiKey:'',model:'claude-opus-5-5',effort:'high',web:true,mcp:[],sumModel:'claude-haiku-5-5',budget:60000,extra:''},JSON.parse(localStorage.getItem(SET_KEY)||'{}'));
+const IS_CLOUD=!IS_DESKTOP&&!!document.querySelector('meta[name="branchat-mode"][content="cloud"]'); // Web 版（web/ でビルドし Cloudflare で配信）: ログインした人ごとの保存先へ同期（cloud.js）、AI は各自の API キー
+let settings=Object.assign({provider:IS_DESKTOP?'bridge':IS_CLOUD?'api':'dummy',apiKey:'',model:'claude-opus-5-5',effort:'high',web:true,mcp:[],sumModel:'claude-haiku-5-5',budget:60000,extra:''},JSON.parse(localStorage.getItem(SET_KEY)||'{}'));
 if('memory' in settings||'memoryOn' in settings){delete settings.memory;delete settings.memoryOn;lsSetSafe(SET_KEY,JSON.stringify(settings));} // 記憶の引き継ぎは不採用。登録済みの内容は破棄
 (function(){if(settings.model==='opus')settings.model='claude-opus-5-5';if(settings.model==='sonnet')settings.model='claude-sonnet-5';for(const k of ['model','sumModel'])if(/^claude-haiku-4-5/.test(settings[k]||''))settings[k]='claude-haiku-5-5';})(); // Haiku 4.5 → 5.5（2026-10、引退予定の旧モデルを置き換え）
 function saveSettings(){localStorage.setItem(SET_KEY,JSON.stringify(settings));}
 let bridgeOk=false;
 let claudeCliOk=false,codexInfo={ok:false,models:[]};
+// Web 版では、自分の API キー（または OpenAI 互換の接続先）を入れたときだけ AI が答える。入れていなければノート（書き留める）として動く
+function aiReady(){if(!IS_CLOUD)return true;if(settings.provider==='api')return !!String(settings.apiKey||'').trim();if(settings.provider==='openai')return !!(oaBase()&&oaModels().length);return false;}
+if(IS_CLOUD&&!['api','openai'].includes(settings.provider))settings.provider='api';
 async function probeBridge(){
+  if(IS_CLOUD){bridgeOk=false;claudeCliOk=false;codexInfo={ok:false,models:[]};refreshModelCatalog();return;} // Web 版にブリッジ（CLI）は無い
   try{const r=await fetch('/api/status',{cache:'no-store'});const j=await r.json();claudeCliOk=!!j.ok;codexInfo={ok:!!j.codex_ok,models:j.codex_models||[]};bridgeOk=claudeCliOk||codexInfo.ok;}
   catch(e){bridgeOk=false;claudeCliOk=false;codexInfo={ok:false,models:[]};}
   refreshModelCatalog();
@@ -1064,8 +1073,8 @@ function newConversation(title){
   convs[id]=c;return c;
 }
 function persist(){
-  localStorage.setItem(CONVS_KEY,JSON.stringify(convs));
-  localStorage.setItem(ACTIVE_KEY,conv.id);
+  try{localStorage.setItem(CONVS_KEY,JSON.stringify(convs));localStorage.setItem(ACTIVE_KEY,conv.id);}
+  catch(e){if(!IS_CLOUD)throw e;if(!persist._warned){persist._warned=true;toast('この端末の保存容量がいっぱいです（クラウドには保存しています）');}}
   scheduleBackup();scheduleStore(conv.id);
 }
 // ---- 会話記録をこの端末のファイルとして保存（デスクトップ版）----
@@ -1081,7 +1090,7 @@ function convMarkdown(c){
     for(const n of ns)md+=`\n### ${n.role==='user'?'あなた':'AI'} #${n.seq}${n.role==='assistant'&&n.model?`（${n.model}）`:''} ${fmt(n.ts)}\n\n${n.content||''}\n`;}
   return md;
 }
-function scheduleStore(id){if(!IS_DESKTOP)return;if(id)storeDirty.add(id);clearTimeout(storeTimer);storeTimer=setTimeout(flushStore,1500);}
+function scheduleStore(id){if(IS_CLOUD){if(typeof cloudMarkDirty==='function')cloudMarkDirty(id);return;}if(!IS_DESKTOP)return;if(id)storeDirty.add(id);clearTimeout(storeTimer);storeTimer=setTimeout(flushStore,1500);}
 async function flushStore(){
   if(!IS_DESKTOP)return;clearTimeout(storeTimer);
   const ids=[...storeDirty].filter(id=>convs[id]);const removed=[...storeRemoved];storeDirty.clear();storeRemoved.clear();
@@ -1092,6 +1101,7 @@ async function flushStore(){
 }
 async function syncStoreAtStart(){
   // 起動時: ファイルにあって画面に無い会話は取り込み、画面にあってファイルに無い会話は書き出す
+  if(IS_CLOUD){if(typeof cloudStart==='function')await cloudStart();return;} // Web 版はログインした人の保存先と同期（cloud.js）
   if(!IS_DESKTOP)return;
   try{const r=await fetch('/api/store',{cache:'no-store'});if(!r.ok)return;const j=await r.json();storeDir=j.dir||'';
     let added=0;for(const [id,c] of Object.entries(j.convs||{})){if(!convs[id]){convs[id]=c;added++;}}
@@ -1291,7 +1301,7 @@ const SUM_SYS=`あなたは会話ブランチの要約係です。与えられ�
 {"title":"会話の題名（15字以内。内容が一目で分かる名詞句。「相談」「について」などの語尾は不要）","topic":"何を話したか（80字以内）","conclusions":"得られた結論・決定事項（120字以内、無ければ「なし」）","open":"未解決の問い（80字以内、無ければ「なし」）","resolved_ids":[解決した未解決項目のid（数値）の配列。無ければ[]],"new_open":["新たに生じた未解決項目・やるべきこと（各40字以内、最大5件。既存の項目と重なるものは入れない）"]}`;
 const summarizing=new Set();
 async function updateSummary(bid){
-  if(summarizing.has(bid))return;const b=B(bid);const ns=branchNodes(bid).filter(n=>n.model!=='template');if(!ns.length)return;const cid=conv.id; // テンプレートの骨組みの説明は要約の対象にしない
+  if(summarizing.has(bid)||!aiReady())return;const b=B(bid);const ns=branchNodes(bid).filter(n=>n.model!=='template');if(!ns.length)return;const cid=conv.id; // テンプレートの骨組みの説明は要約の対象にしない
   summarizing.add(bid);
   try{
     let out='';
@@ -1321,7 +1331,7 @@ async function updateSummary(bid){
 /* ========== 送信 ========== */
 let busy=false;
 let abortCtl=null;
-function setSendBtn(running){const b=$('#sendBtn');const off=!!(B(effectiveBranchForSend())||{}).noAi;b.textContent=running?'■ 停止':(off?'書き留める':'送信');b.classList.toggle('stop',running);b.classList.toggle('note',off&&!running);b.title=running?'生成を中断する':'';}
+function setSendBtn(running){const b=$('#sendBtn');const off=!!(B(effectiveBranchForSend())||{}).noAi||!aiReady();b.textContent=running?'■ 停止':(off?'書き留める':'送信');b.classList.toggle('stop',running);b.classList.toggle('note',off&&!running);b.title=running?'生成を中断する':'';}
 async function send(text,opts={}){
   if(busy||!text.trim())return;busy=true;followTail=true;abortCtl=new AbortController();setSendBtn(true);
   let bid=opts.branchId||currentBranchId();
@@ -1334,6 +1344,7 @@ async function send(text,opts={}){
   if(conv.title==='新しい会話'){conv.title=excerpt(text,20);conv.titleAuto=true;} // 仮の題名。最初の要約ができたら AI が付け直す
   if(opts.images&&opts.images.length)u.images=opts.images.map(p=>p.thumb); // 表示用の縮小版だけ保存（送信用の原寸は保存しない）
   if(B(bid)&&B(bid).noAi){u.note=true;conv.activeNodeId=u.id;busy=false;persist();renderAll();setSendBtn(false);setStatus('書き留めました（AI 回答はオフ）');return;} // ノートとして保存するだけ
+  if(!aiReady()){u.note=true;conv.activeNodeId=u.id;busy=false;persist();renderAll();setSendBtn(false);setStatus('書き留めました（AI と話すには ⚙ 設定で自分の API キーを入れてください）');return;} // Web 版でキーが無いとき
   const a=addNode('assistant','',u.id,bid);a.streaming=true;if(opts.mergedFrom)a.mergedFrom=opts.mergedFrom;
   conv.activeNodeId=a.id;persist();renderAll();
   const web=!!settings.web&&!IS_ARTIFACT&&settings.provider!=='openai'; // OpenAI互換の接続では Web検索を使えない
@@ -1411,7 +1422,7 @@ async function deleteConvById(id){
   const c=convs[id];if(!c)return;
   if(busy&&id===conv.id){toast('生成中の会話は削除できません');return;}
   if(!(await askConfirm(`会話「${c.title}」（${c.order.length}件の発言）を削除しますか？\nこの操作は元に戻せません。`,'削除する')))return;
-  delete convs[id];storeRemoved.add(id);storeDirty.delete(id);scheduleStore();
+  delete convs[id];storeRemoved.add(id);storeDirty.delete(id);if(IS_CLOUD&&typeof cloudMarkRemoved==='function')cloudMarkRemoved(id);scheduleStore();
   if(id===conv.id){const rest=Object.values(convs).sort((a,b)=>convLastTs(b)-convLastTs(a));conv=rest[0]||newConversation();}
   persist();pruneLinks();if($('#know').classList.contains('on'))renderAll();else showFocus();toast('会話を削除しました');
 }
@@ -1480,7 +1491,7 @@ function gistOf(n){return n.gist||excerpt(n.content,20);}
 const GIST_SYS=`あなたはチャットメッセージの見出し係です。各メッセージの内容を日本語20字以内に要約してください。体言止め・記号なし。出力はJSONオブジェクトのみ（{"id":"要約",...}）。前後に説明を付けない。`;
 let gisting=false;
 async function ensureGists(){
-  if(gisting||settings.provider==='dummy')return;
+  if(gisting||settings.provider==='dummy'||!aiReady())return;
   const targets=conv.order.map(N).filter(n=>!n.gist&&!n.streaming&&n.content&&n.content.length>20).slice(0,12);
   if(!targets.length)return;
   gisting=true;
@@ -1509,6 +1520,7 @@ let mcpList=[],mcpLoaded=false;
 async function loadMcp(force){
   if(IS_ARTIFACT||settings.provider!=='bridge'){mcpList=[];return;}
   if(mcpLoaded&&!force)return;
+  if(IS_CLOUD){mcpList=[];mcpLoaded=true;return;}
   try{const r=await fetch('/api/mcp'+(force?'?force=1':''),{cache:'no-store'});const j=await r.json();mcpList=j.servers||[];mcpLoaded=true;}catch(e){mcpList=[];}
   settings.mcp=(settings.mcp||[]).filter(n=>mcpList.some(sv=>sv.name===n));renderMcpBtn();
 }
@@ -1795,7 +1807,7 @@ function pruneLinks(){const alive=new Set(kbNodes().map(n=>n.key));let ch=false;
 
 // ---- 関連度の判定役 ----
 // 'jev' = TypeSafe AI の判定専用モデル（文章を生成せず点数だけ返す）/ 'model' = 要約用のモデル / 'local' = 簡易判定のみ
-function judgeMode(){const m=settings.judge;if(!IS_DESKTOP)return m==='local'?'local':'model';return ['jev','model','local'].includes(m)?m:'jev';} // Jev への中継はデスクトップ版だけが持つ。ブラウザ版・Artifact 版は要約モデルか簡易判定
+function judgeMode(){const m=settings.judge;if(!IS_DESKTOP)return m==='local'||!aiReady()?'local':'model';return ['jev','model','local'].includes(m)?m:'jev';} // Jev への中継はデスクトップ版だけが持つ。ブラウザ版・Artifact 版は要約モデルか簡易判定
 function jevReady(){if(!IS_DESKTOP)return false;return settings.jevVia==='cloudflare'?!!((settings.jevCfAccount||'').trim()&&(settings.jevCfToken||'').trim()):!!(settings.jevKey||'').trim();}
 const JEV_CRIT=['無関係。話題も目的も重ならない','弱い関連。分野は近いが、扱っている問いは別','共通の要素があり、一緒に読むと役立つ','同じ主題を扱っており、強く関連する','ほぼ同じ話題、または一方が他方の直接の続き'];
 async function scoreByJev(t,cands,card){
@@ -1993,7 +2005,7 @@ async function importBackupText(text){
   if(!add.length&&!upd.length){toast(`読み込む必要のある会話はありませんでした（${keep.length}件はこちらが同じか新しい内容です）`);return;}
   const msg=`ファイルの会話 ${incoming.length} 件を読み込みます。\n・新しく加わる会話: ${add.length} 件\n・ファイルの方が新しいので置き換える会話: ${upd.length} 件\n・こちらが同じか新しいのでそのままの会話: ${keep.length} 件\n今ある会話は消えません。続けますか？`;
   if(!(await askConfirm(msg,'読み込む')))return;
-  for(const c of add.concat(upd)){delete c._pendingBranch;delete c._anchor;convs[c.id]=c;storeDirty.add(c.id);}
+  for(const c of add.concat(upd)){delete c._pendingBranch;delete c._anchor;convs[c.id]=c;storeDirty.add(c.id);if(IS_CLOUD&&typeof cloudMarkDirty==='function')cloudMarkDirty(c.id);} // Web 版はクラウドにも送る（読み込んだ時刻を新しさとする）
   if(inLinks){for(const [k,v] of Object.entries(inLinks))if(v&&typeof v.s==='number'&&(!links[k]||(v.ts||0)>(links[k].ts||0)))links[k]=v;saveLinks();}
   if(!conv.order.length||incoming.length===1){const first=(add.concat(upd)).sort((a,b)=>convLastTs(b)-convLastTs(a))[0];if(first)conv=convs[first.id];}
   persist();scheduleStore();pruneLinks();$('#bkDlg').close();showFocus();toast(`読み込みました（追加 ${add.length} 件・置き換え ${upd.length} 件）`);
@@ -2137,7 +2149,7 @@ function openTplDlg(){
 $('#tplCancel').onclick=()=>$('#tplDlg').close();tplEditInit();
 
 /* ========== イベント ========== */
-$('#aiBtn').onclick=()=>{const b=B(effectiveBranchForSend());if(!b)return;b.noAi=!b.noAi;persist();renderAll();toast(b.noAi?`「${b.name}」では AI が答えません（ノートとして書き留めます）`:`「${b.name}」で AI が答えるようになりました`);};
+$('#aiBtn').onclick=()=>{if(!aiReady()){toast('AI と話すには ⚙ 設定で自分の API キーを入れてください');$('#settingsBtn').click();return;}const b=B(effectiveBranchForSend());if(!b)return;b.noAi=!b.noAi;persist();renderAll();toast(b.noAi?`「${b.name}」では AI が答えません（ノートとして書き留めます）`:`「${b.name}」で AI が答えるようになりました`);};
 $('#sendBtn').onclick=()=>{if(busy){if(abortCtl)abortCtl.abort();return;}const t=$('#input').value;if(!t.trim()&&!pendingImgs.length)return;const bid=effectiveBranchForSend();delete conv._pendingBranch;$('#input').value='';fitInput();const imgs=pendingImgs;pendingImgs=[];renderPlus();send(t.trim()||'（画像を添付）',{branchId:bid,parentId:conv.activeNodeId,images:imgs});};
 $('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!busy)$('#sendBtn').click();}});
 // 入力欄は1行から内容に合わせて伸びる（上限は CSS の max-height）
@@ -2191,7 +2203,7 @@ $('#sSave').addEventListener('click',()=>{settings.oaBase=$('#sOaBase').value.tr
   if($('#sProvider').value==='openai'&&(!settings.oaBase||!oaModels().length))toast('接続先の URL とモデル名を入れてください');});
 $('#sCancel').onclick=()=>{$('#settings').close();refreshModelCatalog();};
 // このアプリについて（バージョン、利用条件、同梱物のライセンス）。設定の「このアプリについて」とメニューから
-async function openAbout(){const d=$('#aboutDlg');$('#aboutVer').textContent=IS_DESKTOP?'':'ブラウザ版';$('#aboutRt').textContent='';$('#licElectronBox').style.display=IS_DESKTOP?'':'none';$('#licChromiumRow').style.display=IS_DESKTOP?'':'none';
+async function openAbout(){const d=$('#aboutDlg');$('#aboutVer').textContent=IS_DESKTOP?'':IS_CLOUD?'Web 版':'ブラウザ版';$('#aboutRt').textContent='';$('#licElectronBox').style.display=IS_DESKTOP?'':'none';$('#licChromiumRow').style.display=IS_DESKTOP?'':'none';
   if(!d.open)d.showModal();
   if(IS_DESKTOP){try{const j=await (await fetch('/api/about')).json();$('#aboutVer').textContent='バージョン '+j.version;$('#aboutRt').textContent=`Electron ${j.electron} ／ Chromium ${j.chrome} ／ Node.js ${j.node}`;}catch(e){}}
   const load=async(id,file)=>{const el=$(id);if(!el)return;try{const r=await fetch(file);if(!r.ok)throw 0;el.textContent=await r.text();}catch(e){el.textContent='ライセンス文を読み込めませんでした（'+file+'）';}};
@@ -2272,7 +2284,7 @@ function renderNoteWin(){
 }
 function openNote(id){noteCur=id;renderNoteWin();$('#nwInput').focus();}
 async function askNote(id,q){
-  const n=notesOf()[id];if(!n||noteBusy||!q.trim())return;
+  const n=notesOf()[id];if(!n||noteBusy||!q.trim())return;if(!aiReady()){toast('AI と話すには ⚙ 設定で自分の API キーを入れてください');return;}
   const src=N(n.nodeId);noteBusy=true;noteAbort=new AbortController();
   n.items.push({role:'user',content:q.trim(),ts:Date.now()});const a={role:'assistant',content:'',ts:Date.now()};n.items.push(a);
   noteCur=id;renderNoteWin();
@@ -2289,7 +2301,7 @@ const NOTE_SUM_SYS=`あなたは補足のやり取りの要約係です。与え
 {"topic":"何を聞いたか（40字以内）","conclusions":"分かったこと・結論（120字以内）"}`;
 const noteSummarizing=new Set();
 async function updateNoteSummary(id){
-  const n=notesOf()[id];if(!n||noteSummarizing.has(id))return;const cid=conv.id;noteSummarizing.add(id);
+  const n=notesOf()[id];if(!n||noteSummarizing.has(id)||!aiReady())return;const cid=conv.id;noteSummarizing.add(id);
   try{let out='';
     if(settings.provider==='dummy'){const a=n.items.filter(i=>i.role==='assistant').slice(-1)[0];out=JSON.stringify({topic:excerpt(n.items[0].content,40),conclusions:'（ダミー）'+excerpt(a?a.content:'',80)});}
     else{const log=`語句: ${n.text}\n\n`+n.items.map(i=>`${i.role==='user'?'質問':'回答'}: ${i.content}`).join('\n\n')+'\n\n上記を指定のJSON形式（topic/conclusions）だけで要約してください。';
@@ -2459,8 +2471,8 @@ function modelSource(bid){const a=resolveUp(bid,'model',validModel).src,b=EFFORT
 const sourceName=(src,bid)=>src===bid?'このブランチの設定':(src==='global'||src==='main')?'本線の設定':`分岐元「${B(src).name}」の設定`;
 let mpScope='branch';
 // 枝ごとの「AI 回答 オン/オフ」。オフの枝ではノートとして書き留めるだけ（AI は答えず、要約も更新しない）
-function renderAiBtn(){const b=B(effectiveBranchForSend());const off=!!(b&&b.noAi);const btn=$('#aiBtn');if(!btn)return;btn.classList.toggle('off',off);btn.innerHTML=`<span class="ui">${off?'🤖 AI 回答: オフ':'🤖 AI 回答: オン'}</span>`;
-  const inp=$('#input');if(inp)inp.placeholder=off?'ノート（Enterで書き留める / Shift+Enterで改行。この枝では AI は答えません）':'メッセージ';
+function renderAiBtn(){const b=B(effectiveBranchForSend());const nokey=!aiReady();const off=!!(b&&b.noAi)||nokey;const btn=$('#aiBtn');if(!btn)return;btn.classList.toggle('off',off);btn.innerHTML=`<span class="ui">${nokey?'🤖 AI: キー未設定':off?'🤖 AI 回答: オフ':'🤖 AI 回答: オン'}</span>`;btn.dataset.tip=nokey?'AI と話すには ⚙ 設定で自分の API キーを入れてください。今はノート（書き留めるだけ）として動きます':btn.dataset.tip||'';
+  const inp=$('#input');if(inp)inp.placeholder=nokey?'ノート（AI と話すには ⚙ 設定で API キー）':off?'ノート（Enterで書き留める / Shift+Enterで改行。この枝では AI は答えません）':'メッセージ';
   const sb=$('#sendBtn');if(sb&&!busy){sb.textContent=off?'書き留める':'送信';sb.classList.toggle('note',off);}}
 function renderModelBtn(){
   migrateConvModel();
@@ -2504,7 +2516,16 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#modelPop').class
 const IS_MAC=/Mac/i.test(navigator.platform||navigator.userAgent);
 let tutPage=0,tutAuth=null;
 const cmdBox=c=>`<div class="cmd"><code>${esc(c)}</code><button class="small" data-copy="${esc(c)}">コピー</button></div>`;
-function tutConnectHTML(){
+// Web 版の「AIへの接続」: キーが無ければノート、各自の Claude API キー（従量課金）で AI 会話
+function tutCloudConnectHTML(){return `<p>この Web 版では、AI と話すには<b>自分の API キー</b>が要ります。キーを入れていない間は、送った文は<b>ノート</b>として書き留められるだけで、AI は答えません（作図・画像パネル・グラフィックス・図版一覧は、キーが無くてもすべて使えます）。</p>
+  <ol><li><b>Claude の API キーを作る</b>: console.anthropic.com にログイン → 「API Keys」→「Create Key」。表示されたキー（sk-ant- で始まる）をコピーします。支払い方法の登録とクレジットの購入が必要です。</li>
+  <li>右上の<b>「⚙ 設定」</b>→「接続方式」を「Claude API（従量課金・APIキー）」にして、「APIキー」の欄に貼り付け →「保存」。</li>
+  <li>入力欄の右のボタンが<b>「送信」</b>になれば、AI が答えます。</li></ol>
+  <ul><li>費用は<b>使った分だけ、あなたの API の利用料</b>として請求されます。思考量を上げたり長い会話を続けたりすると高くなります（「トークンと費用」のページ）。</li>
+  <li>キーは<b>このブラウザの中にだけ</b>保存され、サーバー（クラウドの保存先）には送りません。別の端末では、もう一度入れてください。</li>
+  <li>OpenAI や Gemini などの API も「ほかの LLM の API」で使えます（決まった接続先だけ）。</li>
+  <li>AI に送った内容は、その AI の提供元の規約に従って扱われます。患者情報などの秘匿情報は送らないでください。</li></ul>`;}
+function tutConnectHTML(){if(IS_CLOUD)return tutCloudConnectHTML();
   if(IS_ARTIFACT)return `<h3 class="ui">AIへの接続（この版は準備不要）</h3>
     <p>この画面は claude.ai の中で動いており、<b>あなた自身の Claude アカウント</b>で応答します。最初の送信時に「この Artifact が Claude を使うこと」の許可を求められるので、許可してください。利用量はご自身のプランから消費されます。</p>
     <p>モデルは送信ボタンの上のボタンから「標準 / 高度 / 速い」を選べます。</p>`;
@@ -2717,6 +2738,15 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（画面の要素を指定でき�
 - 未加工ブロットの PDF や元画像を加工して作り直さない。図に使う範囲は切り抜き（crop）で決める。
 - 利用者が指示していない書き出し先のフォルダを設定しない・解除しない。既存のファイルは上書きされない（_v2 になる）ことを前提に、消さない。
 - 図の写真やグラフィカルアブストラクトに、画像生成 AI の画像を使わない（多くの誌の方針で不可。進捗パネルの AI 利用方針を確かめる）。
+
+## 9. Web 版（Cloudflare）での違い
+- Web 版は web/build.mjs で作り、Cloudflare Workers（web/src/worker.js、/api/*）と Cloudflare Access（許可したメールアドレスだけログイン）で配信する。index.html に <meta name="branchat-mode" content="cloud"> が入り IS_CLOUD=true、cloud.js が読み込まれる。
+- 最初に「利用上の注意」#cloudTermsDlg（Esc で閉じない）: 同意のチェック #cloudTermsOk → 「同意して始める」#cloudTermsGo。秘匿情報を入れない・データの責任は各自・暗号化はしていない、などに同意する。
+- 保存: 会話・図・画像パネルの画像・設定（API キーを除く）・知識マップの線は、ログインした人の保存先へ自動で同期（変わった会話だけを 1.5 秒まとめて送る。起動時と画面に戻ったときに新しい方を取り込む）。状態はヘッダーの #cloudBadge（☁ 保存済み／保存中…／オフライン／保存できません／同期中…、data-state=ok|saving|offline|error|sync）。
+- AI: 各自の API キーを入れたときだけ答える（aiReady()）。キーが無いと #aiBtn が「🤖 AI: キー未設定」、#sendBtn が「書き留める」（ノートとして書き留める）。キーは localStorage の settings だけで、サーバーには送らない。接続方式 #sProvider は api（Claude API）と openai（決まった接続先だけ。CSP で通信先を制限）。
+- 設定の上の「アカウント（Web 版）」#sCloudBox: ログイン中のメールアドレス #sCloudWho と使用量 #sCloudUse、「この会話の版の履歴」#sCloudRevs（#cloudRevsDlg の各版の [data-rev] で新しい会話として写しを開く。版は 10 分に 1 つ、食い違ったとき・削除のときは必ず残る。1 会話 30 版まで）、「すべてを書き出す」#sCloudExport（クラウドの会話と画像をそろえてからバックアップのファイル）、「利用上の注意」#sCloudTerms、「ログアウト」#sCloudLogout、「ログアウトしてこの端末のデータを消す」#sCloudWipe、「アカウントとデータを削除」#sCloudDelete（確認 → #figPromptDlg に「削除」）。
+- 同じブラウザを別の人が使うと、前の人のデータと API キーを端末から消してから読み込む。
+- Web 版に無いもの: ブリッジ（Claude Code・Codex の定額枠）、連携ツール（MCP）、Jev、会話のファイル保存と自動バックアップ、書き出し先フォルダへの直接保存と 📁 Finder、元データの変更の確認（パスが分からない）、未加工ブロットの PDF（HTML を保存してブラウザで PDF に印刷）、SOP のファイル書き出し・ヘルプメニュー。書き出しはブラウザのダウンロード。
 `;
 /*SOP-END*/
 /*SOPCU-START*/ // 画面を見て操作する AI（ChatGPT のコンピュータユースなど）向けの SOP。セレクタやコンソールを使わず、画面の文字と位置で書く。【】の中は画面に出る文字そのもの（check.sh が実在を検査）。UI の文言を変えたらここも直す
@@ -2980,6 +3010,13 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
 - 「@BranCHAT この SOP に従って、この会話の投稿先を Blood にして、Fig1A の図の幅を 1 段にそろえ、図版一覧で Fig1A と Fig1B を 2 列の複合パネル（タグ Fig1）にして、凡例の下書きを会話に書き留めて」
 - 「@BranCHAT この SOP に従って、画像パネルで OME-TIFF を取り込み、スケールバーを 20 µm・太さ 3 pt にして、1 枚目だけ数値を書いて PNG で保存して」
 - 「@BranCHAT この SOP に従って、ブロットの未加工ブロット PDF を保存し、濃度を測って表をコピーし、警告があれば教えて」
+
+## 11. Web 版（ブラウザで使う版）のとき
+- ブラウザでログインして使う。最初に小窓【利用上の注意】→ 内容を読み、チェックを付けて【同意して始める】（利用者本人が同意する。AI が代わりに同意しない）。
+- 右上の【⚙ 設定】の左に保存の状態が出る（【☁ 保存済み】など）。会話・図・画像は自動でクラウドに保存され、別の端末でログインしても続きが出る。
+- AI と話すには、利用者が【⚙ 設定】で自分の API キーを入れる（AI が代わりに入力しない）。入っていない間は入力欄の右が【🤖 AI: キー未設定】と【書き留める】で、送った文はノートになる。
+- 【⚙ 設定】の上の「アカウント」: 【この会話の版の履歴】（以前の版を【新しい会話として開く】）、【すべてを書き出す】、【利用上の注意】、【ログアウト】、【ログアウトしてこの端末のデータを消す】（共用のパソコンで）、【アカウントとデータを削除】（利用者がはっきり指示したときだけ）。
+- Web 版に無いもの: 保存先のフォルダへの直接保存と【📁 Finder】、連携ツール、定額枠での会話。保存はブラウザのダウンロードになる。【📄 未加工ブロット PDF】は HTML のファイルになるので、ブラウザで開いて PDF に印刷するよう利用者に伝える。
 `;
 /*SOPCU-END*/
 const TUT_PAGES=[
@@ -3018,7 +3055,7 @@ const TUT_PAGES=[
     <h3 class="ui">モデルと思考量</h3><ul><li>送信ボタンの上のボタンで、<b>枝ごとに</b>モデル${IS_ARTIFACT?'の階層':'と思考量'}を変えられます。</li>
     <li>指定していない枝は<b>本線の設定</b>（さらに分岐した枝は分岐元の設定）を引き継ぎます。本線に設定すれば会話全体に効きます。</li>
     ${IS_ARTIFACT?'':'<li>Claude と GPT を枝ごとに使い分けても、どちらも他の枝の結論を把握して答えます。GPT（Codex）の回答は1文字ずつではなく、まとまって表示されます。</li>'}</ul>`}),
-  ()=>({t:'データの扱い',h:`<ul><li>会話は<b>この${IS_DESKTOP?'アプリ':'ブラウザ'}の中</b>に保存されます。${IS_DESKTOP?'さらに、すべての会話をこの端末の中にファイル（JSON と、そのまま読める Markdown）として自動で記録します。保存先は「⚙ 設定」の「保存フォルダを開く」で確認できます。':''}</li>
+  ()=>({t:'データの扱い',h:IS_CLOUD?`<ul><li>会話・図・画像パネルの画像は、<b>ログインしたアカウントの保存先（クラウド）</b>に自動で保存され、どの端末からでも続きを開けます。ほかの利用者からは見えません。この端末のブラウザにも写しを置きます。</li><li>保存先は暗号化していません。運営者は管理のために保存されたデータにアクセスできる立場にあります。<b>患者情報・個人情報などの秘匿情報は入力しないでください。</b></li><li>データの管理の責任は各自にあります。大事なものは「⚙ 設定」の「すべてを書き出す」で手元にも保存してください。会話の以前の版は「この会話の版の履歴」から開けます。</li><li>使うのをやめるときは「⚙ 設定」の「アカウントとデータを削除」。共用のパソコンでは「ログアウトしてこの端末のデータを消す」を使ってください。</li></ul><div class="editBtns"><button class="small primary" id="tutDemo">デモ会話を読み込む</button></div>`:`<ul><li>会話は<b>この${IS_DESKTOP?'アプリ':'ブラウザ'}の中</b>に保存されます。${IS_DESKTOP?'さらに、すべての会話をこの端末の中にファイル（JSON と、そのまま読める Markdown）として自動で記録します。保存先は「⚙ 設定」の「保存フォルダを開く」で確認できます。':''}</li>
     <li>ヘッダーの<b>「バックアップ・引継ぎ」</b>で、すべての会話を1つのファイルに書き出し、別のパソコンや別の版の BranCHAT で読み込めます。読み込みは足し合わせなので、今ある会話は消えません。</li>
     <li>会話は<b>左の一覧</b>で切り替えます。「＋ 新しい会話」で作成、各行の ✎ と 🗑 で名前の変更と削除ができます。</li>
     <li>View の<b>「知識マップ」</b>では、すべての会話の枝が点で並び、内容が近いもの同士が線で結ばれます。線が太いほど関連が強く、「整理」でよく似た枝を片付けられます。</li></ul>
@@ -3038,6 +3075,7 @@ let sopDir='';async function syncSopFiles(){if(!IS_DESKTOP)return;try{const r=aw
 setTimeout(syncSopFiles,1500);
 async function tutLoadAuth(force){
   if(IS_ARTIFACT)return;
+  if(IS_CLOUD){tutAuth=null;return;} // Web 版にブリッジは無い
   try{const r=await fetch('/api/status'+(force?'?force=1':''),{cache:'no-store'});tutAuth=await r.json();if(typeof probeBridge==='function')await probeBridge();}catch(e){tutAuth=null;}
 }
 function renderTut(){
@@ -3095,7 +3133,7 @@ loadActive();
 syncStoreAtStart().then(restoreFromBackup);
 probeBridge().then(()=>{if(IS_DESKTOP&&!bridgeOk){toast('Claude Code も Codex CLI も見つかりません。設定を確認してください');return;}if(bridgeOk&&settings.provider==='dummy'&&!localStorage.getItem('bc.bridgeNoticed')){localStorage.setItem('bc.bridgeNoticed','1');toast('ブリッジを検出。設定で「ローカルブリッジ」を選ぶと定額枠で本物の応答になります');}});
 showFocus();
-if(!lsGetSafe('bc.tutorialSeen'))setTimeout(()=>openTut(0),400);
+if(!lsGetSafe('bc.tutorialSeen')){if(IS_CLOUD)window.tutAfterCloud=true;else setTimeout(()=>openTut(0),400);} // Web 版は利用上の注意に同意してから
 </script>
 </body>
 </html>
