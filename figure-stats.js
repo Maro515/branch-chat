@@ -773,3 +773,36 @@ function describeFull(v,ci=0.95){
     p5:quantile(v,0.05),p95:quantile(v,0.95),p10:quantile(v,0.10),p90:quantile(v,0.90)};
 }
 
+
+/* ---------- 図の統計（Figure 機能改善計画 FIX-02/03）: 四分位数の求め方・正確な Mann–Whitney・片側検定・要約値からの t 検定・p 値の補正 ---------- */
+// 四分位数: linear＝R type 7（NumPy・Excel QUARTILE.INC と同じ。既定）、weibull＝type 6（(n+1)p 法、QUARTILE.EXC）、tukey＝Tukey のヒンジ（奇数なら中央値を両半分に含める）
+function quartiles(v,method){const s=v.filter(x=>Number.isFinite(x)).sort((a,b)=>a-b);const n=s.length;if(!n)return {q1:NaN,med:NaN,q3:NaN,method:method||'linear'};
+  const med=quantile(s,0.5);
+  if(method==='weibull'){const at=p=>{const h=(n+1)*p;if(h<=1)return s[0];if(h>=n)return s[n-1];const lo=Math.floor(h);return s[lo-1]+(h-lo)*(s[lo]-s[lo-1]);};return {q1:at(0.25),med,q3:at(0.75),method};}
+  if(method==='tukey'){const half=Math.ceil(n/2);return {q1:quantile(s.slice(0,half),0.5),med,q3:quantile(s.slice(n-half),0.5),method};}
+  return {q1:quantile(s,0.25),med,q3:quantile(s,0.75),method:'linear'};}
+// 正規分布の上側確率（小さな P でも相対精度を保つ。erfc の連分数／級数）
+function normSF(z){if(!isFinite(z))return z>0?0:1;if(z<0)return 1-normSF(-z);if(z<5)return 1-normCDF(z);
+  const x=z/Math.SQRT2;let f=0;for(let k=60;k>=1;k--)f=k/2/(x+f);return Math.exp(-x*x)/Math.sqrt(Math.PI)/(x+f)/2;}
+// t 検定（独立 2 群）。alternative: two-sided | less（x の平均 < y） | greater
+function tTestAlt(x,y,welch,alternative){const r=tTest2(x,y,{welch});return Object.assign(r,{p:figAltP(r.p,r.t,alternative),alternative:alternative||'two-sided'});}
+function figAltP(p2,t,alt){if(alt==='less')return t<0?p2/2:1-p2/2;if(alt==='greater')return t>0?p2/2:1-p2/2;return p2;}
+// 要約値（平均・SD・n）からの t 検定
+function tTestFromStats(m1,s1,n1,m2,s2,n2,welch){let se,df;if(welch){se=Math.sqrt(s1*s1/n1+s2*s2/n2);df=Math.pow(s1*s1/n1+s2*s2/n2,2)/(Math.pow(s1*s1/n1,2)/(n1-1)+Math.pow(s2*s2/n2,2)/(n2-1));}
+  else{const sp2=((n1-1)*s1*s1+(n2-1)*s2*s2)/(n1+n2-2);se=Math.sqrt(sp2*(1/n1+1/n2));df=n1+n2-2;}const t=(m1-m2)/se;return {t,df,p:tPvalue(t,df),diff:m1-m2,welch};}
+// Mann–Whitney の U 検定。method: auto（同順位が無く、どちらかの群が 8 未満なら exact）| exact | asymptotic（正規近似・同順位補正・連続性補正）。U は x の U（U1）
+function mwTest(x,y,opt){opt=opt||{};const alt=opt.alternative||'two-sided';const n1=x.length,n2=y.length,N=n1+n2;const {ranks,ties}=ranksAvg([...x,...y]);let r1=0;for(let i=0;i<n1;i++)r1+=ranks[i];
+  const U1=r1-n1*(n1+1)/2,U2=n1*n2-U1;const hasTies=ties.some(t=>t>1);let method=opt.method||'auto';if(method==='auto')method=(!hasTies&&Math.min(n1,n2)<8)?'exact':'asymptotic';if(method==='exact'&&hasTies)method='asymptotic';
+  if(method==='exact'){const cnt=mwExactCounts(n1,n2);const tot=cnt.reduce((a,b)=>a+b,0);const u=Math.round(U1);let cdf=0;for(let k=0;k<=u&&k<cnt.length;k++)cdf+=cnt[k];let sf=0;for(let k=u;k<cnt.length;k++)sf+=cnt[k];cdf/=tot;sf/=tot;
+    const p=alt==='less'?cdf:alt==='greater'?sf:Math.min(1,2*Math.min(cdf,sf));return {U:U1,p,method:'exact',alternative:alt,n1,n2};}
+  const mu=n1*n2/2;let tieSum=0;for(const t of ties)tieSum+=t*t*t-t;const s=Math.sqrt(n1*n2/12*((N+1)-tieSum/(N*(N-1))));if(!(s>0))return {U:U1,p:1,method:'asymptotic',alternative:alt,n1,n2};
+  const U=alt==='greater'?U1:alt==='less'?U2:Math.max(U1,U2);const z=(U-mu-0.5)/s;const p=Math.min(1,normSF(z)*(alt==='two-sided'?2:1));return {U:U1,z,p,method:'asymptotic',alternative:alt,n1,n2,ties:hasTies};}
+// U の正確な分布（同順位なし）: 長さ n1・n2 の並べ方の数を U ごとに数える
+function mwExactCounts(n1,n2){const max=n1*n2;let prev=[];for(let j=0;j<=n2;j++){prev[j]=new Float64Array(max+1);prev[j][0]=1;}
+  for(let i=1;i<=n1;i++){const cur=[];cur[0]=new Float64Array(max+1);cur[0][0]=1;for(let j=1;j<=n2;j++){const a=new Float64Array(max+1);const up=prev[j],left=cur[j-1];for(let u=0;u<=max;u++){a[u]=left[u]+(u>=j?up[u-j]:0);}cur[j]=a;}prev=cur;}
+  return Array.from(prev[n2]);}
+// Dunn の検定（Kruskal–Wallis の事後）の補正前の P（同順位補正つき、両側）。pairs: [[i,j],…]
+function dunnRaw(groups,pairs){const all=groups.flatMap(g=>g.values);const N=all.length;const {ranks,ties}=ranksAvg(all);let pos=0;const mr=[],ns=[];for(const g of groups){let r=0;for(let i=0;i<g.values.length;i++)r+=ranks[pos+i];mr.push(r/g.values.length);ns.push(g.values.length);pos+=g.values.length;}
+  let tieSum=0;for(const t of ties)tieSum+=t*t*t-t;const base=N*(N+1)/12-tieSum/(12*(N-1));return pairs.map(([i,j])=>{const z=(mr[i]-mr[j])/Math.sqrt(base*(1/ns[i]+1/ns[j]));return {i,j,z,p:Math.min(1,2*normSF(Math.abs(z)))};});}
+// p 値の補正: holm | bonferroni | bh（Benjamini–Hochberg）| none
+function pAdjust(ps,method){const m=ps.length;if(!m||method==='none')return ps.slice();if(method==='bonferroni')return ps.map(p=>Math.min(1,p*m));if(method==='bh')return bhFDR(ps);return holm(ps);}

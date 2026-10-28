@@ -16,8 +16,9 @@ Object.assign(FIG_TYPES,{
   swimmer:[['swimmer','スイマープロット']],
   spider:[['spider','スパイダープロット']],
   feature:[['volcano','ボルケーノ'],['ma','MA プロット'],['fcdot','効果量のドットプロット（選んだ遺伝子の log2FC）']],
-  importance:[['importance','特徴量重要度（横棒）']]});
-const FIG_KINDS_P3=[['multi','多変数（行＝個体、列＝変数、Group 列任意）'],['nested','入れ子（Group, Subject, Value）'],['swimmer','スイマー（Patient, Duration, Response, …）'],['spider','スパイダー（Patient, Time, Change%）'],['feature','遺伝子表（Gene, log2FC, P）'],['importance','重要度（Feature, Value）']];
+  importance:[['importance','特徴量重要度（横棒）']],
+  summary:[['summary-bar','棒＋誤差（平均・SD・n から）'],['summary-dot','点＋誤差（平均・SD・n から）']]});
+const FIG_KINDS_P3=[['summary','要約値（Group, Mean, SD または SEM, N。個々の値なし）'],['multi','多変数（行＝個体、列＝変数、Group 列任意）'],['nested','入れ子（Group, Subject, Value）'],['swimmer','スイマー（Patient, Duration, Response, …）'],['spider','スパイダー（Patient, Time, Change%）'],['feature','遺伝子表（Gene, log2FC, P）'],['importance','重要度（Feature, Value）']];
 const FIG_DEF_P3={estCI:true,estText:true,estErr:'SD',qqLine:true,qqText:true,baLoA:true,baText:true,baMode:'diff',glErr:true,bandAlpha:0.2,
   bubMax:28,bubLegend:true,bubLabels:false,bubAlpha:0.5,
   pcaScale:true,pcaX:1,pcaY:2,pcaLabels:false,pcaEllipse:false,pcaPA:true,pcaNPA:100,pcaCum:true,
@@ -90,7 +91,8 @@ const figTextCol=c=>c.raw.some(v=>v!==''&&isNaN(+v));
 const figNUniq=c=>new Set(c.raw.filter(v=>v!=='')).size;
 function figAutoKindP3(parsed){const cols=parsed.cols;const lc=figLC;
   if(typeof figAutoKindP4==='function'){const k=figAutoKindP4(parsed);if(k)return k;} // figure-omics.js
-  if(cols.some(c=>/log2?\s*fc|fold|log2foldchange|効果量/.test(lc(c)))&&cols.some(c=>/^(p|pvalue|p\.?val(ue)?|padj|p_adj|fdr|q|qvalue|adj\.?p)/.test(lc(c))))return 'feature';
+  if(parsed.firstColText&&cols.some(c=>/^(mean|average|avg|平均)/.test(lc(c)))&&cols.some(c=>/^(n|count|件数|例数|n数)$/.test(lc(c)))&&cols.some(c=>/^(sd|sem|se|s\.?e\.?m\.?|std|stdev|標準偏差|標準誤差)$/.test(lc(c))))return 'summary'; // 平均・SD・n の表
+  if(cols.some(c=>/log2?\s*fc|fold|log2foldchange|効果量|^beta$|^β|^lfc$|^effect/.test(lc(c)))&&cols.some(c=>/^(p|pvalue|p\.?val(ue)?|padj|p_adj|fdr|q|qvalue|adj\.?p)/.test(lc(c))))return 'feature';
   if(parsed.firstColText&&cols.some(c=>/^(duration|end|stop|treatment|期間|終了|投与期間|on.?study|治療期間)/.test(lc(c))&&c.vals.some(v=>v!==null)))return 'swimmer';
   if(parsed.firstColText&&cols.some(c=>/^(time|week|month|day|visit|cycle|時点|週|月|日)/.test(lc(c))&&c.vals.some(v=>v!==null))&&cols.some(c=>/change|%|変化|縮小/.test(lc(c)))&&figNUniq(cols[0])<cols[0].raw.filter(v=>v!=='').length)return 'spider';
   if(cols.some(c=>/subject|mouse|animal|donor|replicate|個体|マウス|動物|ドナー|患者|検体/.test(lc(c)))&&cols.filter(figTextCol).length>=1&&cols.filter(c=>c.vals.some(v=>v!==null)&&!figTextCol(c)).length===1&&cols.length>=3&&cols.length<=4)return 'nested';
@@ -99,6 +101,7 @@ function figAutoKindP3(parsed){const cols=parsed.cols;const lc=figLC;
   return null;}
 function figBuildDataP3(parsed,kind){
   if(typeof figBuildDataP4==='function'){const r=figBuildDataP4(parsed,kind);if(r!==undefined)return r;}
+  if(kind==='summary')return figBuildSummary(parsed);
   if(kind==='multi')return figBuildMulti(parsed);if(kind==='nested')return figBuildNested(parsed);if(kind==='swimmer')return figBuildSwimmer(parsed);if(kind==='spider')return figBuildSpider(parsed);if(kind==='feature')return figBuildFeature(parsed);if(kind==='importance')return figBuildImportance(parsed);
   return undefined;}
 function figBuildMulti(parsed){const cols=parsed.cols;const num=cols.filter(c=>c.vals.filter(v=>v!==null).length>=2&&!figTextCol(c));if(num.length<2)return null;const text=cols.filter(c=>!num.includes(c)&&c.raw.some(v=>v!==''));
@@ -126,7 +129,7 @@ function figBuildSpider(parsed){const cols=parsed.cols;const lc=figLC;
     const gCol=cols.find(c=>![idCol,tCol,vCol].includes(c)&&figTextCol(c))||null;const map={},order=[];idCol.raw.forEach((id,i)=>{if(id===''||tCol.vals[i]===null||vCol.vals[i]===null)return;if(!map[id]){map[id]={id,group:gCol?gCol.raw[i]:'',pts:[]};order.push(id);}map[id].pts.push([tCol.vals[i],vCol.vals[i]]);});
     const pats=order.map(id=>{const p=map[id];p.pts.sort((a,b)=>a[0]-b[0]);return p;});const gs=[...new Set(pats.map(p=>p.group).filter(Boolean))];return {kind:'spider',patients:pats,groups:gs.map(name=>({name})),tname:tCol.name,vname:vCol.name};}
   const tCol=cols[0];const pats=cols.slice(1).filter(c=>c.vals.some(v=>v!==null)).map(c=>({id:c.name,group:'',pts:tCol.vals.map((t,i)=>t===null||c.vals[i]===null?null:[t,c.vals[i]]).filter(Boolean).sort((a,b)=>a[0]-b[0])}));if(!pats.length)return null;return {kind:'spider',patients:pats,groups:[],tname:tCol.name,vname:''};}
-function figBuildFeature(parsed){const cols=parsed.cols;const lc=figLC;const fc=cols.find(c=>/log2?\s*fc|fold|log2foldchange|効果量|logfc/.test(lc(c))&&!figTextCol(c));if(!fc)return null;
+function figBuildFeature(parsed){const cols=parsed.cols;const lc=figLC;const fc=cols.find(c=>/log2?\s*fc|fold|log2foldchange|効果量|logfc|^beta$|^β|^lfc$|^effect|^es$/.test(lc(c))&&!figTextCol(c));if(!fc)return null; // 効果量の列（log2FC のほか CRISPR の β など。軸と凡例は列名のまま）
   const padj=cols.find(c=>/padj|p_adj|adj\.?p|fdr|^q|qvalue|q_value|q\.value/.test(lc(c))&&!figTextCol(c))||null;const p=cols.find(c=>c!==padj&&/^(p|pvalue|p\.?val(ue)?|p_value|pval)$/.test(lc(c))&&!figTextCol(c))||padj;if(!p)return null;
   const base=cols.find(c=>/basemean|mean|avg|expr|logcpm|aveexpr|平均/.test(lc(c))&&!figTextCol(c)&&c!==fc&&c!==p)||null;const nameC=cols.find(c=>figTextCol(c))||null;const grpC=cols.find(c=>c!==nameC&&figTextCol(c)&&/group|category|pathway|class|module|cluster|^set$|群|分類|経路|カテゴリ/.test(lc(c)))||null;
   const PMIN=1e-300;const onlyQ=!!padj&&padj===p;const hasQ=!!padj; // 補正済みの列しか無いとき（onlyQ）は、その列を q として扱い BH をかけ直さない // P が 0 や表示できないほど小さいときは 1e-300 に丸め、件数を数えて図注に書く（改善計画 3.4）
@@ -138,6 +141,7 @@ function figBuildImportance(parsed){const cols=parsed.cols;const num=cols.filter
 
 /* ---------- 描画 ---------- */
 function figRenderP3(spec){const d=spec.data,t=spec.type;
+  if(d.kind==='summary')return figRenderSummary(spec);
   if(typeof figRenderP4==='function'){const r=figRenderP4(spec);if(r)return r;}
   if(d.kind==='multi')return /^pca/.test(t)?figRenderPCA(spec):figRenderBubble(spec);if(d.kind==='nested')return t==='barjitter'?figRenderBarJitter(spec):figRenderSuper(spec);if(d.kind==='swimmer')return figRenderSwimmer(spec);if(d.kind==='spider')return figRenderSpider(spec);if(d.kind==='feature')return t==='fcdot'?figRenderFcDot(spec):figRenderVolcano(spec);if(d.kind==='importance')return figRenderImportance(spec);
   if(d.kind==='heatmap'&&t==='confusion')return figRenderConfusion(spec);
@@ -256,7 +260,7 @@ function figRenderPCA(spec){const d=spec.data;const o=Object.assign({},FIG_DEF,s
 
 // 入れ子散布（nested: 反復の小さな点＋個体平均の大きな記号＋個体平均の平均 ± 誤差。検定は個体平均で）
 function figRenderSuper(spec){const d=spec.data;const gs=d.groups.filter(g=>g.values.length);const n=gs.length;if(!n)return {svg:'',w:0,h:0};const o=Object.assign({},FIG_DEF,spec.opts||{});
-  const all=gs.flatMap(g=>g.values);let lo=Math.min(...all),hi=Math.max(...all);if(lo>0&&lo<(hi-lo)*0.3)lo=0;const cmpGroups=gs.map(g=>({name:g.name,values:g.means}));const cmp=spec.cmp&&spec.cmp!=='none'?figCompare(cmpGroups,spec.cmp,spec.ctrl):null;const pairs=cmp?cmp.pairs:[];const nLv=figNLevels(pairs,o);const head=nLv?0.14+0.16*nLv:0.08;
+  const all=gs.flatMap(g=>g.values);let lo=Math.min(...all),hi=Math.max(...all);if(lo>0&&lo<(hi-lo)*0.3)lo=0;const cmpGroups=gs.map(g=>({name:g.name,values:g.means}));const cmp=spec.cmp&&spec.cmp!=='none'?figCompare(cmpGroups,spec.cmp,spec.ctrl,figCmpOpts(spec.opts)):null;const pairs=cmp?cmp.pairs:[];const nLv=figNLevels(pairs,o);const head=nLv?0.14+0.16*nLv:0.08;
   const [ylo,yhi]=figYRange(o,lo,hi+(hi-lo)*head);const ys=figAxisLin(ylo,yhi,5);const xs={lo:0,hi:n,cat:true,ticks:gs.map((g,i)=>({v:i+0.5,l:g.name}))};
   const maxSub=Math.max(...gs.map(g=>g.subjects.length));const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle,yTitle:o.yTitle||d.vname,legend:o.spSubject&&maxSub<=8?gs[0].subjects.map((s,i)=>({name:`${d.sname} ${i+1}`,kind:'sym',i,color:o.spColor==='subject'?FIG_PAL20[i%20]:'#000',fill:'solid',shape:FIG_SYMBOLS[i%FIG_SYMBOLS.length][0]})):[]});const {xOf,yOf,S,a,fs}=F;const bw=(xOf(1)-xOf(0))*0.6;const bySubj=o.spColor==='subject';const colOf=(gi,k)=>bySubj?FIG_PAL20[k%20]:S(gi).color;
   let body='';const centers=[];gs.forEach((g,i)=>{const so=S(i),c=so.color;const cx=xOf(i+0.5);let s='';
@@ -356,7 +360,7 @@ function figRenderFcDot(spec){const d=spec.data;const o=Object.assign({},FIG_DEF
   const isSig=it=>pv(it)<pT&&Math.abs(it.fc)>=fcT;const fs0=(+o.fontPt||12)*FIG_PT;const italic=o.volItalic!==false;
   const xr=Math.max(...items.map(it=>Math.abs(it.fc)),fcT)*1.15||1;const xs=figAxisLin(-xr,xr,5);
   const ys={lo:0,hi:n,cat:true,ticks:items.map((it,i)=>({v:n-i-0.5,l:it.name,raw:italic?`<tspan font-style="italic">${figEsc(it.name)}</tspan>`:null}))};
-  const groups=[...new Set(items.map(it=>it.group).filter(Boolean))];const grpW=groups.length?Math.max(...groups.map(g=>figTW(g,fs0*0.85)))+fs0*1.1:0;const sigLab=`${sigName} < ${pT}`+(fcT>0?`, |log2FC| ≥ ${fcT}`:'');const legW=Math.max(figTW(`−log10 ${sigName}`,fs0*0.8),figTW(sigLab,fs0*0.7)+fs0*1.6,fs0*4)+fs0*1.4;
+  const groups=[...new Set(items.map(it=>it.group).filter(Boolean))];const grpW=groups.length?Math.max(...groups.map(g=>figTW(g,fs0*0.85)))+fs0*1.1:0;const sigLab=`${sigName} < ${pT}`+(fcT>0?`, |${d.fcname||'log2FC'}| ≥ ${fcT}`:'');const legW=Math.max(figTW(`−log10 ${sigName}`,fs0*0.8),figTW(sigLab,fs0*0.7)+fs0*1.6,fs0*4)+fs0*1.4;
   const labW=Math.max(...items.map(it=>figTW(String(it.name),fs0)));
   const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle||(d.fcname||'log2 fold change'),padL:Math.max(0,labW-fs0*1.6),padR:grpW+legW,wIn:figDefSize(spec,'wIn')?2.2:0,hIn:figDefSize(spec,'hIn')?Math.max(1.3,n*0.21):0});
   const {xOf,yOf,a,fs,txt,dash,x0,y0,plotW,padT,S}=F;const cUp=S(1).color,cDn=S(0).color;
@@ -378,7 +382,7 @@ function figRenderFcDot(spec){const d=spec.data;const o=Object.assign({},FIG_DEF
 function figRenderBarJitter(spec){const d=spec.data;const gs=d.groups.filter(g=>g.values.length);const n=gs.length;if(!n)return {svg:'',w:0,h:0};const o=Object.assign({},FIG_DEF,spec.opts||{});
   const subj=[];gs.forEach(g=>g.subjects.forEach(s=>{if(!subj.includes(s.name))subj.push(s.name);}));const shapeOf=k=>FIG_SYMBOLS[k%FIG_SYMBOLS.length][0];
   const bySub=o.bjStat==='subject';const vals=g=>bySub?g.means:g.values;const ers=gs.map(g=>figErr(vals(g),o.bjErr||'SD'));
-  const cmp=spec.cmp&&spec.cmp!=='none'?figCompare(gs.map(g=>({name:g.name,values:vals(g)})),spec.cmp,spec.ctrl):null;const pairs=cmp?cmp.pairs:[];const nLv=figNLevels(pairs,o);const head=(nLv?0.14+0.16*nLv:0.08)+(o.valLabels?0.08:0);
+  const cmp=spec.cmp&&spec.cmp!=='none'?figCompare(gs.map(g=>({name:g.name,values:vals(g)})),spec.cmp,spec.ctrl,figCmpOpts(spec.opts)):null;const pairs=cmp?cmp.pairs:[];const nLv=figNLevels(pairs,o);const head=(nLv?0.14+0.16*nLv:0.08)+(o.valLabels?0.08:0);
   const all=gs.flatMap(g=>g.values).concat(ers.map(e=>e.m+(e.e||0)));const lo=Math.min(0,...all),hi=Math.max(...all);
   const [ylo,yhi]=figYRange(o,lo,hi+(hi-lo)*head);const ys=figAxisLin(ylo,yhi,5);const xs={lo:0,hi:n,cat:true,ticks:gs.map((g,i)=>({v:i+0.5,l:g.name}))};
   const ptFill=o.bjPt==='open'?'open':'solid';const legend=subj.length>1&&subj.length<=10?subj.map((nm,k)=>({name:nm,kind:'sym',i:0,color:'#000',fill:ptFill,shape:shapeOf(k)})):[];
@@ -391,6 +395,30 @@ function figRenderBarJitter(spec){const d=spec.data;const gs=d.groups.filter(g=>
     body+=`<g data-sel="series:${i}">${s}</g>`;centers.push({cx,top:yOf(top)-(o.valLabels?fs*0.85:0)});});
   const br=figBracketsMore(pairs,centers,F);const r=F.wrap(body+(br.svg?`<g data-sel="brackets">${br.svg}</g>`:''));r.res={cmp,nsub:gs.map(g=>g.subjects.length),bj:true,stat:bySub?'subject':'all',err:o.bjErr||'SD',subjects:subj};return r;}
 
+// 要約値の表（summary。FIX-03）: 平均・SD（または SEM）・n だけの表から棒か点＋誤差を描く。個々の値を作り出して描かない。検定は要約値からの t 検定（Welch／Student）
+function figBuildSummary(parsed){const cols=parsed.cols,lc=figLC;const pick=re=>cols.find(c=>re.test(lc(c))&&c.vals.some(v=>v!==null));const mC=pick(/^(mean|average|avg|平均)/),nC=pick(/^(n|count|件数|例数|n数)$/),sdC=pick(/^(sd|std|stdev|標準偏差)$/),seC=pick(/^(sem|se|s\.?e\.?m\.?|標準誤差)$/);
+  if(!mC||!nC||(!sdC&&!seC))return null;const names=parsed.firstColText?parsed.rowLabels:mC.vals.map((_,i)=>String(i+1));
+  const groups=mC.vals.map((m,i)=>{const n=nC.vals[i];if(m===null||!(n>0))return null;let sd=sdC?sdC.vals[i]:null,sem=seC?seC.vals[i]:null;if(sd==null&&sem!=null)sd=sem*Math.sqrt(n);if(sem==null&&sd!=null)sem=sd/Math.sqrt(n);return {name:names[i],mean:m,sd,sem,n:Math.round(n),values:[]};}).filter(Boolean);
+  return groups.length?{kind:'summary',groups,given:sdC?'SD':'SEM',mname:mC.name}:null;}
+function figCompareSummary(gs,mode,ctrl,o){o=o||{};const tt=o.testType||'auto';const welch=tt!=='student';const k=gs.length;const adj=o.pAdjust||'holm';let note=['mwu','kw'].includes(tt)?'要約値からは順位の検定（Mann–Whitney・Kruskal–Wallis）はできないので、t 検定で計算しました。':tt==='anova'?'要約値からは Tukey・Dunnett の代わりに、t 検定の総当たり（補正つき）で計算しました。':'';
+  if(tt==='external')return figCompareExternal(gs,o.extStats);
+  const ok=gs.map((g,i)=>i).filter(i=>gs[i].n>=2&&gs[i].sd!=null);if(ok.length<2)return {pairs:[],note:'n が 2 以上で SD のある群が 2 つ以上必要です'};
+  const ci=Math.max(0,ok.indexOf(ctrl||0));const pr=[];if(mode==='dunnett'){for(let i=0;i<ok.length;i++)if(i!==ci)pr.push([ok[ci],ok[i]]);}else for(let i=0;i<ok.length;i++)for(let j=i+1;j<ok.length;j++)pr.push([ok[i],ok[j]]);
+  const rs=pr.map(([a,b])=>tTestFromStats(gs[a].mean,gs[a].sd,gs[a].n,gs[b].mean,gs[b].sd,gs[b].n,welch));const raw=rs.map((r,i)=>k===2?figAltP(r.p,r.t,o.alternative):r.p);const pa=pr.length>1?pAdjust(raw,adj):raw;
+  return {test:`${welch?'Welch':'Student'} の t 検定（要約値から）`+(pr.length>1?`を${mode==='dunnett'?'対照群と':'総当たりで'}（${FIG_ADJ_JA[adj]||adj} 補正）`:''),pairs:pr.map(([a,b],i)=>({a,b,p:pa[i],raw:raw[i]})),adjusted:pr.length>1&&adj!=='none',note,ns:gs.map(g=>g.n)};}
+function figRenderSummary(spec){const d=spec.data;const gs=d.groups;const n=gs.length;if(!n)return {svg:'',w:0,h:0};const o=Object.assign({},FIG_DEF,spec.opts||{});const bar=spec.type!=='summary-dot';
+  const et=o.errType;const errNote=et==='IQR'?'要約値に四分位範囲は無いので、誤差棒は描いていません。':'';const eOf=g=>et==='SEM'?g.sem:et==='CI'?(g.n>1?tQuantile(0.975,g.n-1)*g.sem:0):et==='SD'?g.sd:0;
+  const cmp=spec.cmp&&spec.cmp!=='none'?figCompareSummary(gs,spec.cmp,spec.ctrl,figCmpOpts(spec.opts)):null;const pairs=cmp?cmp.pairs:[];const nLv=figNLevels(pairs,o);const head=(nLv?0.14+0.16*nLv:0.08)+(o.valLabels?0.08:0);
+  const tops=gs.map(g=>g.mean+(eOf(g)||0)),bots=gs.map(g=>g.mean-(eOf(g)||0));const lo=Math.min(bar?0:Infinity,...bots),hi=Math.max(...tops);
+  const [ylo,yhi]=figYRange(o,lo,hi+(hi-lo)*head);const ys=figAxisLin(ylo,yhi,5);const xs={lo:0,hi:n,cat:true,ticks:gs.map((g,i)=>({v:i+0.5,l:g.name}))};
+  const F=figFrame(spec,{x:xs,y:ys,xTitle:o.xTitle,yTitle:o.yTitle||d.mname});const {xOf,yOf,S,a,fs,txt}=F;const bw=(xOf(1)-xOf(0))*0.6;const base=Math.max(ys.lo,0);
+  let body='';const centers=[];gs.forEach((g,i)=>{const so=S(i),c=so.color;const cx=xOf(i+0.5);const e=eOf(g)||0;let s='';
+    if(bar)s+=`<rect x="${cx-bw/2}" y="${yOf(Math.max(base,g.mean))}" width="${bw}" height="${Math.abs(yOf(g.mean)-yOf(base))}" fill="${figPaint(so.fillSet?so.fill:(o.barFill||so.fill),c)}" fill-opacity="${+o.fillAlpha}" stroke="${o.barEdge==='black'?'#000':c}" stroke-width="${a}"/>`;
+    s+=figErrBarP3(F,cx,g.mean,e,bw*0.6,bar?'#000':c);if(!bar)s+=figSymbol(cx,yOf(g.mean),so.symPt*FIG_PT/2,so.symbol,so.fill==='open'?'#fff':c,c);
+    const top=g.mean+e;if(o.valLabels)s+=txt(cx,yOf(top)-fs*0.3,figValFmt(g.mean,o),'middle','',null,fs*0.75);
+    body+=`<g data-sel="series:${i}">${s}</g>`;centers.push({cx,top:yOf(top)-(o.valLabels?fs*0.85:0)});});
+  const br=figBracketsMore(pairs,centers,F);const r=F.wrap(body+(br.svg?`<g data-sel="brackets">${br.svg}</g>`:''));r.res={cmp,errNote};return r;}
+
 // 特徴量重要度（importance: 横棒を大きい順）
 function figRenderImportance(spec){const d=spec.data;const o=Object.assign({},FIG_DEF,spec.opts||{});let items=d.items.slice();if(o.impSort!=='input')items.sort((p,q)=>q.v-p.v);const nTop=o.impN!==''&&+o.impN>0?+o.impN:items.length;items=items.slice(0,nTop);const n=items.length;if(!n)return {svg:'',w:0,h:0};
   const xv=items.flatMap(it=>[it.v+(o.impErr&&it.e?it.e:0),it.v-(o.impErr&&it.e?it.e:0)]);const xs=figAxisLin(Math.min(0,...xv),Math.max(0,...xv)*1.05||1,5);const ys={lo:0,hi:n,cat:true,ticks:items.map((it,i)=>({v:n-i-0.5,l:it.name}))};
@@ -399,14 +427,15 @@ function figRenderImportance(spec){const d=spec.data;const o=Object.assign({},FI
   const r=F.wrap(`<g data-sel="series:0">${body}</g>`);r.res={n,total:d.items.length};return r;}
 
 /* ---------- 左下の結果表 ---------- */
-function figStatsP3(data,st){if(!data)return null;if(typeof figStatsP4==='function'){const h=figStatsP4(data,st);if(h!=null)return h;}const res=st.res||{};const t=st.type;const P=p=>!(p>=0)?'–':p<0.0001?'<0.0001':p.toFixed(4);const esc=figEsc;const f3=v=>isFinite(v)?figFmt(+v.toPrecision(4)):'–';
+function figStatsP3(data,st){if(!data)return null;if(typeof figStatsP4==='function'){const h=figStatsP4(data,st);if(h!=null)return h;}const res=st.res||{};const t=st.type;const P=p=>!(p>=0)?'–':p<0.0001?'<0.0001':p.toFixed(4);const esc=figEsc;const f3=v=>isFinite(v)?figFmt(+v.toPrecision(4)):'–'
+  if(data.kind==='summary'){let s='<div class="hint">要約値から描いています（個々の値は無いので、点は描きません）。n は表の値をそのまま使います。</div><table><tr><th>群</th><th>n</th><th>平均</th><th>SD</th><th>SEM</th></tr>'+data.groups.map(g=>`<tr><td>${esc(g.name)}</td><td>${g.n}</td><td>${f3(g.mean)}</td><td>${f3(g.sd)}</td><td>${f3(g.sem)}</td></tr>`).join('')+'</table>';if(res.cmp&&res.cmp.pairs)s+=figCompareHTML(res.cmp,data.groups.map(g=>g.name),res.cmp.note||'');if(res.errNote)s+=`<div class="hint">${esc(res.errNote)}</div>`;return s;};
   if(data.kind==='multi'){if(/^pca/.test(t)){const pca=res.pca;if(!pca)return '<div class="hint">PCA には 3 行以上・2 変数以上が必要です</div>';let s=`<div class="hint">PCA（${pca.scale?'標準化・相関行列':'中心化のみ・共分散行列'}）: n = ${pca.n}、変数 ${pca.p}${pca.pa?' ／ Parallel analysis（同じ n・変数数の正規乱数 '+(st.opts.pcaNPA||100)+' 回。帯は 5–95 パーセンタイル、破線は平均。固有値が帯を上回る成分を採用）':''}</div><table><tr><th>PC</th><th>固有値</th><th>寄与率</th><th>累積</th>${pca.pa?'<th>PA 平均</th><th>PA 95%</th>':''}</tr>`;let cum=0;pca.values.forEach((v,i)=>{cum+=pca.prop[i];s+=`<tr><td>PC${i+1}</td><td>${v.toFixed(4)}</td><td>${(pca.prop[i]*100).toFixed(2)}%</td><td>${(cum*100).toFixed(2)}%</td>${pca.pa?`<td>${pca.pa[i].mean.toFixed(3)}</td><td>${pca.pa[i].p95.toFixed(3)}</td>`:''}</tr>`;});s+='</table>';
       const show=Math.min(pca.p,3);s+=`<table><tr><th>ローディング</th>${Array.from({length:show},(_,k)=>`<th>PC${k+1}</th>`).join('')}</tr>`+data.vars.map((v,j)=>`<tr><td>${esc(v)}</td>${Array.from({length:show},(_,k)=>`<td>${pca.loadings[k][j].toFixed(3)}</td>`).join('')}</tr>`).join('')+'</table>';if(res.scl)s+=`<div class="hint">バイプロットのローディングは ${res.scl.toFixed(2)} 倍（スコアの 90% に収める）</div>`;return s;}
     return `<div class="hint">n = ${res.n||data.X.length}${res.size?` ／ 大きさ（面積比例）: 最小 ${f3(res.size.min)}、中間 ${f3(res.size.mid)}（幾何平均）、最大 ${f3(res.size.max)}`:''}${res.cont?' ／ 色＝'+esc(data.bubble.cname):''}${data.group?' ／ 群 '+data.groups.length:''}</div>`;}
-  if(data.kind==='nested'&&res.bj){const c=res.cmp;const all=res.stat!=='subject';let s=`<div class="hint">棒＋個別の点: 棒＝${all?'全部の値':'個体ごとの平均'}の平均 ± ${esc(res.err)}、点＝${all?'個々の値':'個体の平均'}、点の形＝${esc(data.sname)}（${(res.subjects||[]).map(esc).join(' / ')}）。検定は${all?'全部の値':'個体ごとの平均'}で行います（${c?esc(c.test):'比較なし'}）。</div>`;
+  if(data.kind==='nested'&&res.bj){const c=res.cmp;const all=res.stat!=='subject';let s=`<div class="hint">棒＋個別の点: 棒＝${all?'全部の値':'個体ごとの平均'}の平均 ± ${esc(res.err)}、点＝${all?'個々の値':'個体の平均'}、点の形＝${esc(data.sname)}（${(res.subjects||[]).map(esc).join(' / ')}）。検定は${all?'全部の値':'個体ごとの平均'}で行います（${c?esc(c.test):'比較なし'}）。</div><div class="hint">描画した点 ${data.groups.reduce((t,g)=>t+(all?g.values.length:g.subjects.length),0)} 個 ／ 検定の n（解析の単位）: ${data.groups.map(g=>esc(g.name)+' '+(all?g.values.length:g.subjects.length)).join('、')}${all?`（${esc(data.sname)} ごとの独立した反復の数は ${data.groups.map(g=>g.subjects.length).join('・')}）`:''}</div>${all&&data.groups.some(g=>g.values.length>g.subjects.length)?'<div class="hint">⚠ 同じ実験・個体から複数の値を取っている場合、全部の値を独立として検定すると n を水増しすることになります。反復ごとの平均で検定するなら「図種の設定」の「棒の高さ」を「個体ごとの平均の平均」にしてください。</div>':''}`;
     s+='<table><tr><th>群</th><th>個体</th><th>値の数</th><th>平均</th><th>SD</th></tr>'+data.groups.map(g=>{const v=all?g.values:g.means;return `<tr><td>${esc(g.name)}</td><td>${g.subjects.length}</td><td>${g.values.length}</td><td>${f3(mean(v))}</td><td>${v.length>1?f3(sd(v)):'–'}</td></tr>`;}).join('')+'</table>';
     if(c&&c.pairs.length)s+='<table><tr><th>比較</th><th>P 値</th></tr>'+c.pairs.map(p=>`<tr><td>${esc(data.groups[p.a].name)} vs ${esc(data.groups[p.b].name)}</td><td>${P(p.p)}</td></tr>`).join('')+'</table>';return s;}
-  if(data.kind==='nested'){const c=res.cmp;let s=`<div class="hint">入れ子: 群 ${data.groups.length}、個体 ${res.nsub?res.nsub.join(' / '):''}。小さな点＝反復、記号＝個体の平均、横線＝個体平均の平均。検定は個体平均で行います（${c?esc(c.test):'比較なし'}）。</div>`;s+='<table><tr><th>群</th><th>個体</th><th>反復</th><th>平均（個体平均の）</th><th>SD</th></tr>'+data.groups.map(g=>`<tr><td>${esc(g.name)}</td><td>${g.subjects.length}</td><td>${g.values.length}</td><td>${f3(mean(g.means))}</td><td>${g.means.length>1?f3(sd(g.means)):'–'}</td></tr>`).join('')+'</table>';
+  if(data.kind==='nested'){const c=res.cmp;let s=`<div class="hint">入れ子: 群 ${data.groups.length}、個体 ${res.nsub?res.nsub.join(' / '):''}。小さな点＝反復、記号＝個体の平均、横線＝個体平均の平均。検定は個体平均で行います（${c?esc(c.test):'比較なし'}）。</div><div class="hint">描画した点 ${data.groups.reduce((t,g)=>t+g.values.length,0)} 個（反復）／ 独立した反復（個体）の数 ${data.groups.map(g=>esc(g.name)+' '+g.subjects.length).join('、')}（検定の n）</div>`;s+='<table><tr><th>群</th><th>個体</th><th>反復</th><th>平均（個体平均の）</th><th>SD</th></tr>'+data.groups.map(g=>`<tr><td>${esc(g.name)}</td><td>${g.subjects.length}</td><td>${g.values.length}</td><td>${f3(mean(g.means))}</td><td>${g.means.length>1?f3(sd(g.means)):'–'}</td></tr>`).join('')+'</table>';
     if(c&&c.pairs.length)s+='<table><tr><th>比較</th><th>P 値</th></tr>'+c.pairs.map(p=>`<tr><td>${esc(data.groups[p.a].name)} vs ${esc(data.groups[p.b].name)}</td><td>${P(p.p)}</td></tr>`).join('')+'</table>';return s;}
   if(data.kind==='swimmer'){return `<div class="hint">n = ${res.n} ／ 期間の中央値 ${f3(res.median)} ／ 継続中 ${res.ongoing}${res.groups&&res.groups.length?' ／ '+res.groups.map(g=>esc(g.name)+' '+g.n).join('、'):''}${data.eventNames.length?' ／ イベント: '+data.eventNames.map(esc).join('、'):''}</div>`;}
   if(data.kind==='spider'){const c=res.cnt||{};return `<div class="hint">n = ${res.n} ／ 最良変化で分類: PR（≤ −30%）${c.PR||0}、SD ${c.SD||0}、PD（≥ +20%）${c.PD||0}。確定効果ではなく腫瘍径の変化だけの分類です。</div>`;}

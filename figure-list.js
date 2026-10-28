@@ -41,12 +41,31 @@ document.addEventListener('change',e=>{const t=e.target;if(!t||t.id!=='agJournal
 // 規定との照合: 幅（いずれかの段の幅に合うか、2 段より広くないか）と文字の大きさ
 function figCompliance(spec,r,j){if(!j||!r||!r.w)return null;const mm=figMm(r.w);const ws=figJournalWidths(j);const out={mm:+mm.toFixed(1),items:[]};
   if(ws.length){const fit=ws.find(x=>Math.abs(mm-x[2])<=Math.max(1.5,x[2]*0.02));const max=Math.max(...ws.map(x=>x[2]));out.items.push(fit?{ok:true,t:`幅 ${out.mm} mm（${fit[1]}）`}:mm>max+1?{ok:false,t:`幅 ${out.mm} mm — 2 段（${max} mm）より広い`}:{ok:null,t:`幅 ${out.mm} mm — どの段の幅とも違う`});}
-  const minPt=+j.minFontPt||0;if(minPt){const pt=r.layout?r.minPt:(+(spec&&spec.style&&spec.style.fontPt)||12)*(r.scaled&&r.w0?r.w/r.w0:1);const maxPt=+j.maxFontPt||0;if(isFinite(pt))out.items.push(pt+0.05<minPt?{ok:false,t:`文字 ${pt.toFixed(1)} pt — ${minPt} pt 未満`}:maxPt&&pt-0.05>maxPt?{ok:null,t:`文字 ${pt.toFixed(1)} pt — ${maxPt} pt より大きい`}:{ok:true,t:`文字 ${pt.toFixed(1)} pt`});}
+  const minPt=+j.minFontPt||0;if(minPt){const pt=r.layout?r.minPt:(+(spec&&spec.style&&spec.style.fontPt)||+(spec&&spec.fontPt)||(figIsImage(spec)?FIG_IMG_DEF.fontPt:figIsSchematic(spec)?FIG_SCH_DEF.fontPt:12))*(r.scaled&&r.w0?r.w/r.w0:1);const maxPt=+j.maxFontPt||0;if(isFinite(pt))out.items.push(pt+0.05<minPt?{ok:false,t:`文字 ${pt.toFixed(1)} pt — ${minPt} pt 未満`}:maxPt&&pt-0.05>maxPt?{ok:null,t:`文字 ${pt.toFixed(1)} pt — ${maxPt} pt より大きい`}:{ok:true,t:`文字 ${pt.toFixed(1)} pt`});}
+  return out;}
+
+// 投稿前の確認（ADD-02）: 実効解像度（保存してある画像の画素数 ÷ 誌面での大きさ。300 dpi の印を付けても画素は増えない）、文字の大きさ、軸の題・タグの抜け、線画をベクターで出す誌の注意
+function figPreflight(spec,r,j){const out=[];if(!spec||!r)return out;const need=(j&&j.dpi&&+j.dpi.color)||300;const comp=j?figCompliance(spec,r,j):null;if(comp)out.push(...comp.items);
+  const imgs=[];const walk=(sp,sc)=>{if(!sp)return;if(figIsLayout(sp)){const rl=figRenderLayout(sp);(sp.panels||[]).forEach((p,k)=>walk(p,sc*(rl?rl.scale:1)*((rl&&rl.box[k]&&rl.box[k].inset)?rl.box[k].scale:1)));return;}
+    if(figIsImage(sp)){const list=sp.type==='blot'?(sp.bands||[]):(sp.images||[]);const cellIn=sp.type==='blot'?(+sp.widthIn||FIG_IMG_DEF.widthIn):(+sp.cellIn||FIG_IMG_DEF.cellIn);
+      list.forEach((im,i)=>{const L=Array.isArray(im.merge)?im.merge[0]:im;const meta=L&&L.img?figImgMeta(L.img):null;if(!meta)return;const rot=((+im.rot||0)%360+360)%360;const swap=rot===90||rot===270;const pxW=(swap?meta.h:meta.w)*(Array.isArray(im.crop)?+im.crop[2]||1:1);const origW=(swap?(meta.oh||meta.h):(meta.ow||meta.w))*(Array.isArray(im.crop)?+im.crop[2]||1:1);
+        imgs.push({name:im.label||im.name||meta.name||('画像 '+(i+1)),ppi:pxW/(cellIn*sc),orig:origW/(cellIn*sc),down:(meta.ds||1)<0.999});});}};
+  walk(spec,figIsLayout(spec)?1:1);
+  if(imgs.length){const low=imgs.filter(x=>x.ppi+0.5<need);out.push(low.length?{ok:false,t:`画像の実効解像度 ${Math.round(Math.min(...imgs.map(x=>x.ppi)))} ppi — ${need} ppi 未満が ${low.length} 枚（${low.slice(0,3).map(x=>x.name).join('、')}${low.length>3?' ほか':''}）${low.some(x=>x.down&&x.orig>=need)?'。元の画像は足りていますが、取り込み時に縮小しています（長辺 2000 px）':''}`}:{ok:true,t:`画像の実効解像度 ${Math.round(Math.min(...imgs.map(x=>x.ppi)))} ppi 以上`});}
+  const chartKinds=['column','grouped','xy','summary','nested','survival','feature'];const kinds=figIsLayout(spec)?(spec.panels||[]):[spec];
+  const noY=kinds.filter(p=>p&&chartKinds.includes(p.kind)&&!String(p.ytitle||(p.style&&p.style.yTitle)||'').trim()&&p.kind!=='feature');if(noY.length)out.push({ok:null,t:`Y 軸の題がない図 ${noY.length}`});
+  if(!spec.figureTag)out.push({ok:null,t:'タグ（図の番号）がありません'});
+  if(j&&/ベクター/.test(String(j.dpiNote||'')+String(j.remarks||'')))out.push({ok:null,t:'線と文字はベクター（SVG）で出すよう求める誌です'});
   return out;}
 
 /* ---------- 凡例の下書き（4.2） ---------- */
 // 検定名（画面は日本語）を凡例用の英語に
-function figTestEn(t){return String(t||'').replace(/^カテゴリごとに\s*/,'').replace(/（2元配置ではありません）/,' within each category').replace(/対応のある t 検定/g,'paired t test').replace(/Welch の t 検定/g,"Welch's t test").replace(/一元配置分散分析/g,'one-way ANOVA').replace(/ \+ Tukey/," with Tukey's multiple comparisons test").replace(/ \+ Dunnett/," with Dunnett's multiple comparisons test").replace(/ \+ Holm 補正/,' with Holm correction');}
+function figTestEn(t){let x=String(t||'');const ext=/^外部で計算: /.test(x);x=x.replace(/^外部で計算: /,'');
+  const R=[[/^カテゴリごとに\s*/,''],[/（2元配置ではありません）/,' within each category'],[/対応のある t 検定/g,'paired t test'],[/Welch の t 検定/g,"Welch's t test"],[/Student の t 検定（等分散）|Student の t 検定/g,"Student's t test"],[/Mann–Whitney の U 検定/g,'Mann–Whitney U test'],
+    [/（正確な P）/g,' (exact P values)'],[/（正規近似・同順位と連続性の補正）/g,' (normal approximation with tie and continuity corrections)'],[/（正確な P・正規近似）|（正規近似・正確な P）/g,' (exact or normal-approximation P values)'],[/（正規近似）/g,' (normal approximation)'],
+    [/Kruskal–Wallis 検定 \+ Dunn 検定/g,"Kruskal–Wallis test followed by Dunn's test"],[/一元配置分散分析/g,'one-way ANOVA'],[/ \+ Tukey/," with Tukey's multiple comparisons test"],[/ \+ Dunnett/," with Dunnett's multiple comparisons test"],
+    [/を総当たりで/g,' for all pairwise comparisons'],[/を対照群と/g,' versus the control group'],[/（Benjamini–Hochberg 補正）/g,' with Benjamini–Hochberg correction'],[/（(Holm|Bonferroni) 補正）/g,' with $1 correction'],[/（補正なし 補正）/g,' without correction for multiple comparisons'],[/ \+ Holm 補正/,' with Holm correction']];
+  for(const [a,b] of R)x=x.replace(a,b);return ext?x+' (calculated externally)':x;}
 // 図の指定と計算結果から英文の凡例を作る（下書き。本文の言い回しは利用者が直す）
 function figLegendDraft(spec,tag){if(!spec)return '';let r=null;try{r=figRenderSpec(spec);}catch(e){r=null;}const res=(r&&r.res)||{};const st=spec.style||{};const L=[];
   const head=`${tag||spec.figureTag||'Figure'}. ${String(spec.title||'').trim()||'[Title]'}`.replace(/\.\s*$/,'')+'.';L.push(head);
@@ -56,25 +75,25 @@ function figLegendDraft(spec,tag){if(!spec)return '';let r=null;try{r=figRenderS
   const foot=[];if(src.length)foot.push(`Source data: ${src.join('; ')}.`);foot.push(`Figure prepared with ${pv.createdWith||'BranCHAT'+(typeof figAppVersion!=='undefined'&&figAppVersion?' '+figAppVersion:'')}.`);
   return L.join(' ')+'\n\n'+foot.join(' ');}
 function figLegendBody(spec,r){if(!r){try{r=figRenderSpec(spec);}catch(e){r=null;}}const res=(r&&r.res)||{};const st=spec.style||{};const o=Object.assign({},FIG_DEF,st);const out=[];const t=spec.type||'';const k=spec.kind||'';
-  const err=spec.err||'SD';const errTxt={SD:'SD',SEM:'SEM',CI:'95% CI',none:''}[err]||err;let parsed=null,data=null;try{parsed=figParseTable(spec.data);data=parsed&&figBuildData(parsed,k||figAutoKind(parsed));}catch(e){data=null;}
+  const err=t==='scatter-med'?'IQR':(spec.err||'SD');const errTxt={SD:'SD',SEM:'SEM',CI:'95% CI',IQR:'interquartile range (Q1–Q3)',none:''}[err]||err;const cenRaw=t==='scatter-med'&&(!o.center||o.center==='auto'||o.center==='mean')?'median':(o.center||'auto');const cen=cenRaw==='auto'?(err==='IQR'?'median':'mean'):cenRaw;const qTxt={linear:'linear interpolation (type 7)',weibull:'the (n+1)p method (type 6)',tukey:"Tukey's hinges"}[o.quartile||'linear'];const cenTxt=cen==='none'?'':cen;const ctr=cenTxt?`the ${cenTxt}${errTxt?(err==='IQR'?' with the '+errTxt:' ± '+errTxt):''}`:(errTxt?'the '+errTxt:'');let parsed=null,data=null;try{parsed=figParseTable(spec.data);data=parsed&&figBuildData(parsed,k||figAutoKind(parsed));}catch(e){data=null;}
   const nTxt=gs=>gs&&gs.length?` (n = ${gs.map(g=>g.values?g.values.length:g.cells?g.cells.flat().length:'?').join(', ')})`:'';
   if(figIsImage(spec))out.push(spec.type==='blot'?'Immunoblot.':'Representative images.'+(spec.scale&&spec.scale.len?` Scale bar, ${spec.scale.len} ${spec.scale.unit||'µm'}.`:''));
   else if(figIsSchematic(spec)||figIsGA(spec))out.push('Schematic.');
-  else if(k==='feature'&&t==='fcdot')out.push(`Dot plot of log2 fold change for ${res.n||'the'} selected genes. Dot size is proportional to −log10 ${res.sigName||'q'}; filled dots, ${res.sigName||'q'} < ${res.pT}${res.fcT?` and |log2FC| ≥ ${res.fcT}`:''}; open dots, not significant.${res.fcT?` The shaded band marks |log2FC| < ${res.fcT}.`:''}`);
-  else if(k==='feature')out.push(`${t==='ma'?'MA':'Volcano'} plot of ${res.n||''} genes. Colored points, ${res.sigName||'q'} < ${res.pT}${res.fcT?` and |log2FC| ≥ ${res.fcT}`:''} (up, ${res.up}; down, ${res.down}).${res.sig==='bh'?' q values were recalculated from P values by the Benjamini–Hochberg method.':''}${res.n0?` ${res.n0} genes with a value of 0 are shown at the top (▲).`:''}`);
+  else if(k==='feature'&&t==='fcdot')out.push(`Dot plot of ${(data&&data.fcname)||'log2 fold change'} for ${res.n||'the'} selected genes. Dot size is proportional to −log10 ${res.sigName||'q'}; filled dots, ${res.sigName||'q'} < ${res.pT}${res.fcT?` and |${(data&&data.fcname)||'log2FC'}| ≥ ${res.fcT}`:''}; open dots, not significant.${res.fcT?` The shaded band marks |${(data&&data.fcname)||'log2FC'}| < ${res.fcT}.`:''}`);
+  else if(k==='feature')out.push(`${t==='ma'?'MA':'Volcano'} plot of ${res.n||''} genes. Colored points, ${res.sigName||'q'} < ${res.pT}${res.fcT?` and |${(data&&data.fcname)||'log2FC'}| ≥ ${res.fcT}`:''} (up, ${res.up}; down, ${res.down}).${res.sig==='bh'?' q values were recalculated from P values by the Benjamini–Hochberg method.':''}${res.n0?` ${res.n0} genes with a value of 0 are shown at the top (▲).`:''}`);
   else if(k==='nested'&&t==='barjitter')out.push(`Bars show the mean ± ${o.bjErr==='none'?'':({SD:'SD',SEM:'SEM',CI:'95% CI'}[o.bjErr]||'SD')} of ${o.bjStat==='subject'?'per-subject means':'all values'}; dots are ${o.bjStat==='subject'?'subject means':'individual values'}, and symbol shape indicates ${data&&data.sname||'subject'}.`);
   else if(k==='nested')out.push('SuperPlot: small dots are technical replicates, large symbols are per-subject means, and lines show the mean ± '+({SD:'SD',SEM:'SEM',CI:'95% CI'}[o.spErr]||'SD')+' of subject means.');
   else if(k==='heatmap'){const sc=res.scale||'raw';out.push(`Heatmap of ${res.rows?res.rows.length:''} rows × ${res.cols?res.cols.length:''} columns${sc==='z'?' (row z-scores)':sc==='log2'?' (log2(x + 1))':sc==='log2z'?' (row z-scores of log2(x + 1))':''}.${o.hmCluster&&o.hmCluster!=='none'?' Rows/columns were ordered by hierarchical clustering.':''}${res.colGroups?` Column annotation: ${res.colGroups.join(', ')}.`:''}`);}
   else if(k==='survival')out.push('Kaplan–Meier curves.');
   else if(k==='column'||k==='grouped'){const g=data&&data.groups;const bar=/bar/.test(t)||t===''&&k==='grouped';
-    if(t==='scatter'||t==='grouped-scatter')out.push(`Each dot is one value; horizontal lines show the mean${errTxt?' ± '+errTxt:''}${nTxt(g)}.`);
+    if(t==='scatter'||t==='grouped-scatter'||t==='scatter-med')out.push(`Each dot is one value${ctr?'; lines show '+ctr:''}${nTxt(g)}.${err==='IQR'?` Quartiles were calculated by ${qTxt}.`:''}`);
     else if(t==='box')out.push(`Boxes show the median and interquartile range; whiskers extend to 1.5 × IQR${nTxt(g)}.`);
     else if(t==='violin')out.push(`Violin plots show the distribution with the median and quartiles${nTxt(g)}.`);
-    else if(bar||t==='bar')out.push(`Bars show the mean${errTxt?' ± '+errTxt:''}${o.barDots?'; dots are individual values':''}${nTxt(g)}.`);
+    else if(bar||t==='bar')out.push(`Bars show ${ctr||'the mean'}${o.barDots?'; dots are individual values':''}${nTxt(g)}.${err==='IQR'?` Quartiles were calculated by ${qTxt}.`:''}`);
     else out.push(`${t||k} plot${nTxt(g)}.`);}
   else out.push(`${(FIG_TYPES[k]||[]).find(x=>x[0]===t)?.[1]||t||k}.`);
-  const cmp=spec.compare&&spec.compare!=='none'?spec.compare:'';if(cmp&&data&&(k==='column'||k==='grouped'||k==='nested')){let test='';try{const c=k==='column'?figCompare(data.groups,cmp,spec.ctrl||0):k==='grouped'?figCompareGrouped(data,cmp,spec.ctrl||0):(res.cmp||null);test=c&&c.test||'';}catch(e){test='';}
-    if(test)out.push(`Statistical test: ${figTestEn(test)}${cmp==='dunnett'?' versus the control group':''}.`);out.push(o.pStyle==='num'?'Exact P values are shown.':'*P < 0.05, **P < 0.01, ***P < 0.001'+(o.showNs?'; ns, not significant.':'.'));}
+  const cmp=spec.compare&&spec.compare!=='none'?spec.compare:'';if(cmp&&data&&(k==='column'||k==='grouped'||k==='nested')){let test='';try{const co=figCmpOpts(Object.assign({},spec.style||{},{x:{extStats:spec.extStats}}));const c=k==='column'?figCompare(data.groups,cmp,spec.ctrl||0,co):k==='grouped'?figCompareGrouped(data,cmp,spec.ctrl||0,co):(res.cmp||null);test=c&&c.test||'';}catch(e){test='';}
+    if(test){const ex=(spec.extStats&&spec.style&&spec.style.testType==='external')?spec.extStats:null;out.push(`Statistical test: ${figTestEn(test)}${cmp==='dunnett'&&!/control group/.test(figTestEn(test))?' versus the control group':''}${o.alternative&&o.alternative!=='two-sided'&&(spec.style||{}).testType!=='kw'?' (one-sided)':''}.${ex&&ex.software?` P values were calculated with ${ex.software}.`:''}${ex&&ex.unit?` Unit of analysis: ${ex.unit}.`:''}`);}out.push(o.pStyle==='num'?'Exact P values are shown.':'*P < 0.05, **P < 0.01, ***P < 0.001'+(o.showNs?'; ns, not significant.':'.'));}
   return out;}
 
 /* ---------- 図版一覧（4.3）・複合パネル（3.2） ---------- */
@@ -91,7 +110,7 @@ function figListKindLabel(j){if(figIsLayout(j))return `複合パネル（${(j.pa
 function figListOpen(){let dlg=document.querySelector('#figListDlg');
   if(!dlg){dlg=document.createElement('dialog');dlg.id='figListDlg';dlg.innerHTML=`<div class="flHead"><h2>🗂 図版一覧</h2><span class="hint">この会話の図。カードを選んで複合パネルにまとめたり、凡例の下書きを作ったりできます</span><span class="spacer"></span>
     <button class="small" id="flAddFile" data-tip="書き出した図（PNG・SVG・.branchat.json）を一覧に足す">📂 図のファイルを追加</button><input type="file" id="flFile" accept=".png,.svg,.json,image/png,image/svg+xml,application/json" multiple hidden>
-    <select id="flScope" class="small" aria-label="一覧に出す範囲"><option value="conv">この会話</option><option value="all">すべての会話</option></select><button class="small" id="flLegAll" data-tip="タグを付けた図の凡例の下書きを、タグの順にまとめる">📝 Figure legends をまとめる</button><button class="small" id="flJEdit" data-tip="雑誌プリセットを JSON で編集する">雑誌プリセットを編集</button><button class="small" id="flClose">閉じる</button></div>
+    <select id="flScope" class="small" aria-label="一覧に出す範囲"><option value="conv">この会話</option><option value="all">すべての会話</option></select><button class="small" id="flCheck" data-tip="この会話の図をまとめて点検する（大きさ・文字・画像の実効解像度・軸の題・タグ）">✔ 投稿前チェック</button><button class="small" id="flLegAll" data-tip="タグを付けた図の凡例の下書きを、タグの順にまとめる">📝 Figure legends をまとめる</button><button class="small" id="flJEdit" data-tip="雑誌プリセットを JSON で編集する">雑誌プリセットを編集</button><button class="small" id="flClose">閉じる</button></div>
     <div class="flBar"><span class="ui">選んだ図 <b id="flN">0</b> 枚（選んだ順に A, B, C…）</span><label>列 <select id="flCols" aria-label="複合パネルの列数"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label>
     <label>記号 <select id="flLabels" aria-label="パネル記号"><option value="A">A B C</option><option value="a">a b c</option><option value="none">なし</option></select></label><label>全体の幅 <select id="flPage" aria-label="複合パネル全体の幅"></select></label>
     <label>タグ <input type="text" id="flTag" placeholder="Fig2" size="7" aria-label="複合パネルのタグ"></label><button class="primary small" id="flCompose">複合パネルを作る</button><button class="small" id="flClear">選択を外す</button></div>
@@ -102,6 +121,9 @@ function figListOpen(){let dlg=document.querySelector('#figListDlg');
     $('#flClose').onclick=()=>dlg.close();$('#flAddFile').onclick=()=>$('#flFile').click();
     $('#flFile').onchange=async e=>{const fs=[...e.target.files];e.target.value='';let n=0;for(const f of fs){const j=await figReadFigureFile(f);if(!j){toast(`「${f.name}」には図の指定が入っていません`);continue;}figListExtra.push({key:'file:'+Date.now()+':'+n,spec:j,ts:f.lastModified||Date.now(),branch:'',file:f.name});n++;}if(n){toast(`${n} 個の図を一覧に足しました（選んで複合パネルに使えます）`);figListRender();}};
     $('#flClear').onclick=()=>{figListSel=[];figListRender();};$('#flScope').onchange=e=>{figListScope=e.target.value;figListRender();};
+    $('#flCheck').onclick=()=>{const its=figListCollect('conv').filter(x=>!x.file);const j=figJournal();if(!its.length){toast('この会話にはまだ図がありません');return;}
+      const lines=its.map(it=>{let r=null;try{r=figRenderSpec(it.spec);}catch(e){}const items=figPreflight(it.spec,r,j);const ng=items.filter(x=>x.ok===false),wn=items.filter(x=>x.ok===null);return `${it.spec.figureTag||figListKindLabel(it.spec)}: ${ng.length?'✗ '+ng.map(x=>x.t).join('／'):wn.length?'△ '+wn.map(x=>x.t).join('／'):'✓ 問題なし'}`;});
+      $('#flLegTitle').textContent=`投稿前チェック${j?`（${j.name}）`:'（投稿先なし: 300 ppi・文字 6 pt で確認）'}`;$('#flLegTitle').dataset.tag='投稿前チェック';$('#flLegText').value=lines.join('\n')+'\n\n実効解像度は「保存してある画像の画素数 ÷ 誌面での幅」です。書き出しの dpi を上げても、元の画素が足りなければ細部は増えません。';$('#flJ').hidden=true;$('#flLeg').hidden=false;$('#flLeg').scrollIntoView({block:'nearest'});};
     $('#flLegAll').onclick=()=>{const its=figListCollect('conv').filter(x=>x.spec.figureTag&&!x.file);if(!its.length){toast('タグを付けた図がありません（図の下の「🏷 Figure として登録」か、カードのタグ欄で付けます）');return;}
       const coll=new Intl.Collator('en',{numeric:true,sensitivity:'base'});its.sort((a,b)=>coll.compare(a.spec.figureTag,b.spec.figureTag));const seen=new Set();const txt=its.filter(x=>{const k=x.spec.figureTag;if(seen.has(k))return false;seen.add(k);return true;}).map(x=>figLegendDraft(x.spec,x.spec.figureTag).split('\n\n')[0]).join('\n\n');
       $('#flLegTitle').textContent='Figure legends（タグの順）';$('#flLegTitle').dataset.tag='Figure legends';$('#flLegText').value='Figure legends\n\n'+txt;$('#flJ').hidden=true;$('#flLeg').hidden=false;$('#flLeg').scrollIntoView({block:'nearest'});};$('#flCompose').onclick=figListCompose;
@@ -119,14 +141,14 @@ function figListRender(){const dlg=document.querySelector('#figListDlg');if(!dlg
   if(!items.length){$('#flGrid').innerHTML='<div class="hint" style="padding:20px">この会話にはまだ図がありません。「＋」→「Figure・パネルを作成」で作るか、「📂 図のファイルを追加」で書き出した図を読み込んでください。</div>';return;}
   const ex=(typeof conv!=='undefined'&&conv&&conv.figExports)||{};
   $('#flGrid').innerHTML=items.map(it=>{const th=figListThumb(it.spec);const tag=it.spec.figureTag||'';const sel=figListSel.indexOf(it.key);const rec=it.exp||ex[it.key];const pv=it.spec.provenance||{};const src=(pv.sources||[])[0];
-    const comp=j?figCompliance(it.spec,th.r,j):null;const badge=b=>`<span class="flB ${b.ok===true?'ok':b.ok===false?'ng':'warn'}">${b.ok===true?'✓':'⚠'} ${e(b.t)}</span>`;
+    const comp={items:figPreflight(it.spec,th.r,j)};const badge=b=>`<span class="flB ${b.ok===true?'ok':b.ok===false?'ng':'warn'}">${b.ok===true?'✓':'⚠'} ${e(b.t)}</span>`;
     return `<div class="flCard${sel>=0?' sel':''}" data-key="${e(it.key)}"><label class="flPick"><input type="checkbox"${sel>=0?' checked':''} data-flpick aria-label="複合パネルに使う"> ${sel>=0?`<b class="flOrd">${String.fromCharCode(65+sel)}</b>`:'選ぶ'}</label>
       <div class="flThumb">${th.html}</div>
       <div class="flMeta"><input type="text" class="flTagIn" value="${e(tag)}" placeholder="タグ（Fig1A）" data-fltag aria-label="図のタグ"${it.file||it.convId?' disabled':''}><div class="flKind">${e(figListKindLabel(it.spec))}${it.spec.title?` — ${e(String(it.spec.title).slice(0,40))}`:''}</div>
       <div class="hint">${it.convId?`会話「${e(String(it.convTitle).slice(0,18))}」 ・ `:''}${e(new Date(it.ts||Date.now()).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))}${it.branch?` ・ ${e(it.branch)}`:''}${it.file?` ・ ファイル ${e(it.file)}`:''}</div>
       ${src?`<div class="hint flSrc" data-flsrc="${e(it.key)}">元データ: ${e(src.name||'')}${src.path?' <span class="flHash">（確かめています…）</span>':''}</div>`:''}
       ${rec?`<div class="hint">書き出し: ${e(new Date(rec.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))} ${e((rec.ext||'').toUpperCase())}${rec.path?` <button class="small" data-flreveal="${e(rec.path)}" data-tip="${e(rec.path)}">📁 Finder</button>`:''}</div>`:''}
-      ${comp?`<div class="flBadges">${comp.items.map(badge).join('')}</div>`:''}</div>
+      ${comp.items.length?`<div class="flBadges">${comp.items.map(badge).join('')}</div>`:''}</div>
       <div class="flActs">${it.nodeId?`<button class="small" data-flact="edit">✎ 編集</button><button class="small" data-flact="jump">発言へ</button>`:it.convId?`<button class="small" data-flact="openconv">その会話へ</button><button class="small" data-flact="place">この会話に写す</button>`:`<button class="small" data-flact="place">会話に置く</button>`}<button class="small" data-flact="legend">凡例の下書き</button></div></div>`;}).join('');
   figListHashes(items);}
 // 元データの変更を確かめる（読み込んだときの SHA-256 と今のファイル）

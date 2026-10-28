@@ -1,6 +1,6 @@
 // BranCHAT Figure 拡張（模式図）
 // ```figure の kind "schematic"。type: diagram（模式図・パスウェイ・フローチャート。ノードと矢印、⊣ 抑制、アイコン、囲み）、
-// pedigree（家系図。標準記法）、gene（遺伝子/タンパク質構造とロリポップ）、venn（2〜3 集合）、timeline（投与・観察スケジュール）、table（学術形式の表）。
+// pedigree（家系図。標準記法）、gene（遺伝子/タンパク質構造とロリポップ）、constructs（ドメイン構成図・欠失体）、venn（2〜3 集合）、timeline（投与・観察スケジュール）、table（学術形式の表）。
 // 位置は原則として自動（diagram は層配置、pedigree は家系の木）。ブロックの「{} JSON」で指定を直接直して書き戻せる。
 'use strict';
 
@@ -164,7 +164,34 @@ function figSchTable(spec){const fs=(+spec.fontPt||FIG_SCH_DEF.fontPt)*FIG_PT;co
   const title=spec.title?figSchText(fs*0.4,fs*1.3,spec.title,{size:fs*1.05,weight:'bold',anchor:'start'}):'';
   return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${title}${s}</svg>`,w:W,h:H,schematic:true,plot:{x0:0,y0:titleH,w:W,h:H-titleH},n:rows.length};}
 
-function figRenderSchematic(spec){const t=spec.type||'diagram';if(t==='pedigree')return figSchPedigree(spec);if(t==='gene')return figSchGene(spec);if(t==='venn')return figSchVenn(spec);if(t==='timeline')return figSchTimeline(spec);if(t==='table')return figSchTable(spec);return figSchDiagram(spec);}
+/* ---------- constructs（ドメイン構成図・欠失体。FIX-04） ---------- */
+// {"type":"constructs","length":1455,"unit":"aa","domains":[{"name":"D1","from":1,"to":290,"fill":"#…"}],"rows":[{"name":"FL"},{"name":"ΔD3","del":[[581,870]]},{"name":"D1–D2","keep":[[1,580]]}],"tag":{"name":"FLAG","at":"N|C"},"numbers":true}
+// 残基の位置（from・to は 1 始まり、両端を含む）から描く。欠失は細い線と Δ、残っている区間の両端に残基番号。どの行も同じ横軸（1 残基＝同じ幅）
+function figSchConstructParse(r,len){const segs=Array.isArray(r.keep)&&r.keep.length?r.keep.map(x=>[Math.max(1,+x[0]),Math.min(len,+x[1])]):[[1,len]];let out=segs.filter(x=>x[1]>=x[0]).sort((a,b)=>a[0]-b[0]);
+  for(const d of (r.del||[])){const a=Math.max(1,+d[0]),b=Math.min(len,+d[1]);if(!(b>=a))continue;const nx=[];for(const [x,y] of out){if(b<x||a>y){nx.push([x,y]);continue;}if(a>x)nx.push([x,a-1]);if(b<y)nx.push([b+1,y]);}out=nx;}return out;}
+function figSchConstructs(spec){const fs=(+spec.fontPt||FIG_SCH_DEF.fontPt)*FIG_PT;const doms=(spec.domains||[]).filter(d=>d&&isFinite(+d.from)&&isFinite(+d.to));const rows=(spec.rows&&spec.rows.length?spec.rows:[{name:'FL'}]).filter(Boolean);
+  const len=+spec.length||Math.max(1,...doms.map(d=>+d.to),...rows.flatMap(r=>[...(r.keep||[]),...(r.del||[])].map(x=>+x[1]||0)));if(!(len>0))return null;
+  const W0=(+spec.widthIn||4)*FIG_IN;const labW=Math.max(fs*2,...rows.map(r=>figSchTW(r.name||'',fs)))+fs*0.8;const tag=spec.tag&&spec.tag.name?spec.tag:null;const tagW=tag?figSchTW(tag.name,fs*0.75)+fs*0.8:0;
+  const padL=labW+(tag&&tag.at!=='C'?tagW+fs*0.3:0),padR=fs*1.5+(tag&&tag.at==='C'?tagW+fs*0.3:0);const titleH=spec.title?fs*2:0;const rulerH=fs*2.2;const rowH=fs*2.1,barH=fs*1.0;
+  const X=p=>padL+(p-1)/Math.max(1,len-1)*W0;const W=padL+W0+padR,H=titleH+rulerH+rows.length*rowH+fs*0.6;let s='';
+  // 上の目盛: ドメインの境界と全長
+  const marks=[...new Set([1,len,...doms.flatMap(d=>[+d.from,+d.to])])].sort((a,b)=>a-b);const ry=titleH+rulerH-fs*0.4;s+=`<line x1="${X(1)}" y1="${ry}" x2="${X(len)}" y2="${ry}" stroke="#555" stroke-width="${FIG_PT*0.5}"/>`;
+  let lastX=-1e9;marks.forEach(m=>{const x=X(m);s+=`<line x1="${x}" y1="${ry}" x2="${x}" y2="${ry-fs*0.3}" stroke="#555" stroke-width="${FIG_PT*0.5}"/>`;if(x-lastX>fs*1.6){s+=figSchText(x,ry-fs*0.5,String(m),{size:fs*0.65});lastX=x;}});
+  doms.forEach((d,i)=>{const col=d.fill||FIG_SCHEMES.colorblind[i%FIG_SCHEMES.colorblind.length];if(d.name)s+=figSchText((X(+d.from)+X(+d.to))/2,titleH+fs*0.9,d.name,{size:fs*0.75,weight:'bold',fill:col});});
+  const colorAt=(a,b)=>{const pieces=[];let cur=a;const ds=doms.slice().sort((p,q)=>+p.from-+q.from);for(const [i,d] of ds.entries()){const f=Math.max(cur,+d.from),t=Math.min(b,+d.to);if(t<f)continue;if(f>cur)pieces.push([cur,f-1,null]);pieces.push([f,t,d.fill||FIG_SCHEMES.colorblind[doms.indexOf(d)%FIG_SCHEMES.colorblind.length],d.name]);cur=t+1;}if(cur<=b)pieces.push([cur,b,null]);return pieces;};
+  const res=[];rows.forEach((r,ri)=>{const y=titleH+rulerH+ri*rowH+(rowH-barH)/2;const cy=y+barH/2;const segs=figSchConstructParse(r,len);res.push({name:r.name,segs});
+    s+=figSchText(labW-fs*0.5,cy+fs*0.33,r.name||'',{size:fs,anchor:'end',weight:'bold'});
+    // 欠失（残る区間の間）は細い線
+    for(let k=0;k<segs.length-1;k++){const x1=X(segs[k][1]),x2=X(segs[k+1][0]);s+=`<line x1="${x1}" y1="${cy}" x2="${x2}" y2="${cy}" stroke="#888" stroke-width="${FIG_PT*0.75}" stroke-dasharray="${FIG_PT*2} ${FIG_PT*2}" data-del="${segs[k][1]+1}-${segs[k+1][0]-1}"/>`+figSchText((x1+x2)/2,cy-fs*0.35,'Δ',{size:fs*0.7,fill:'#666'});}
+    segs.forEach(([a,b])=>{colorAt(a,b).forEach(([f,t,col])=>{s+=`<rect x="${X(f)}" y="${y}" width="${Math.max(0.6,X(t)-X(f))}" height="${barH}" fill="${col||'#E3E3E3'}" stroke="none" data-seg="${f}-${t}"/>`;});
+      s+=`<rect x="${X(a)}" y="${y}" width="${Math.max(0.6,X(b)-X(a))}" height="${barH}" fill="none" stroke="#333" stroke-width="${FIG_PT*0.6}" rx="${fs*0.12}"/>`;
+      if(spec.numbers!==false){s+=figSchText(X(a),y+barH+fs*0.75,String(a),{size:fs*0.6,fill:'#444'})+(b!==a?figSchText(X(b),y+barH+fs*0.75,String(b),{size:fs*0.6,fill:'#444'}):'');}});
+    if(tag&&r.tag!==false&&segs.length){const atC=tag.at==='C';const x=atC?X(segs[segs.length-1][1])+fs*0.3:X(segs[0][0])-fs*0.3-tagW;s+=`<rect x="${x}" y="${y+barH*0.1}" width="${tagW}" height="${barH*0.8}" rx="${fs*0.15}" fill="#fff" stroke="#333" stroke-width="${FIG_PT*0.5}"/>`+figSchText(x+tagW/2,cy+fs*0.25,tag.name,{size:fs*0.7});}});
+  s+=figSchText(padL+W0+fs*0.3,titleH+rulerH-fs*0.35,`${spec.unit||'aa'}`,{size:fs*0.65,anchor:'start',fill:'#555'});
+  const title=spec.title?figSchText(padL,fs*1.3,spec.title,{size:fs*1.2,weight:'bold',anchor:'start'}):'';
+  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${title}${s}</svg>`,w:W,h:H,schematic:true,plot:{x0:padL,y0:titleH+rulerH,w:W0,h:rows.length*rowH},n:rows.length,res:{rows:res,len,x:X}};}
+
+function figRenderSchematic(spec){const t=spec.type||'diagram';if(t==='constructs')return figSchConstructs(spec);if(t==='pedigree')return figSchPedigree(spec);if(t==='gene')return figSchGene(spec);if(t==='venn')return figSchVenn(spec);if(t==='timeline')return figSchTimeline(spec);if(t==='table')return figSchTable(spec);return figSchDiagram(spec);}
 
 // ノードのドラッグ終了: 全ノードの位置を x/y（文字高さ単位）として書き戻し、以後は固定配置にする
 function figSchDragEnd(fb,nodeId,dx,dy){const nid=fb.dataset.fignode,idx=+fb.dataset.figidx;const n=N(nid);if(!n)return;const b=figFindBlocks(n.content)[idx];if(!b)return;let j;try{j=JSON.parse(b.json);}catch(e){return;}if(!figIsSchematic(j)||(j.type&&j.type!=='diagram'))return;
@@ -187,5 +214,6 @@ FIG_PROMPT+=`
 - gene: {"name":"MS4A1","length":297,"unit":"aa","domains":[{"name":"TM1","from":50,"to":70}],"exons":[{"from":1,"to":120,"utr":false}],"variants":[{"pos":120,"label":"p.R120H","type":"missense|nonsense|frameshift|splice|inframe|synonymous","n":3}]}。
 - venn: {"sets":[{"name":"A","n":120},{"name":"B","n":80},{"name":"C","n":60}],"overlaps":{"AB":30,"AC":20,"BC":15,"ABC":5}}（2〜3 集合）。
 - timeline: {"unit":"day","items":[{"t":0,"label":"投与","icon":"syringe"},{"t":14,"label":"採血","pos":"below"}],"spans":[{"from":0,"to":14,"label":"Zolmin 50 mg"}]}。
+- constructs（ドメイン構成図・欠失体）: {"kind":"schematic","type":"constructs","title":"FANCA","length":1455,"unit":"aa","domains":[{"name":"D1","from":1,"to":290}],"rows":[{"name":"FL"},{"name":"ΔD3","del":[[581,870]]},{"name":"D1–D2","keep":[[1,580]]}],"tag":{"name":"FLAG","at":"N"}}（残基は 1 始まり・両端を含む。del は欠失、keep は残す区間。欠失は点線と Δ）。
 - table: {"columns":["","Control","Zolmin"],"rows":[["n","24","25"],["年齢","62.1","60.8"]],"note":"値は平均"}（学術形式: 上下の太線、見出し下の細線、数値は右揃え）。
 模式図も layout の panels に入れられる。`;

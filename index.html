@@ -873,7 +873,7 @@ table.md tr:nth-child(even) td{background:#f8fafd}
       <div id="figColTypes" class="figColTypes" aria-live="polite"></div>
       <div class="figRow"><label>表の型</label><select id="figKind"><option value="column">Column（列＝群、行＝反復）</option><option value="grouped">Grouped（行＝カテゴリ、列＝群）</option><option value="xy">XY（1列目＝X、以降＝Y）</option></select></div>
       <div class="figRow"><label>グラフ</label><select id="figType" hidden></select><button id="figGalBtn" class="small" data-tip="見本の一覧からグラフの種類を選ぶ" style="max-width:none;flex:1;text-align:left"><span id="figTypeName">（未選択）</span> <span style="float:right">▦</span></button></div>
-      <div class="figRow" id="figCmpRow"><label>有意差</label><select id="figCmp"><option value="none">なし</option><option value="all">全比較（Welch t / ANOVA+Tukey）</option><option value="dunnett">対照群と比較（Dunnett）</option></select><select id="figCtrl" style="display:none"></select></div>
+      <div class="figRow" id="figCmpRow"><label>有意差</label><select id="figCmp"><option value="none">なし</option><option value="all">全比較（検定は「注釈」メニュー）</option><option value="dunnett">対照群と比較</option></select><select id="figCtrl" style="display:none"></select></div>
       <div class="figRow"><label>誤差</label><select data-fopt="errType"><option value="SD">SD</option><option value="SEM">SEM</option><option value="CI">95% CI</option><option value="none">なし</option></select></div>
       <div class="figRow"><label>題名</label><input id="figTitle" type="text" placeholder="任意"></div>
       <div class="figRow"><label>Y 軸の題</label><input data-fopt="yTitle" type="text" placeholder="例: Tumor volume (mm³)"></div>
@@ -2608,13 +2608,14 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（画面の要素を指定でき�
 1. データを #figData に貼る（例: 「Control\\tTreated\\n12.1\\t15.4\\n…」。列＝群、行＝反復。同名の列は反復としてまとまる）。値を入れたら input と change のイベントを出す（アプリも 350 ms ごとと Enter・フォーカス移動で拾い直す）。
 2. 表の型が自動判定される（#figKind）。違えば選び直す: column（列＝群）、grouped（行＝カテゴリ、列＝群）、xy（1 列目＝X）、survival（Time, Event, Group）、roc（マーカー列, Class）、heatmap、forest（Study, Estimate, Lower, Upper）、waterfall（Patient, Change, Response）、multi（行＝個体、列＝変数）、nested（Group, Subject, Value）、swimmer、spider、feature（Gene, log2FC, P）、importance、omics、sets（列＝集合、1/0）、nomogram（Variable, Coef, Min, Max）、tracks（Track, Start, End, Value/Name）。
 3. グラフの種類は #figGalBtn → #figGalDlg の見本カード .figGalCard[data-galkind="…"][data-galtype="…"] をクリック（同じ表の型なら種類だけ変わる。違う型の図を選ぶと例のデータが入る。自分のデータがあるときは #qDlg で確認 → #qOk）。絞り込み #figGalQ。カード左上の ☆ [data-galfav] でお気に入り（一覧の先頭「★ お気に入り」に入る）。閉じる #figGalClose。
-4. 設定: #figToolbar のメニューから。例: 誤差 [data-tk=errType]=SD|SEM|CI|none、有意差 [data-tk=__cmp]=none|all|dunnett、Y 軸対数 [data-tk=ylog]、点を重ねる [data-tk=barDots]、図種固有の項目は「図種の設定」[data-ftm=kind]。配色・塗りは「3.5」、大きさは「3.4」。数値だけの選択肢は input[type=number]＋候補（datalist）なので、値を直接入れて change を出す。
+4. 設定: #figToolbar のメニューから。例: 誤差（範囲）[data-tk=errType]=SD|SEM|CI|IQR|none、代表値 [data-tk=center]、四分位数の求め方 [data-tk=quartile]、有意差 [data-tk=__cmp]=none|all|dunnett、検定 [data-tk=testType] ほか（「3.11」）、Y 軸対数 [data-tk=ylog]、点を重ねる [data-tk=barDots]、図種固有の項目は「図種の設定」[data-ftm=kind]。配色・塗りは「3.5」、大きさは「3.4」。数値だけの選択肢は input[type=number]＋候補（datalist）なので、値を直接入れて change を出す。
 5. 文字を書き込む: 「注釈」メニュー → 「＋ グラフに文字を書き込む」[data-tbtn=__noteAdd] → プレビューの場所をクリック → #figPromptDlg に文字 → #figPromptOk。置いた文字はドラッグで移動、クリックで右の欄（文字・大きさ・色・位置 x/y の % [data-ik=note.xp] [data-ik=note.yp]・削除）。
 6. 書き出し: PNG #figPng（300 dpi、pHYs 付き）／PNG 600 [data-fact=png600]／SVG #figSvg／画像をコピー #figCopy。保存の仕組みは「3.3」。チャットで続けるなら #figAttach（PNG を添付し、入力欄に \`\`\`figure の JSON が入る）。
 7. 回答の図を直した場合は #figUpdate で元の回答のブロックを書き換える。
 ### 3.3 書き出し先・ファイル名・来歴（図の指定の埋め込み）
 - 全体の既定: #settingsBtn → 「図の書き出し（PNG・SVG の保存）」#sExpBox: 書き出し先フォルダ #sExpFolder（「フォルダを選ぶ」#sExpPick で macOS のフォルダ選択、「解除」#sExpClear）、小窓を出さずに保存 #sExpDirect、ファイル名の決まり #sExpTpl（既定 {conversation}_{tag}_{type}_{dpi}dpi。使える語: {conversation} 会話名、{tag} 図のタグ、{type} 図の種類、{dpi} 解像度、{date} 日付、{time} 時刻）、図の指定を PNG・SVG に埋め込む #sExpEmbed（既定オン）、同じ名前の .branchat.json も保存 #sExpSidecar、図の大きさの単位 #sUnit=in|cm|mm → #sSave。保存先は settings.exp={folder,direct,template,embed,sidecar}。
 - 会話ごとの書き出し先: 作成画面の下の 📁 [data-expdir]（グラフ・画像パネル・グラフィックス共通）。選んだフォルダは conv.exportSettings.folder に入り、その会話では全体の既定より優先する。ボタンの文字は「…/親/フォルダ」（小窓で保存する設定なら「（小窓で保存）」付き）、未設定なら「保存先を選ぶ」。
+- 出力の大きさ: 作成画面の下の .figSizeInfo（[data-sizeinfo=fig|figImg|ga]）に「出力: 幅 × 高さ mm（in）・300 dpi で ○ × ○ px、600 dpi で …」。PNG の画素数＝round(幅 in × dpi)（SVG の座標は 96 px＝1 in）。書き出した SVG は width・height が mm（viewBox は内部の座標）。保存の知らせにも画素数と dpi・mm が出る。複合パネルの「原寸」も同じ計算。
 - 保存の動き: 書き出し先があり #sExpDirect がオンなら、PNG・SVG・PDF は小窓なしでそのフォルダへ書かれる（同じ名前があれば _v2, _v3… を付け、上書きしない）。下に「保存しました: 絶対パス」と「Finder で表示」の知らせ。書き出し先が無いか直接保存がオフなら macOS の保存の小窓（ブラウザの保存）。
 - 記録: 保存のたびに conv.figExports["発言id:番号" または "dlg:タグ"]={tag,type,at,path,ext,dpi}。回答の図の下の行と図版一覧に「保存: …」と 📁 Finder が出る。
 - 図のタグ: 作成画面の下のタグ欄（例 Fig1A）。図の指定の最上位 figureTag に入り、ファイル名の {tag}・図版一覧・凡例の下書きに使う。回答の図なら図の下の「🏷 Figure として登録」でも付く（「4」）。
@@ -2650,14 +2651,22 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（画面の要素を指定でき�
 ### 3.9 列の型と数値への直し
 - #figColTypes にデータの列ごとの「名前: 数値／文字」が出る（文字は黄色）。文字になった数値の列（1,234・12 %・全角数字・"0.5"・−1.2・1.2×10^-5・<0.001）には「数値にする」[data-colfix=列番号]。押すとその列の値を数値に直し（NA・N/A・— は空欄）、表全体をタブ区切りにする（元に戻すは ↶）。
 - CSV の引用符の中のカンマ（"1,234"）は区切りとして扱わない。セルの前後の引用符は外して読む。
+### 3.11 代表値・範囲・検定（Figure 機能改善計画 FIX-02/03）
+- 代表値 [data-tk=center]=auto（範囲が四分位なら中央値、ほかは平均）|mean|median|none。範囲 [data-tk=errType]=SD|SEM|CI（95%）|IQR（Q1–Q3。中央値から対称に足し引きせず Q1 と Q3 を端にする）|none。四分位数 [data-tk=quartile]=linear（R type 7・Excel QUARTILE.INC、既定）|weibull（type 6・QUARTILE.EXC）|tukey（ヒンジ）。IQR に対応するのは散布・棒・集合の図と棒＋個別の点（ほかの図種では IQR の棒は描かない）。意味の薄い組み合わせ（平均＋IQR、中央値＋SD）は結果表に注意が出る。
+- 「散布ドット＋中央値と四分位範囲（Q1–Q3）」= column の type scatter-med（#figGalDlg の column の区画）。
+- 検定（「注釈」メニュー）: [data-tk=testType]=auto（2 群 Welch、3 群以上は分散分析＋Tukey／Dunnett）|welch|student|mwu|kw（Kruskal–Wallis＋Dunn）|anova|external。3 群以上の t・Mann–Whitney は総当たり（#figCmp=dunnett なら対照群とだけ）で補正 [data-tk=pAdjust]=holm|bonferroni|bh|none。片側 [data-tk=alternative]=two-sided|less|greater（2 群のとき）。Mann–Whitney の P [data-tk=mwuMethod]=auto（同順位なし・小標本は正確な P）|exact|asymptotic（同順位と連続性の補正）。Kruskal–Wallis の全体の P だけではブラケットを付けず、Dunn（補正後）で付ける。値は scipy 1.17.1 と照合済み。
+- 外部で計算した P: [data-tbtn=__extStats] → #figPromptDlg（複数行）に「検定: …」「ソフト: …」「補正: …」「解析の単位: …」と「群名 vs 群名: P」を 1 行ずつ → #figPromptOk。最上位の extStats に入り、testType=external になる。群名が合わない行は結果表に出る。計算し直さない。
+- 結果表 #figStats: 群ごとの n・平均・SD・SEM・中央値・Q1・Q3、「検定:」の行（全体の検定の統計量・自由度・P）、比較ごとの P（補正前・補正後）。
+- 要約値の表（kind summary、FIX-03）: 列 Group, Mean, SD または SEM, N（見出しで自動判定）→ type summary-bar|summary-dot。個々の値は作らない（点を描かない）。検定は要約値からの t 検定（Welch／Student、3 群以上は補正つき総当たり）。
+- 入れ子（nested）の結果表には「描画した点」と「独立した反復の数（検定の n）」が並ぶ。棒＋個別の点で「全部の値」を検定していて同じ個体の値が複数あると注意が出る（[data-tk=bjStat]=subject で個体平均の検定）。
 ### 3.10 コンソールからの作図（画面操作の代わり）
 - spec = {kind:'column',type:'bar',title:'…',compare:'all',data:'Control\\tTreated\\n12.1\\t15.4\\n…',figureTag:'Fig1A',style:{errType:'SEM',scheme:'colorblind',valLabels:true,figW:85/25.4}}; figOpen(figStateFromSpec(spec)) で作成画面に入る。figRenderSpec(spec).svg で SVG 文字列、.res で計算結果（ボルケーノ・ドットプロットは up/down/missing など）。
 - 例: ボルケーノ {kind:'feature',type:'volcano',data:'Gene,log2FC,pvalue,padj\\n…',labelGenes:['MS4A1','SPIB'],style:{volSig:'auto'}}、ドットプロット {kind:'feature',type:'fcdot',…}、棒＋個別の点 {kind:'nested',type:'barjitter',data:'Group,Subject,Value\\n…',style:{bjErr:'SEM'}}、ヒートマップ {kind:'heatmap',data:'Gene,C1,C2,T1,T2\\n…',style:{hmScale:'log2z'}}。
 - figGalleryPick('survival','km') で種類を切り替え（例のデータが入る）。figSpecFromState(figState) で現在の指定を JSON に。figApplyTool('キー',値) はメニューの項目を押したのと同じ。全 type の一覧: FIG_TYPES（{kind:[[type,表示名],…]}）。見本のデータ: figSample(kind,type)。
 
 ## 4. チャット内の図ブロック
-- AI の回答（またはノート）中の \`\`\`figure（JSON）は自動で図になる（.figblock[data-fignode][data-figidx]）。ボタン: ✎ 編集 [data-figedit]、PNG [data-figpng]、SVG [data-figsvg]、⧉ [data-figcopy]、{} JSON [data-figjson]。同じ発言に図が 2 つ以上あると最後のブロックに「⊞ 1 枚にまとめる」[data-figcombine]（レイアウト {"kind":"layout","cols":2,"labels":"A","page":"2col","panels":[…]}）。レイアウトのブロックには パネルごとの ✎ [data-figedit][data-figpanel=k] と 列・記号・誌面幅の選択 [data-figlay=cols|labels|page]。
-- JSON の形: {title,kind,type,err,compare,ctrl,ytitle,xtitle,ymin,ymax,data(TSV 文字列),style{…}}。最上位の追加項目: figureTag（図の番号）、labelGenes（名前を付ける遺伝子）、provenance（来歴）。画像パネルは {"kind":"image","type":"grid|blot",…}、模式図は {"kind":"schematic","type":"diagram|pedigree|gene|venn|timeline|table",…}、グラフィックスは {"kind":"graphics",…}。
+- AI の回答（またはノート）中の \`\`\`figure（JSON）は自動で図になる（.figblock[data-fignode][data-figidx]）。ボタン: ✎ 編集 [data-figedit]、PNG [data-figpng]、SVG [data-figsvg]、⧉ [data-figcopy]、{} JSON [data-figjson]。同じ発言に図が 2 つ以上あると最後のブロックに「⊞ 1 枚にまとめる」[data-figcombine]（レイアウト {"kind":"layout","cols":2,"labels":"A","page":"2col","panels":[…]}）。レイアウトのブロックには パネルごとの ✎ [data-figedit][data-figpanel=k] と 列・記号・誌面幅の選択 [data-figlay=cols|labels|page]、「配置…」[data-figarrange] → #figArrDlg（各行 tr[data-k] の 列の数 [data-arr=span]、挿入図の親 [data-arr=into]、左 % [data-arr=x]・上 % [data-arr=y]・幅 % [data-arr=w] → #figArrOk）。JSON は spans:[2,1,1]（横に占める列の数。グラフはまたいだ幅いっぱいに描き直す）、insets:[{panel,into,x,y,w}]（記号は付かない）。
+- JSON の形: {title,kind,type,err,compare,ctrl,ytitle,xtitle,ymin,ymax,data(TSV 文字列),style{…}}。最上位の追加項目: figureTag（図の番号）、labelGenes（名前を付ける遺伝子）、extStats（外部の検定結果）、provenance（来歴）、schema（書き出した指定の版 branchat-figure/2）。模式図の type constructs（ドメイン構成図・欠失体）: {"kind":"schematic","type":"constructs","length":1455,"domains":[{"name":"D1","from":1,"to":290}],"rows":[{"name":"FL"},{"name":"ΔD3","del":[[581,870]]}],"tag":{"name":"FLAG","at":"N"}}（残基は 1 始まり・両端を含む、欠失は点線と Δ）。画像パネルは {"kind":"image","type":"grid|blot",…}、模式図は {"kind":"schematic","type":"diagram|pedigree|gene|venn|timeline|table",…}、グラフィックスは {"kind":"graphics",…}。
 - 図の上の文字 [data-note] と ROC のカットオフ [data-cut] はブロック上でドラッグ移動、ダブルクリックで書き換え。
 - 図の下の行 .figmetaRow: タグがあれば .figTagChip に表示、無ければ「🏷 Figure として登録」[data-figreg]（#figPromptDlg に次の番号の候補「Fig3」などが入る → 直して #figPromptOk → 図の figureTag に書き込む）。保存したことがあれば「保存: フォルダ/ファイル名」（全体のパスはツールチップ）と「📁 Finder」[data-figreveal]（Finder でファイルを選んだ状態で開く）。
 - AI に送らない書き留め（ノート）: 複合パネル・凡例の下書き・ブロットの濃度は、AI 回答オフの枝で送ったのと同じ「自分の発言（note:true）」として会話に置かれる。コンソール figAddNote('本文')。
@@ -2669,6 +2678,7 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（画面の要素を指定でき�
 - 複合パネル: 2 枚以上「選ぶ」（順番がパネル記号になる。選択数 #flN、外す #flClear）→ 列 #flCols=1..4、記号 #flLabels=A|a|none、全体の幅 #flPage（元の大きさ／1 段 89／1.5 段 120／2 段 183 mm。投稿先があればその誌の段の幅）、タグ #flTag（例 Fig2）→ #flCompose。選んだ図（レイアウトの図はそのパネルに展開）を並べた {"kind":"layout","figureTag":…,"panels":[…]} を AI に送らないノートとして会話に置く（隣の図の軸の位置をそろえ、記号を自動で付ける）。全体を縮めて文字が 6 pt 未満になるとノートに警告。書き出しはその図の下の PNG・SVG。
 - 凡例の下書き: カードの [data-flact=legend] → 下の #flLeg（見出し #flLegTitle、本文 #flLegText は編集できる）。英文で、タグと題名、図の種類の説明（誤差の種類・点の意味・n・しきい値・件数・スケールバー・変換）、検定名（英語）と P の記号、元データのファイル名と SHA-256 の先頭、作成アプリと版。→ 「⧉ コピー」#flLegCopy または「会話に書き留める」#flLegNote（「凡例の下書き（タグ）」としてノートに置く）。閉じる #flLegClose。
 - Figure legends: #flLegAll → この会話のタグの付いた図の凡例をタグの順（Fig1, Fig1A, Fig2, FigS1 … 数値の順）にまとめて #flLegText に出す。同じタグは最初の 1 つ。
+- 投稿前チェック: #flCheck → #flLegText に図ごとの結果（✓／△／✗）。各カードの .flBadges にも出る: 幅（投稿先の段の幅）、文字の大きさ、画像の実効解像度（保存してある画素数 ÷ 誌面での幅。投稿先の dpi、無ければ 300 ppi 未満で ✗。取り込み時に長辺 2000 px に縮めた画像はその旨）、Y 軸の題の抜け、タグの抜け、線画をベクターで求める誌の注意（figPreflight）。
 - 図のファイルを足す: 「📂 図のファイルを追加」#flAddFile（#flFile、複数可）→ 図の指定の入った PNG・SVG・.branchat.json がカードになる（「会話に置く」[data-flact=place] でノートとして置く。複合パネルにも使える）。
 - 雑誌プリセットの編集: #flJEdit → #flJ の #flJText（全誌の JSON）→ 「保存」#flJSave（settings.journals に入る）／「既定に戻す」#flJReset（#qDlg で確認）／#flJClose。
 - コンソール: figListCollect(scope)（カードの元データ）、figLegendDraft(spec,'Fig1A')、figCompliance(spec,figRenderSpec(spec),figJournal())、figSetBlockField(発言id,番号,'figureTag','Fig1A')。
@@ -2706,7 +2716,7 @@ const AI_SOP=`# BranCHAT 操作仕様書・SOP（画面の要素を指定でき�
 ## 6. グラフィックス作成 SOP（グラフィカルアブストラクト・模式図・スライド用の図）
 画面 #figGaDlg（JS で生成）。開き方: #plusBtn → 「🧩 グラフィックス」#figGaBtn（新規。左→右 3 段のひな形入り）、または回答中のグラフィックスのブロック（.figblock.ga）の ✎ 編集 [data-figedit]。
 1. 絵柄: 上の #gaThemes の [data-gatheme] を押す。論文で多い順に soft（陰影＋細い輪郭 48%）/ flatline（ベタ塗り＋細い輪郭 15%）/ softfill（陰影・輪郭なし 13%）/ flat（ベタ塗り 4%）/ glossy（立体・光沢 4%）。形は同じで塗り方だけ変わる。いつでも切り替えられる。
-2. イラストを置く: 左の検索 #gaQ（例: マウス）か分類 #gaCats [data-gacat]（細胞/免疫・血液/病原体/細胞内/分子/臓器/生物/人・医療/治療/実験/環境・生活/記号）→ #gaPal の [data-gam="キー"] を押すとキャンバス中央付近に置かれる（223 種。細胞・臓器・生物・器具などは公開素材集の細かく描かれた絵、記号・グラフは簡単な図形）。
+2. イラストを置く: 左の検索 #gaQ（例: マウス。英語の別名でも探せる: replication fork、R-loop、PCNA など）か分類 #gaCats [data-gacat]（細胞/免疫・血液/病原体/細胞内/分子/DNA 複製・修復（複製フォーク・岡崎フラグメント・一本鎖ギャップ・ニック・DSB・R ループ・RNAPII・5′ フラップ・PCNA・DNA ポリメラーゼ・転写と複製の衝突 2 種）/臓器/生物/人・医療/治療/実験/環境・生活/記号）→ #gaPal の [data-gam="キー"] を押すとキャンバス中央付近に置かれる（223 種。細胞・臓器・生物・器具などは公開素材集の細かく描かれた絵、記号・グラフは簡単な図形）。
 3. 文字・矢印・枠: [data-gaadd=text|arrow|inhibit|curved|box]。
 4. 動かす: キャンバス #gaCanvas の要素をドラッグ。選ぶと枠が出て、右下の □ [data-gah=br] で大きさ、矢印は両端の ○ [data-gah=p1|p2] で向き・長さ。Delete で削除、矢印キーで 1px（Shift で 10px）、⌘D 複製、⌘Z / ⌘⇧Z。
 5. 設定: 右の #gaInspect（[data-gp="キー"]）。イラスト＝大きさ・回転・左右反転・主役（後ろに淡い円）・ラベル・差し替え。文字＝文字・大きさ・太字・色・揃え。矢印＝種類（arrow/inhibit/curved/dashed/double）・太さ・色・ラベル・曲がり具合。枠＝見出し・塗り・枠線・破線・角丸。何も選ばないと全体＝題名・大きさ（16:9 / 13:5 / 正方形 / ACS TOC）・背景・主役の強調色・ひな形（[data-gtpl] → [data-gact=tpl]）・イラストの出典（Servier Medical Art などの CC BY 素材。[data-gp="g.credit"] で図の右下への出典の書き込みを切り替え、[data-gact=credit] で英語の表記をコピー。既定は書き込む）。
@@ -2883,6 +2893,7 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
 3. 保存: 【PNG（300 dpi）】などを押すと、小窓は出ずにそのフォルダへ保存され、画面の下に「保存しました: （ファイルの場所）」と【Finder で表示】が数秒出る。同じ名前のファイルがあれば _v2, _v3… が付き、上書きはされない。保存先を決めていないときは macOS の保存の小窓が出る。
 4. 書き出した図を開き直す: 作成画面の【📂 ファイルから読む】で、書き出した PNG・SVG・.branchat.json を選ぶ（またはプレビューの上へドラッグ）→ その図が作成画面に戻る。「この画像には BranCHAT の図の指定が入っていません」と出たら、埋め込みをオフで保存した画像なので開けない。
 ### 4.4 図の大きさと単位（論文の図の幅）
+- プレビューの下（「図のタグ」の右）に「出力: 180.0 × 100.0 mm（7.09 × 3.94 in）・300 dpi で 2126 × 1181 px …」のように、保存される大きさが出る。書き出した SVG は mm の単位つきなので、ほかのソフトで開いても同じ大きさになる。
 - 【大きさ】メニュー: 「図全体の幅（空なら自動）」「図全体の高さ（空なら自動）」＝軸の文字や凡例を含めた図の大きさ（PNG の大きさもこれに合う）。「描画部分の幅」「描画部分の高さ」＝軸の内側。「単位」で in・cm・mm を切り替える。例: 1 段の図なら「図全体の幅」に 8.5（cm）→ Enter。
 - 投稿先を決めてあれば（「3.11」）、【大きさ】メニューの先頭【投稿先の図の幅】で「1 段 84 mm」などを選ぶと幅がそろう。文字が 12 pt のままなら、その誌に合う大きさ（例 Blood 8 pt、Nature 7 pt）になる。JCO と Int J Hematol は幅の規定が無いので選べない。
 - （確認）【🗂 図版一覧】のカードに「✓ 幅 84 mm（1 段）」「✓ 文字 8.0 pt」のような札が出る。⚠ が出たら直す。
@@ -2902,6 +2913,12 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
    - ドットプロットだけ:「遺伝子を指定しないときの件数（有意な上位）」「並べ方」「しきい値の帯と線」。
 4. （確認）左下の結果の表に、判定に使った値・しきい値・上昇／下降／有意でないの件数、見つからなかった名前が出る。【⧉ 判定の条件をコピー】で条件の英文をコピーできる（図の説明文に使う）。P が 0 の点は図の上端に ▲ で描かれ、件数が図の左上に書かれる。
 - ドットプロットの見方: 点の大きさ＝有意さ（−log10 q）、塗り＝有意、白抜き＝有意でない、灰色の帯＝|log2FC| がしきい値より小さい範囲。Group・Pathway の列があると、群ごとに区切り線と群名が出る。
+### 4.6.5 代表値・四分位範囲・検定
+1. 中央値と四分位範囲: 【▦ グラフの種類】で【散布ドット＋中央値と四分位範囲（Q1–Q3）】。または【グラフ】メニューの「誤差（範囲）」で【四分位範囲（Q1–Q3）】、「代表値」、「四分位数の求め方」。
+2. 検定: 左の「有意差」で【全比較（検定は「注釈」メニュー）】か【対照群と比較】→【注釈】メニューの「検定」（【Mann–Whitney の U 検定】【Kruskal–Wallis＋Dunn】など）、「多重比較の補正（3 群以上）」、「両側・片側（2 群）」、「Mann–Whitney の P」。
+3. 論文などで計算済みの P を使うとき: 【注釈】メニューの【外部で計算した P を入力…】→ 小窓に「検定:」「ソフト:」「補正:」「解析の単位:」と「群名 vs 群名: P」を 1 行ずつ →【OK】。計算し直さずにその P でブラケットが付く。
+4. （確認）左下の結果の表に、検定名・補正前と補正後の P・各群の n・中央値・Q1・Q3 が出る。検定の条件を推測で選ばない（利用者の指示どおりに）。
+5. 平均・SD・n しか無いとき: 表の型【要約値（Group, Mean, SD または SEM, N。個々の値なし）】（列 Group, Mean, SD, N）。点は描かず、要約値から t 検定。
 ### 4.7 棒＋個別の点（群ごとの平均の棒に、1 つ 1 つの値を重ねる）
 1. データ（1 行に 1 つの値）: 列 Group（群）、Subject（点の形で分けたいもの。例 WT/OE、既報値/再解析値、視野）、Value。
    例:
@@ -2912,7 +2929,7 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
      Drug,OE,0.4
 2. 表の型「入れ子（Group, Subject, Value）」→【▦ グラフの種類】で【棒＋個別の点（点の形＝個体・副分類）】。
 3. 【図種の設定】:「棒の高さ」（全部の値の平均／個体ごとの平均の平均）、「誤差」（SD・SEM・95% CI・なし）、「点の色」（群の色・黒・白抜き）、【棒の上に値（平均）を書く】。
-4. （確認）凡例に Subject の名前と点の形が出る。同じ名前は群が違っても同じ形。
+4. （確認）凡例に Subject の名前と点の形が出る。同じ名前は群が違っても同じ形。結果の表に「描画した点」と「検定の n」が出る。同じ個体の値が複数あるのに全部の値で検定していると注意が出る（「棒の高さ」を「個体ごとの平均の平均」にすると個体平均で検定）。
 ### 4.8 ヒートマップ
 1. データ: 1 列目＝行の名前（遺伝子など）、見出し＝列の名前（サンプル）、中は数値。行の群を色帯にしたいときは、数値の無い 2 つ目の列（例 Pathway）を足す。列の群は、1 列目が group の行に群名を書くか、列名を C1, C2, T1, T2 のように番号付きにする。
 2. 【図種の設定】:「値の変換」（そのまま／log2(x+1)／行ごとに z スコア／log2(x+1) のあと行ごとに z）、「列の群の色帯」「行の群の色帯」（自動／なし）、「クラスタリング（樹形図）」、「セルに値を書く」、色。
@@ -2923,6 +2940,7 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
 2. カードの中身: 小さな図、図のタグの欄（Fig1A などを入力 → 欄の外をクリックで図に書き込まれる）、図の種類と題名、日時と枝、「元データ」（表をファイルから読んだ図だけ。「✓ 読み込んだときと同じ」「⚠ 読み込んだあとに変更されています」「⚠ ファイルが見つかりません」）、最後の書き出しと【📁 Finder】、投稿先の規定との照合の札（✓ 緑、⚠ 黄・赤）。ボタン【✎ 編集】【発言へ】【凡例の下書き】。
 3. 複合パネル（A, B, C… を並べた 1 枚の図）: 使う図のカードの「選ぶ」を、並べたい順に押す（押した順に A, B, C の札が付く）→ 上の列で「列」（1〜4）、「記号」（A B C／a b c／なし）、「全体の幅」（元の大きさ／1 段／1.5 段／2 段。投稿先があればその誌の幅）、「タグ」（例 Fig2）→【複合パネルを作る】。（確認）小窓が閉じ、会話の最後に「複合パネル」の書き留め（AI には送られない）と図が出る。書き出しはその図の下の PNG・SVG。選び直すなら【選択を外す】。
 4. 凡例の下書き: カードの【凡例の下書き】→ 小窓の下に英文の下書き（n・誤差・検定名・しきい値・元データなど）。欄の中で直せる →【⧉ コピー】か【会話に書き留める】。
+4.5 投稿前の点検: 上の【✔ 投稿前チェック】→ 下の欄に図ごとの結果（✓ 問題なし／△ 注意／✗ 直す）。画像の実効解像度（画素数 ÷ 誌面の幅）が足りない、文字が小さい、Y 軸の題やタグが無い、などが出る。
 5. 全部の図の凡例: 上の【📝 Figure legends をまとめる】→ タグの付いた図の凡例が、タグの順（Fig1, Fig2…）にまとまって下の欄に出る →【⧉ コピー】か【会話に書き留める】。
 6. 書き出した図のファイルを足す: 【📂 図のファイルを追加】→ PNG・SVG・.branchat.json を選ぶ → カードが増える（【会話に置く】で会話に置ける。複合パネルにも使える）。
 7. 雑誌の規定を直す: 【雑誌プリセットを編集】→ 欄の JSON を直す →【保存】（【既定に戻す】で元に戻す）。利用者の指示があるときだけ。
@@ -2930,6 +2948,7 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
 ### 4.11 回答の図の下の行
 - 図の番号（タグ）が無い図には【🏷 Figure として登録】→ 小窓に「Fig3」などの候補 → 直して【OK】→ その図に番号が付き、図版一覧と凡例の下書きで使える。
 - 保存した図には「保存: フォルダ/ファイル名」と【📁 Finder】（Finder でそのファイルを表示）。
+- 複合パネルの図の下の【配置…】: パネルごとに「列の数」（2 にすると横 2 列分の大きさ）と「挿入図にする（親）」・左 %・上 %・幅 % →【書き戻す】。挿入図には記号が付かない。
 
 ## 5. Figure・パネルを作成: 画像パネル（顕微鏡・IHC・ウェスタンブロット）
 1. 【＋】→【📊 Figure・パネルを作成】→ 見出しの右の【🔬 画像パネル】を押す（グラフの種類の一覧の最後にある「画像パネル」のカードからでも切り替わる）→ 左上の【＋ 画像を追加（PNG/JPEG/TIFF）】→ ファイルの小窓で画像を選ぶ（複数可）。グラフに戻るときは【📊 グラフ】（どちらも作業中の内容は残る）。
@@ -2954,7 +2973,7 @@ const AI_SOP_CU=`# BranCHAT 操作 SOP（ChatGPT のコンピュータユース�
 ### 6.2 作成画面で作る
 1. 【＋】→【🧩 グラフィックス】→ 小窓【🧩 グラフィックス作成】（左→右 3 段の枠が入った状態で開く）。
 2. 上の列で絵柄を選ぶ（論文で多い順）: 1.【陰影＋細い輪郭】2.【ベタ塗り＋細い輪郭】3.【陰影・輪郭なし】4.【ベタ塗り・輪郭なし】5.【立体・光沢】。いつでも変えられる。
-3. イラストを置く: 左の検索欄（「イラストを探す（例: 細胞、マウス、DNA）」）に入力するか、分類（【細胞】【免疫・血液】【病原体】【細胞内】【分子】【臓器】【生物】【人・医療】【治療】【実験】【環境・生活】【記号】）を押す → 一覧のイラストをクリック → キャンバスの中央付近に置かれる。
+3. イラストを置く: 左の検索欄（「イラストを探す（例: 細胞、マウス、DNA）」）に入力するか（英語でも可: replication fork、R-loop）、分類（【細胞】【免疫・血液】【病原体】【細胞内】【分子】【DNA 複製・修復】【臓器】【生物】【人・医療】【治療】【実験】【環境・生活】【記号】）を押す → 一覧のイラストをクリック → キャンバスの中央付近に置かれる。
 4. 文字・矢印・枠: 左上の【＋ 文字】【＋ 矢印】【＋ 抑制（T 字）】【＋ 曲がった矢印】【＋ 枠】。
 5. 動かす: キャンバスの要素をクリックして選ぶ（青い点線の枠が出る）→ 矢印キーで 1 px、Shift＋矢印キーで 10 px ずつ動く（ドラッグより確実）。大きさは右下の □ をドラッグするか、右の欄の「大きさ」に数値。矢印の向きと長さは両端の ○ をドラッグ。Delete で削除、Cmd+D で複製。
 6. 右の欄: 選んだ要素の設定（イラスト＝大きさ・回転・左右反転・主役・ラベル・【別のイラストに差し替える】、文字＝文・大きさ・太字・色、矢印＝種類・太さ・色・ラベル、枠＝見出し・色）。何も選んでいないときは「全体」（題名、大きさ【スライド 16:9（960×540）】など、背景、ひな形、イラストの出典）。

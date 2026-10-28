@@ -12,6 +12,9 @@ const around=(n,cx,cy,r,f)=>Array.from({length:n},(_,i)=>{const a=i/n*Math.PI*2;
 // なめらかな閉じた形（点列を Catmull-Rom で）
 function blob(pts){const n=pts.length;let d=`M${pts[0][0]},${pts[0][1]}`;for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];d+=`C${(p1[0]+(p2[0]-p0[0])/6).toFixed(1)},${(p1[1]+(p2[1]-p0[1])/6).toFixed(1)} ${(p2[0]-(p3[0]-p1[0])/6).toFixed(1)},${(p2[1]-(p3[1]-p1[1])/6).toFixed(1)} ${p2[0]},${p2[1]}`;}return d+'Z';}
 const radial=(cx,cy,rs)=>rs.map((r,i)=>{const a=i/rs.length*Math.PI*2-Math.PI/2;return [+(cx+Math.cos(a)*r).toFixed(1),+(cy+Math.sin(a)*r).toFixed(1)];});
+// DNA の鎖（線の色は --s1＝鋳型・親鎖、--s2＝新しい鎖・RNA）と矢じり（FIX-04 の DNA 複製・修復の素材）
+const STR=(d,v,w,dash)=>`<path class="b acc" d="${d}" style="fill:none;stroke:var(--${v||'s1'});stroke-width:${w||5};stroke-linecap:round;stroke-linejoin:round${dash?';stroke-dasharray:'+dash:''}"/>`;
+const AH=(x,y,deg,v,k)=>{k=k||1;return `<polygon points="${x},${y} ${x-7*k},${y-4.5*k} ${x-7*k},${y+4.5*k}" transform="rotate(${deg} ${x} ${y})" style="fill:var(--${v||'s2'});stroke:none"/>`;};
 const wave=(x0,x1,y,amp,per,ph)=>{let d='';for(let x=x0;x<=x1;x+=1){const yy=y+Math.sin((x-x0)/per*Math.PI*2+(ph||0))*amp;d+=(x===x0?'M':'L')+x+','+yy.toFixed(1);}return d;};
 
 const MOTIFS={
@@ -57,6 +60,30 @@ const MOTIFS={
  membrane_receptor:{ja:'細胞膜と受容体',cat:'細胞内',c:['#F2C47E','#4D7FC1','#E7F0FB'],svg:
   Array.from({length:12},(_,i)=>{const x=6+i*8;return (x>36&&x<64)?'':C(x,56,3.4,'b')+C(x,74,3.4,'b')+L(x-1.2,59,x-1.2,66,'d')+L(x+1.2,59,x+1.2,66,'d')+L(x-1.2,64,x-1.2,71,'d')+L(x+1.2,64,x+1.2,71,'d');}).join('')+R(40,50,8,32,4,'b2 acc')+R(52,50,8,32,4,'b2 acc')+P('M36,50 C36,30 46,26 46,20 L54,20 C54,26 64,30 64,50Z','b2')+C(50,12,6,'b3')+P('M44,82 L40,94 M56,82 L60,94','d')+C(28,22,4,'b3')+C(74,28,4,'b3')},
  // ---- 分子 ----
+ rep_fork:{ja:'複製フォーク',en:'replication fork leading lagging strand',cat:'DNA 複製・修復',c:['#4F7FD8','#E8743B','#DCE6FA'],svg:
+  STR('M4,44 L44,44')+STR('M4,56 L44,56')+STR('M44,44 C56,44 66,30 96,22')+STR('M44,56 C56,56 66,70 96,78')+STR('M92,30 C70,36 62,48 54,49','s2',4)+AH(53,49.3,186,'s2')+STR('M58,60 L68,64','s2',4)+AH(72,65.6,22,'s2',0.8)+STR('M76,67 L84,70','s2',4)+AH(88,71.5,20,'s2',0.8)},
+ okazaki:{ja:'岡崎フラグメント（ラギング鎖）',en:'Okazaki fragment lagging strand RNA primer',cat:'DNA 複製・修復',c:['#4F7FD8','#E8743B','#F2C14E'],svg:
+  STR('M6,40 L94,40')+[[10,30],[38,58],[66,86]].map(([a,b])=>R(a,46,5,8,1.5,'b3')+STR(`M${a+5},50 L${b},50`,'s2',4)+AH(b+5,50,0,'s2',0.8)).join('')},
+ ssdna_gap:{ja:'一本鎖 DNA のギャップ',en:'ssDNA gap single-stranded DNA',cat:'DNA 複製・修復',c:['#4F7FD8','#E8743B','#DCE6FA'],svg:
+  STR('M6,42 L34,42 Q41,32 48,42 T62,42 T66,42 L94,42',null,4)+STR('M6,58 L34,58','s2')+STR('M66,58 L94,58','s2')},
+ nick:{ja:'ニック（一本鎖切断）',en:'nick single-strand break SSB',cat:'DNA 複製・修復',c:['#4F7FD8','#E8743B','#DCE6FA'],svg:
+  STR('M6,44 L46,44')+STR('M54,44 L94,44')+STR('M6,56 L94,56','s2')+P('M50,26 l-5,9 h10 z','d')},
+ dsb:{ja:'二本鎖切断（DSB）',en:'double-strand break DSB',cat:'DNA 複製・修復',c:['#4F7FD8','#E8743B','#DCE6FA'],svg:
+  STR('M4,44 L40,44')+STR('M4,56 L44,56','s2')+STR('M56,44 L96,44')+STR('M60,56 L96,56','s2')+P('M50,30 l4,8 l-5,6 l5,8 l-4,9','d')},
+ rloop:{ja:'R ループ（RNA–DNA ハイブリッド）',en:'R-loop RNA-DNA hybrid displaced ssDNA',cat:'DNA 複製・修復',c:['#4F7FD8','#D94F70','#DCE6FA'],svg:
+  STR('M4,44 L30,44')+STR('M70,44 L96,44')+STR('M30,44 C40,22 60,22 70,44',null,4)+STR('M4,60 L96,60')+STR('M32,54 L68,54','s2',4)+STR('M68,54 C78,52 84,42 90,32','s2',4)},
+ rnap2:{ja:'RNA ポリメラーゼ II',en:'RNA polymerase II RNAPII Pol II transcription',cat:'DNA 複製・修復',c:['#7A6FD0','#D94F70','#E2DEF8'],svg:
+  STR('M4,66 L96,66',null,4)+STR('M4,74 L96,74',null,4)+`<path class="b" d="${blob(radial(50,50,[24,26,22,25,27,23,25,22]))}"/>`+E(44,44,6,4,'hl')+STR('M66,38 Q72,26 80,30 T96,20','s2',4)},
+ flap:{ja:'5′ フラップ',en:'flap 5 prime flap RNA flap FEN1 substrate',cat:'DNA 複製・修復',c:['#4F7FD8','#E8743B','#DCE6FA'],svg:
+  STR('M4,58 L96,58')+STR('M4,46 L56,46','s2')+STR('M62,46 L96,46')+STR('M62,46 C60,36 66,26 78,20',null,4)},
+ pcna:{ja:'PCNA（スライディングクランプ）',en:'PCNA sliding clamp',cat:'DNA 複製・修復',c:['#3FA27A','#2D7A5A','#D7F0E4'],svg:
+  C(50,50,36,'b')+`<circle cx="50" cy="50" r="14" style="fill:#fff;stroke:var(--s2);stroke-width:1.5"/>`+[90,210,330].map(d=>{const a=d*Math.PI/180;return L((50+Math.cos(a)*14).toFixed(1),(50-Math.sin(a)*14).toFixed(1),(50+Math.cos(a)*36).toFixed(1),(50-Math.sin(a)*36).toFixed(1),'d');}).join('')+C(50,50,4,'b2')},
+ dna_pol:{ja:'DNA ポリメラーゼ',en:'DNA polymerase POLD Pol delta replicative polymerase',cat:'DNA 複製・修復',c:['#E0A43A','#4F7FD8','#F8E8C8'],svg:
+  STR('M4,66 L96,66','s2',4)+STR('M4,76 L96,76','s2',4)+`<path class="b" d="M28,64 C22,40 34,18 54,18 C74,18 82,36 76,52 C72,60 64,58 62,50 C60,42 52,42 50,50 C48,60 40,66 28,64 Z"/>`+E(46,30,7,4,'hl')},
+ trc_headon:{ja:'転写と複製の衝突（正面衝突）',en:'transcription-replication conflict head-on TRC',cat:'DNA 複製・修復',c:['#4F7FD8','#D94F70','#E2DEF8'],svg:
+  STR('M30,46 L96,46',null,4)+STR('M30,54 L96,54',null,4)+STR('M30,46 L6,30',null,4)+STR('M30,54 L6,70',null,4)+STR('M34,50 L44,50','s2',3.5)+AH(48,50,0,'s2')+`<path class="b" d="${blob(radial(74,40,[13,14,12,14,13,12]))}"/>`+STR('M68,24 L58,24','s2',3.5)+AH(54,24,180,'s2')},
+ trc_codir:{ja:'転写と複製の衝突（同じ向き）',en:'transcription-replication conflict co-directional TRC',cat:'DNA 複製・修復',c:['#4F7FD8','#D94F70','#E2DEF8'],svg:
+  STR('M30,46 L96,46',null,4)+STR('M30,54 L96,54',null,4)+STR('M30,46 L6,30',null,4)+STR('M30,54 L6,70',null,4)+STR('M34,50 L44,50','s2',3.5)+AH(48,50,0,'s2')+`<path class="b" d="${blob(radial(74,40,[13,14,12,14,13,12]))}"/>`+STR('M66,24 L76,24','s2',3.5)+AH(80,24,0,'s2')},
  dna_helix:{ja:'DNA',cat:'分子',c:['#5B8DEF','#E8655A','#BFD2FA'],svg:
   (()=>{let s='';for(let i=0;i<9;i++){const y=10+i*10;const x1=50+Math.sin(i/9*Math.PI*2.2)*26,x2=50-Math.sin(i/9*Math.PI*2.2)*26;s+=`<line class="d" x1="${x1.toFixed(1)}" y1="${y}" x2="${x2.toFixed(1)}" y2="${y}" style="stroke-width:3.2"/>`;}
    let a='',b='';for(let y=6;y<=94;y+=2){const t=(y-10)/90*Math.PI*2.2;a+=(y===6?'M':'L')+(50+Math.sin(t)*26).toFixed(1)+','+y;b+=(y===6?'M':'L')+(50-Math.sin(t)*26).toFixed(1)+','+y;}
@@ -486,7 +513,7 @@ const GA_THEMES=[['soft','陰影＋細い輪郭','論文の図で最も多い描
 const GA_THEME_OLD={line:'flatline',mono:'soft'}; // 以前の絵柄名の読み替え
 const gaTheme=t=>GA_THEME_OLD[t]||(GA_THEMES.some(x=>x[0]===t)?t:'soft');
 const GA_THEME_KEYS=GA_THEMES.map(t=>t[0]);
-const GA_CATS=['細胞','免疫・血液','病原体','細胞内','分子','臓器','生物','人・医療','治療','実験','環境・生活','記号'];
+const GA_CATS=['細胞','免疫・血液','病原体','細胞内','分子','DNA 複製・修復','臓器','生物','人・医療','治療','実験','環境・生活','記号'];
 const GA_SIZES=[['wide','スライド 16:9（960×540）',960,540],['elsevier','横長 13:5（Elsevier 系、1040×400）',1040,400],['square','正方形（Cell 系、800×800）',800,800],['acs','ACS の TOC（3.25×1.75 in、975×525）',975,525]];
 const GA_FONT="Arial, 'Hiragino Sans', 'IBM Plex Sans JP', sans-serif";
 function gaHex(c){c=String(c||'#000').trim();if(/^#[0-9a-f]{3}$/i.test(c))c='#'+c.slice(1).split('').map(x=>x+x).join('');const m=/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(c);return m?[1,2,3].map(i=>parseInt(m[i],16)):[0,0,0];}
@@ -623,9 +650,9 @@ function gaPush(){const s=JSON.stringify(gaState.spec);if(gaState.undo[gaState.u
 function gaRenderThemes(){const d=document.querySelector('#figGaDlg');const sp=gaState.spec;d.querySelector('#gaThemes').innerHTML=`<span class="hint" style="align-self:center">絵柄（論文で多い順）</span>`+GA_THEMES.map(([k,n,desc,pct],i)=>`<button class="small${gaTheme(sp.theme)===k?' on':''}" data-gatheme="${k}" data-tip="${gaEsc(desc)}">${gaIconSVG('cancer_cell',30,k,false,sp.accent)}${gaIconSVG('mitochondria',30,k,false,sp.accent)}<span>${i+1}. ${n}<br><small style="opacity:.75">論文の ${pct}%</small></span></button>`).join('');}
 function gaRenderPal(){const d=document.querySelector('#figGaDlg');const sp=gaState.spec;const q=gaState.q.trim().toLowerCase();
   d.querySelector('#gaCats').innerHTML=GA_CATS.map(c=>`<button class="small${!q&&gaState.cat===c?' on':''}" data-gacat="${c}">${c}</button>`).join('');
-  const keys=Object.keys(GA_LIB).filter(k=>q?(GA_LIB[k].ja+' '+k+' '+GA_LIB[k].cat).toLowerCase().includes(q):GA_LIB[k].cat===gaState.cat);
+  const keys=Object.keys(GA_LIB).filter(k=>q?(GA_LIB[k].ja+' '+k+' '+GA_LIB[k].cat+' '+(GA_LIB[k].en||'')).toLowerCase().includes(q):GA_LIB[k].cat===gaState.cat); /* en＝英語の別名（replication fork、R-loop など） */
   d.querySelector('#gaPal').innerHTML=keys.map(k=>`<button data-gam="${k}" data-tip="${gaEsc(GA_LIB[k].ja)}をキャンバスに置く">${gaIconSVG(k,44,gaTheme(sp.theme),false,sp.accent)}<span>${gaEsc(GA_LIB[k].ja)}</span></button>`).join('')||'<div class="hint" style="grid-column:1/-1;color:#5d6b7a">見つかりません</div>';}
-function gaSync(keepInspector){const d=document.querySelector('#figGaDlg');const r=figRenderGA(gaState.spec);gaState.r=r;const cv=d.querySelector('#gaCanvas');cv.innerHTML=r.svg;gaOverlay();if(!keepInspector)gaInspector();
+function gaSync(keepInspector){const d=document.querySelector('#figGaDlg');const r=figRenderGA(gaState.spec);gaState.r=r;if(typeof figSizeInfoSet==='function')figSizeInfoSet('ga',r&&r.w,r&&r.h);const cv=d.querySelector('#gaCanvas');cv.innerHTML=r.svg;gaOverlay();if(!keepInspector)gaInspector();
   d.querySelector('#gaUndo').disabled=gaState.undo.length<2;d.querySelector('#gaRedo').disabled=!gaState.redo.length;}
 // 選んだ要素の枠とつまみ（キャンバスに足すだけで、図の指定には入らない）
 function gaOverlay(){const d=document.querySelector('#figGaDlg');const svg=d.querySelector('#gaCanvas > svg');if(!svg)return;const k=gaState.sel;if(k==null)return;const it=gaState.spec.items[k];const el=svg.querySelector(`[data-gaitem="${k}"]`);if(!it||!el)return;const NS='http://www.w3.org/2000/svg';
